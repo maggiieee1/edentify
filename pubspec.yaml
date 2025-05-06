@@ -36,6 +36,11 @@ dependencies:
   firebase_auth: ^5.5.3
   cloud_firestore: ^5.6.7
   fl_chart: ^0.71.0
+  image_picker: ^1.0.7
+  
+  tflite_flutter: ^0.9.0
+  tflite_flutter_helper: ^0.3.1
+  image: ^3.3.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -59,6 +64,8 @@ dev_dependencies:
 flutter:
   assets:
     - assets/logo.png
+    - assets/optimized_model.tflite
+    - assets/labels.txt
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
