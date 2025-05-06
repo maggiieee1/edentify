@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'verification_screen.dart';
+// import 'verification_screen.dart';  // commented out for now
+import 'home_screen.dart';  // make sure you have a HomeScreen widget
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -67,7 +68,7 @@ If you have any questions or concerns, please contact us at support@edentify.com
     );
   }
 
-  Future<void> _sendVerificationCode() async {
+  Future<void> _signInAndGoHome() async {
     if (!_formKey.currentState!.validate() || !_isRead || !_isAgree) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Please fill all fields and accept Terms')),
@@ -78,6 +79,14 @@ If you have any questions or concerns, please contact us at support@edentify.com
     setState(() => _isSendingCode = true);
 
     try {
+      // 🚨 Skip phone verification and go directly to home
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => HomeScreen()),
+      );
+
+      // 🚨 Commented out Firebase verification logic for now
+      /*
       await FirebaseAuth.instance.verifyPhoneNumber(
         phoneNumber: _phoneController.text.trim(),
         verificationCompleted: (credential) {},
@@ -96,9 +105,10 @@ If you have any questions or concerns, please contact us at support@edentify.com
         },
         codeAutoRetrievalTimeout: (verificationId) {},
       );
+      */
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send code: $e')),
+        SnackBar(content: Text('Failed to sign in: $e')),
       );
     } finally {
       setState(() => _isSendingCode = false);
@@ -209,7 +219,7 @@ If you have any questions or concerns, please contact us at support@edentify.com
                   ),
                   SizedBox(height: size.height * 0.02),
                   ElevatedButton(
-                    onPressed: _isSendingCode ? null : _sendVerificationCode,
+                    onPressed: _isSendingCode ? null : _signInAndGoHome,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.teal,
