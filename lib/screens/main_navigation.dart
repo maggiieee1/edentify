@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
 import 'classification_screen.dart';
-import 'patient_records_screen.dart';
+import 'records_screen.dart';
 import 'profile_screen.dart';
 
 class MainNavigation extends StatefulWidget {
@@ -24,7 +24,7 @@ class _MainNavigationState extends State<MainNavigation> {
     _screens = [
       HomeScreen(userId: widget.userId),
       ClassificationScreen(userId: widget.userId),
-      PatientRecordsScreen(userId: widget.userId),
+      RecordScreen(userId: widget.userId),
       ProfileScreen(userId: widget.userId),
     ];
   }
