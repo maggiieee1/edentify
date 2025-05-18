@@ -95,7 +95,7 @@ class LandingScreen extends StatelessWidget {
                     SizedBox(height: size.height * 0.02),
                     GestureDetector(
                       onTap: () {
-                        // TODO: Navigate to Login Screen
+                        Navigator.pushNamed(context, '/login');
                       },
                       child: Text(
                         'Already have an account? Log In.',

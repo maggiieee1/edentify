@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'home_screen.dart';
+import 'center_selection_screen.dart';
+import '../utils/hash_utils.dart'; // adjust path as needed
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -29,7 +30,10 @@ class _SignInScreenState extends State<SignInScreen> {
       builder: (context) {
         return AlertDialog(
           title: Center(
-            child: Text('Terms and Agreement', style: TextStyle(color: Colors.teal, fontWeight: FontWeight.bold)),
+            child: Text(
+              'Terms and Agreement',
+              style: TextStyle(color: Colors.teal, fontWeight: FontWeight.bold),
+            ),
           ),
           content: SizedBox(
             height: MediaQuery.of(context).size.height * 0.5,
@@ -52,8 +56,15 @@ If you have any questions or concerns, please contact us at support@edentify.com
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: Text('Decline', style: TextStyle(color: Colors.grey))),
-            ElevatedButton(onPressed: () => Navigator.pop(context), style: ElevatedButton.styleFrom(backgroundColor: Colors.teal), child: Text('Accept')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Decline', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+              child: Text('Accept'),
+            ),
           ],
         );
       },
@@ -77,32 +88,62 @@ If you have any questions or concerns, please contact us at support@edentify.com
 
   Future<void> _signInAndGoHome() async {
     if (!_formKey.currentState!.validate() || !_isRead || !_isAgree) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Please fill all fields and accept Terms')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please fill all fields and accept Terms')),
+      );
       return;
     }
 
-    if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Passwords do not match')));
+    if (_passwordController.text.trim() !=
+        _confirmPasswordController.text.trim()) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Passwords do not match')));
       return;
     }
 
     setState(() => _isSendingCode = true);
 
     try {
-      // ✅ Save to Firebase Firestore
-      await FirebaseFirestore.instance.collection('users').add({
-        'firstName': _firstNameController.text,
-        'lastName': _lastNameController.text,
-        'middleName': _middleNameController.text,
-        'birthday': _birthdayController.text,
-        'phone': _phoneController.text,
-        'password': _passwordController.text,
+      final trimmedPhone = _phoneController.text.trim();
+      final existing =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .where('phone', isEqualTo: trimmedPhone)
+              .get();
+
+      if (existing.docs.isNotEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Phone number already in use.')));
+        return;
+      }
+
+      final userRef = await FirebaseFirestore.instance.collection('users').add({
+        'firstName': _firstNameController.text.trim(),
+        'lastName': _lastNameController.text.trim(),
+        'middleName': _middleNameController.text.trim(),
+        'birthday': _birthdayController.text.trim(),
+        'phone': trimmedPhone,
+        'password': hashPassword(_passwordController.text.trim()),
+        'centerId': '',
+        'doctorsId': '',
+        'healthCondition': '',
+        'startDate': '',
         'createdAt': Timestamp.now(),
       });
+      final userId = userRef.id;
 
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomeScreen()));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CenterSelectionScreen(userId: userId),
+        ),
+      );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to sign in: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to sign in: $e')));
     } finally {
       setState(() => _isSendingCode = false);
     }
@@ -122,20 +163,56 @@ If you have any questions or concerns, please contact us at support@edentify.com
             child: Column(
               children: [
                 SizedBox(height: size.height * 0.05),
-                Text('Sign In', style: TextStyle(fontSize: size.width * 0.08, color: Colors.white, fontWeight: FontWeight.bold)),
+                Text(
+                  'Sign In',
+                  style: TextStyle(
+                    fontSize: size.width * 0.08,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 SizedBox(height: size.height * 0.01),
-                Text('Already have an account? Log In.', style: TextStyle(color: Colors.white70, fontSize: size.width * 0.04)),
+                Text(
+                  'Already have an account? Log In.',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: size.width * 0.04,
+                  ),
+                ),
                 SizedBox(height: size.height * 0.05),
                 _buildTextField('First Name', controller: _firstNameController),
                 _buildTextField('Last Name', controller: _lastNameController),
-                _buildTextField('Middle Name', controller: _middleNameController),
+                _buildTextField(
+                  'Middle Name',
+                  controller: _middleNameController,
+                ),
                 _buildBirthdayField(),
-                _buildTextField('Phone No.', controller: _phoneController, keyboardType: TextInputType.phone),
-                _buildTextField('Password', isPassword: true, controller: _passwordController),
-                _buildTextField('Confirm Password', isPassword: true, controller: _confirmPasswordController),
+                _buildTextField(
+                  'Phone No.',
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                ),
+                _buildTextField(
+                  'Password',
+                  isPassword: true,
+                  controller: _passwordController,
+                ),
+                _buildTextField(
+                  'Confirm Password',
+                  isPassword: true,
+                  controller: _confirmPasswordController,
+                ),
                 SizedBox(height: size.height * 0.02),
-                _buildCheckbox('I have read the Terms & Agreement', _isRead, (val) => setState(() => _isRead = val!)),
-                _buildCheckbox('I agree with the Terms & Agreement', _isAgree, (val) => setState(() => _isAgree = val!)),
+                _buildCheckbox(
+                  'I have read the Terms & Agreement',
+                  _isRead,
+                  (val) => setState(() => _isRead = val!),
+                ),
+                _buildCheckbox(
+                  'I agree with the Terms & Agreement',
+                  _isAgree,
+                  (val) => setState(() => _isAgree = val!),
+                ),
                 SizedBox(height: size.height * 0.02),
                 ElevatedButton(
                   onPressed: _isSendingCode ? null : _signInAndGoHome,
@@ -143,9 +220,20 @@ If you have any questions or concerns, please contact us at support@edentify.com
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.teal,
                     minimumSize: Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
-                  child: _isSendingCode ? CircularProgressIndicator(color: Colors.teal) : Text('Sign In', style: TextStyle(fontWeight: FontWeight.bold, fontSize: size.width * 0.045)),
+                  child:
+                      _isSendingCode
+                          ? CircularProgressIndicator(color: Colors.teal)
+                          : Text(
+                            'Sign In',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: size.width * 0.045,
+                            ),
+                          ),
                 ),
                 SizedBox(height: size.height * 0.05),
               ],
@@ -156,8 +244,12 @@ If you have any questions or concerns, please contact us at support@edentify.com
     );
   }
 
-  Widget _buildTextField(String label,
-      {bool isPassword = false, TextEditingController? controller, TextInputType keyboardType = TextInputType.text}) {
+  Widget _buildTextField(
+    String label, {
+    bool isPassword = false,
+    TextEditingController? controller,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: TextFormField(
@@ -170,7 +262,11 @@ If you have any questions or concerns, please contact us at support@edentify.com
           hintText: label,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         ),
-        validator: (value) => value == null || value.isEmpty ? 'Please enter $label' : null,
+        validator:
+            (value) =>
+                value == null || value.trim().isEmpty
+                    ? 'Please enter $label'
+                    : null,
       ),
     );
   }
@@ -189,7 +285,11 @@ If you have any questions or concerns, please contact us at support@edentify.com
           suffixIcon: Icon(Icons.calendar_today),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         ),
-        validator: (value) => value == null || value.isEmpty ? 'Please select birthday' : null,
+        validator:
+            (value) =>
+                value == null || value.isEmpty
+                    ? 'Please select birthday'
+                    : null,
       ),
     );
   }
@@ -197,11 +297,22 @@ If you have any questions or concerns, please contact us at support@edentify.com
   Widget _buildCheckbox(String text, bool value, Function(bool?) onChanged) {
     return Row(
       children: [
-        Checkbox(value: value, onChanged: onChanged, activeColor: Colors.white, checkColor: Colors.teal),
+        Checkbox(
+          value: value,
+          onChanged: onChanged,
+          activeColor: Colors.white,
+          checkColor: Colors.teal,
+        ),
         Flexible(
           child: GestureDetector(
             onTap: _showTermsDialog,
-            child: Text(text, style: TextStyle(color: Colors.white, decoration: TextDecoration.underline)),
+            child: Text(
+              text,
+              style: TextStyle(
+                color: Colors.white,
+                decoration: TextDecoration.underline,
+              ),
+            ),
           ),
         ),
       ],

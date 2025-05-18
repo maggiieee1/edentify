@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 
-class ClassificationScreen extends StatelessWidget {
+class PatientRecordsScreen extends StatelessWidget {
   final String userId;
 
-  const ClassificationScreen({super.key, required this.userId});
+  const PatientRecordsScreen({super.key, required this.userId});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Classification'),
+        title: const Text('Patient Records'),
         backgroundColor: const Color(0xFF0CB49D),
         foregroundColor: Colors.white,
       ),
       body: const Center(
         child: Text(
-          'Classification Screen Placeholder',
+          'Patient Records Screen Placeholder',
           style: TextStyle(fontSize: 18),
         ),
       ),
