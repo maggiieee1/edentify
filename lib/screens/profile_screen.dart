@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'settings_screen.dart';
+import 'notification_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   final String userId;
@@ -8,7 +10,8 @@ class ProfileScreen extends StatelessWidget {
   const ProfileScreen({Key? key, required this.userId}) : super(key: key);
 
   Future<Map<String, dynamic>> fetchUserData() async {
-    final doc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+    final doc =
+        await FirebaseFirestore.instance.collection('users').doc(userId).get();
     return doc.data() ?? {};
   }
 
@@ -51,19 +54,42 @@ class ProfileScreen extends StatelessWidget {
               const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
+                children: [
                   Padding(
-                    padding: EdgeInsets.all(12.0),
-                    child: Icon(Icons.verified_user, color: Colors.teal),
+                    padding: const EdgeInsets.all(12.0),
+                    child: Image.asset('assets/logo.png', height: 32),
                   ),
                   Row(
                     children: [
-                      Icon(Icons.settings, color: Colors.black),
-                      SizedBox(width: 16),
-                      Icon(Icons.notifications_none, color: Colors.black),
-                      SizedBox(width: 16),
+                      IconButton(
+                        icon: const Icon(Icons.settings, color: Colors.black),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SettingsScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.notifications_none,
+                          color: Colors.black,
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const NotificationScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 8),
                     ],
-                  )
+                  ),
                 ],
               ),
               const SizedBox(height: 10),
@@ -75,12 +101,17 @@ class ProfileScreen extends StatelessWidget {
               CircleAvatar(
                 radius: 40,
                 backgroundColor: Colors.teal.shade100,
-                backgroundImage: AssetImage("assets/images/default_user.png"), // Replace with NetworkImage if needed
+                backgroundImage: const AssetImage(
+                  "assets/images/default_user.png",
+                ),
               ),
               const SizedBox(height: 10),
               Text(
                 name,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               Text(
                 birthdate,
@@ -103,7 +134,12 @@ class ProfileScreen extends StatelessWidget {
                           const Icon(Icons.local_hospital, color: Colors.teal),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: Text(dialysisCenter, style: const TextStyle(fontWeight: FontWeight.w500)),
+                            child: Text(
+                              dialysisCenter,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -121,7 +157,12 @@ class ProfileScreen extends StatelessWidget {
                           const Icon(Icons.person, color: Colors.teal),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: Text(doctor, style: const TextStyle(fontWeight: FontWeight.w500)),
+                            child: Text(
+                              doctor,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -144,27 +185,6 @@ class ProfileScreen extends StatelessWidget {
                           ),
                           Text(condition),
                         ],
-                      ),
-                    ),
-                    const SizedBox(height: 30),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          FirebaseAuth.instance.signOut();
-                          Navigator.pushReplacementNamed(context, '/login');
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.teal,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text(
-                          "Log Out",
-                          style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
-                        ),
                       ),
                     ),
                   ],
