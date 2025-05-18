@@ -39,9 +39,6 @@ dependencies:
   fl_chart: ^0.71.0
   intl: ^0.18.1
   image_picker: ^1.0.0
-  tflite:
-    git:
-     url: https://github.com/shaqian/flutter_tflite.git
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
@@ -49,6 +46,12 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/logo.png"
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

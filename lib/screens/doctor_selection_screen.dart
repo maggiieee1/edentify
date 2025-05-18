@@ -1,17 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:edentify/screens/main_navigation.dart';
 import 'package:flutter/material.dart';
-import 'home_screen.dart';
+import 'main_navigation.dart';
 
 class DoctorSelectionScreen extends StatefulWidget {
   final String centerId;
   final String userId;
 
   const DoctorSelectionScreen({
-    Key? key,
+    super.key,
     required this.userId,
     required this.centerId,
-  }) : super(key: key);
+  });
 
   @override
   State<DoctorSelectionScreen> createState() => _DoctorSelectionScreenState();

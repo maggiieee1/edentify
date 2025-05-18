@@ -26,10 +26,10 @@ class SettingsScreen extends StatelessWidget {
         ),
         centerTitle: true,
         actions: const [
-          Padding(
+          /*Padding(
             padding: EdgeInsets.only(right: 12),
             child: Icon(Icons.notifications, color: Colors.black),
-          ),
+          ),*/
         ],
       ),
       body: ListView(
@@ -56,14 +56,14 @@ class SettingsScreen extends StatelessWidget {
               );
             },
           ),
-          _buildSettingsTile(
+          /*_buildSettingsTile(
             context,
             icon: Icons.notifications,
             text: "Notifications",
             onTap: () {
               // TODO: Navigate to Notifications Settings
             },
-          ),
+          ),*/
           _buildSettingsTile(
             context,
             icon: Icons.local_hospital_rounded,

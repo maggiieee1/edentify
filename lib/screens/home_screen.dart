@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+import 'water_intake.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userId;
@@ -12,21 +14,49 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String _firstName = '';
-  int _waterIntakeMl = 0;
+  double _waterIntakeMl = 0;
+  final int mlPerCup = 125;
 
   @override
   void initState() {
     super.initState();
-    _getUserData();
+    _loadUserData();
+    _loadTodayWaterIntake();
   }
 
-  Future<void> _getUserData() async {
-    final doc = await FirebaseFirestore.instance.collection('users').doc(widget.userId).get();
+  Future<void> _loadUserData() async {
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .get();
+
     if (doc.exists) {
       final userData = doc.data()!;
       setState(() {
         _firstName = userData['firstName'] ?? '';
-        _waterIntakeMl = userData['waterIntakeMl'] ?? 0;
+      });
+    }
+  }
+
+  Future<void> _loadTodayWaterIntake() async {
+    final now = DateTime.now();
+    final dateKey = DateFormat('yyyy-MM-dd').format(now);
+
+    final docSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .collection('waterIntake')
+        .doc(dateKey)
+        .get();
+
+    if (docSnapshot.exists) {
+      final data = docSnapshot.data()!;
+      setState(() {
+        _waterIntakeMl = (data['totalIntakeAmount'] ?? 0).toDouble();
+      });
+    } else {
+      setState(() {
+        _waterIntakeMl = 0;
       });
     }
   }
@@ -34,7 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     const Color teal = Color(0xFF0CB49D);
-    final int waterCups = (_waterIntakeMl / 250).floor();
+    final int waterCups = (_waterIntakeMl / mlPerCup).floor();
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -105,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        '${_waterIntakeMl.toString().padLeft(2, '0')} ml',
+                        '${_waterIntakeMl.toInt().toString().padLeft(2, '0')} ml',
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -114,23 +144,33 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       Text(
                         '/ $waterCups cups',
-                        style: const TextStyle(fontSize: 12, color: Colors.black),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       ElevatedButton(
                         onPressed: () {
-                          // Will navigate to water intake screen
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  UpdateWaterIntakeScreen(userId: widget.userId),
+                            ),
+                          ).then((_) {
+                            // Reload water intake when returning from update screen
+                            _loadTodayWaterIntake();
+                          });
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: teal.withOpacity(0.4),
-                          minimumSize: const Size(70, 28),
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          backgroundColor: Colors.teal,
                         ),
                         child: const Text(
-                          'Update',
-                          style: TextStyle(color: Colors.black, fontSize: 12),
+                          "Update",
+                          style: TextStyle(color: Colors.white),
                         ),
-                      )
+                      ),
                     ],
                   ),
                 ],
@@ -161,7 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -172,7 +212,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   onPressed: () {},
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
