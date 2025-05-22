@@ -28,7 +28,7 @@ class ProfileScreen extends StatelessWidget {
 
     // Fetch doctor name from 'doctor_InCharge' collection
     String? doctorName;
-    if (userData['doctorinCharge'] != null && userData['doctorinCharge'].toString().isNotEmpty) {
+    if (userData['doctorInCharge'] != null && userData['doctorInCharge'].toString().isNotEmpty) {
       final doctorDoc = await FirebaseFirestore.instance
           .collection('doctor_inCharge')
           .doc(userData['doctorInCharge'])

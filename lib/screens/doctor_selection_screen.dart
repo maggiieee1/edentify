@@ -18,8 +18,8 @@ class DoctorSelectionScreen extends StatefulWidget {
 
 class _DoctorSelectionScreenState extends State<DoctorSelectionScreen> {
   String? selectedDoctor;
-  List<String> doctors = [];
-  String? centerName; // ✅ Center name holder
+  List<Map<String, dynamic>> doctors = [];
+  String? centerName;
 
   @override
   void initState() {
@@ -59,8 +59,9 @@ class _DoctorSelectionScreenState extends State<DoctorSelectionScreen> {
           .where('centerId', isEqualTo: widget.centerId)
           .get();
 
-      final fetchedDoctors =
-          doctorSnapshot.docs.map((doc) => doc['name'] as String).toList();
+      final fetchedDoctors = doctorSnapshot.docs
+          .map((doc) => {'id': doc.id, 'name': doc['name'] as String})
+          .toList();
 
       setState(() {
         doctors = fetchedDoctors;
@@ -128,9 +129,9 @@ class _DoctorSelectionScreenState extends State<DoctorSelectionScreen> {
                 value: selectedDoctor,
                 items: doctors
                     .map(
-                      (doctor) => DropdownMenuItem(
-                        value: doctor,
-                        child: Text(doctor),
+                      (doctor) => DropdownMenuItem<String>(
+                        value: doctor['id'],
+                        child: Text(doctor['name']),
                       ),
                     )
                     .toList(),

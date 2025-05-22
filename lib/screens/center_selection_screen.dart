@@ -75,7 +75,7 @@ class _CenterSelectionScreenState extends State<CenterSelectionScreen> {
             .update({
               'centerId': centerId,
               'healthCondition': selectedCondition,
-              'startDate': startDate!.toIso8601String(),
+              'startDate': Timestamp.fromDate(startDate!),
             });
 
         // ➡️ Navigate to next screen with both userId and centerId
