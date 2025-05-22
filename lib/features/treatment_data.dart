@@ -17,6 +17,8 @@ class _TreatmentDataScreenState extends State<TreatmentDataScreen> {
   final TextEditingController _postWeightController = TextEditingController();
   final TextEditingController _ufVolumeController = TextEditingController();
 
+  DateTime? selectedDate;
+
   Future<void> _selectDate() async {
     DateTime? picked = await showDatePicker(
       context: context,
@@ -26,6 +28,7 @@ class _TreatmentDataScreenState extends State<TreatmentDataScreen> {
     );
     if (picked != null) {
       setState(() {
+        selectedDate = picked;
         _dateController.text = DateFormat('MM/dd/yyyy').format(picked);
       });
     }
@@ -33,12 +36,22 @@ class _TreatmentDataScreenState extends State<TreatmentDataScreen> {
 
   void _saveData() async {
     try {
+      if (selectedDate == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select a date')),
+        );
+        return;
+      }
+
+      final String formattedDate =
+          DateFormat('yyyy-MM-dd').format(selectedDate!);
+
       await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.userId)
           .collection('treatment_data')
           .add({
-        'dialysisDate': _dateController.text,
+        'dialysisDate': formattedDate,
         'preWeight': double.tryParse(_preWeightController.text) ?? 0,
         'postWeight': double.tryParse(_postWeightController.text) ?? 0,
         'ufVolume': double.tryParse(_ufVolumeController.text) ?? 0,
@@ -53,6 +66,7 @@ class _TreatmentDataScreenState extends State<TreatmentDataScreen> {
       _preWeightController.clear();
       _postWeightController.clear();
       _ufVolumeController.clear();
+      selectedDate = null;
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving data: $e')),

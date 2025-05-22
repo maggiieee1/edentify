@@ -14,6 +14,8 @@ class PatientRecordScreen extends StatelessWidget {
 
   Future<Map<String, dynamic>> _fetchData() async {
     final dateKey = DateFormat('yyyy-MM-dd').format(selectedDate);
+    final formattedDialysisDate = DateFormat('MM/dd/yyyy').format(selectedDate);
+
     final firestore = FirebaseFirestore.instance;
 
     final waterSnapshot = await firestore
@@ -23,22 +25,26 @@ class PatientRecordScreen extends StatelessWidget {
         .doc(dateKey)
         .get();
 
-    final treatmentSnapshot = await firestore
+    final treatmentQuery = await firestore
         .collection('users')
         .doc(userId)
-        .collection('treatment_data') // Ensured this matches Firestore
-        .doc(dateKey)
+        .collection('treatment_data')
+        .where('dialysisDate', isEqualTo: formattedDialysisDate)
         .get();
+
+    final treatmentData = treatmentQuery.docs.isNotEmpty
+        ? treatmentQuery.docs.first.data()
+        : null;
 
     return {
       'waterIntake': waterSnapshot.data(),
-      'treatment_data': treatmentSnapshot.data(),
+      'treatment_data': treatmentData,
     };
   }
 
   @override
   Widget build(BuildContext context) {
-    final dateFormatted = DateFormat('MM/dd/yyyy h:mm a').format(selectedDate);
+    final formattedDate = DateFormat('MM/dd/yyyy h:mm a').format(selectedDate);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -50,12 +56,8 @@ class PatientRecordScreen extends StatelessWidget {
               return const Center(child: CircularProgressIndicator());
             }
 
-            if (!snapshot.hasData || snapshot.data == null) {
-              return const Center(child: Text("No record found for this date."));
-            }
-
-            final water = snapshot.data!['waterIntake'];
-            final treatment = snapshot.data!['treatment_data'];
+            final water = snapshot.data?['waterIntake'];
+            final treatment = snapshot.data?['treatment_data'];
 
             return SingleChildScrollView(
               padding: const EdgeInsets.all(20),
@@ -77,55 +79,43 @@ class PatientRecordScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    "Date Scanned: $dateFormatted",
+                    "Date Scanned: $formattedDate",
                     style: const TextStyle(fontStyle: FontStyle.italic),
                   ),
                   const SizedBox(height: 20),
 
                   // Edema Placeholder
                   Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.teal[600],
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
                           width: 80,
                           height: 80,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.image_not_supported,
-                              color: Colors.grey, size: 40),
+                          color: Colors.white24,
+                          child: const Icon(Icons.image, color: Colors.white),
                         ),
                         const SizedBox(width: 12),
                         const Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                "Severe Edema",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                "Recommendations:",
-                                style: TextStyle(color: Colors.white),
-                              ),
-                              Text(
-                                "Limit fluid intake, consult nephrologist.",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white70,
-                                ),
-                              ),
+                              Text("Severe Edema",
+                                  style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white)),
+                              SizedBox(height: 4),
+                              Text("Recommendations:",
+                                  style: TextStyle(color: Colors.white)),
+                              Text("Limit fluid intake, consult nephrologist.",
+                                  style: TextStyle(
+                                      color: Colors.white70, fontSize: 12)),
                             ],
                           ),
                         ),
@@ -134,39 +124,34 @@ class PatientRecordScreen extends StatelessWidget {
                   ),
 
                   const SizedBox(height: 20),
-                  const Text(
-                    "Today's Water Intake",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                  const Text("Today's Water Intake",
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   Text(
-                    "${water?['amount'] ?? 'N/A'} ml / ${water?['cups'] ?? '0'} cups",
+                    "${water?['totalAmount'] ?? '0'} ml / ${((water?['totalAmount'] ?? 0) / 250).round()} cups",
                     style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.teal,
-                    ),
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.teal),
                   ),
-                  if (water?['note'] != null)
-                    Text("Notes: ${water!['note']}",
+                  if (water?['waterLossCauses'] != null)
+                    Text("Notes: ${water!['waterLossCauses']}",
                         style: const TextStyle(fontStyle: FontStyle.italic)),
 
                   const SizedBox(height: 20),
-                  const Text(
-                    "Appointment Data",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                  const Text("Appointment Data",
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Row(
                     children: [
                       const Text("Dialysis Date: "),
-                      Text(treatment?['date'] ?? 'N/A'),
+                      Text(treatment?['dialysisDate'] ?? 'N/A'),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Text("Pre: "),
+                      const Text("Weight - Pre: "),
                       Text("${treatment?['preWeight'] ?? 'N/A'} kg"),
                       const SizedBox(width: 16),
                       const Text("Post: "),
@@ -177,10 +162,8 @@ class PatientRecordScreen extends StatelessWidget {
                   Text("UF Volume: ${treatment?['ufVolume'] ?? 'N/A'} L"),
 
                   const SizedBox(height: 20),
-                  const Text(
-                    "Doctor's Notes:",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                  const Text("Doctor's Notes:",
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   const Text("______________________________"),
                   const Text("______________________________"),

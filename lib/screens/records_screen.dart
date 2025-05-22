@@ -3,115 +3,129 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../features/patients_records.dart';
 
-class RecordScreen extends StatelessWidget {
+class RecordScreen extends StatefulWidget {
   final String userId;
 
   const RecordScreen({super.key, required this.userId});
 
   @override
-  Widget build(BuildContext context) {
-    const Color teal = Color(0xFF0CB49D);
-    final now = DateTime.now();
-    final monthYear = DateFormat('yMMMM').format(now);
+  State<RecordScreen> createState() => _RecordScreenState();
+}
 
+class _RecordScreenState extends State<RecordScreen> {
+  late Future<Map<String, List<DateTime>>> _dateMapFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _dateMapFuture = _fetchAndGroupDates();
+  }
+
+  Future<Map<String, List<DateTime>>> _fetchAndGroupDates() async {
+    final firestore = FirebaseFirestore.instance;
+
+    final waterDocs = await firestore
+        .collection('users')
+        .doc(widget.userId)
+        .collection('waterIntake')
+        .get();
+
+    final treatmentDocs = await firestore
+        .collection('users')
+        .doc(widget.userId)
+        .collection('treatment_data')
+        .get();
+
+    final Set<DateTime> uniqueDates = {};
+
+    for (var doc in [...waterDocs.docs, ...treatmentDocs.docs]) {
+      try {
+        final parsed = DateFormat('yyyy-MM-dd').parse(doc.id);
+        uniqueDates.add(parsed);
+      } catch (_) {}
+    }
+
+    // Sort and group by month-year
+    List<DateTime> sortedDates = uniqueDates.toList()
+      ..sort((a, b) => b.compareTo(a));
+
+    Map<String, List<DateTime>> grouped = {};
+    for (var date in sortedDates) {
+      final monthKey = DateFormat('yyyy MMMM').format(date); // e.g., "2025 March"
+      grouped.putIfAbsent(monthKey, () => []).add(date);
+    }
+
+    return grouped;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Image.asset('assets/logo.png', height: 32),
-                  const Icon(Icons.notifications_none),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Center(
-                child: Text(
+        child: FutureBuilder<Map<String, List<DateTime>>>(
+          future: _dateMapFuture,
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final groupedDates = snapshot.data!;
+
+            return ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Image.asset('assets/logo.png', height: 32),
+                    const Icon(Icons.notifications_none),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                const Text(
                   "Patient Record",
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                monthYear.split(" ")[0],
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                monthYear.split(" ")[1],
-                style: const TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream:
-                      FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(userId)
-                          .collection('records')
-                          .orderBy('date', descending: true)
-                          .snapshots(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    final records = snapshot.data!.docs;
-                    if (records.isEmpty) {
-                      return const Center(child: Text("No records yet."));
-                    }
-                    return ListView.builder(
-                      itemCount: records.length,
-                      itemBuilder: (context, index) {
-                        final data =
-                            records[index].data() as Map<String, dynamic>;
-                        final date = (data['date'] as Timestamp).toDate();
-                        final dateFormatted = DateFormat('MMMM d').format(date);
-                        return Container(
-                          margin: const EdgeInsets.symmetric(vertical: 6),
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (context) => PatientRecordScreen(
-                                        userId: userId,
-                                        selectedDate: date,
-                                      ),
-                                ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: teal,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: 12),
+                for (var entry in groupedDates.entries) ...[
+                  Text(
+                    entry.key,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const SizedBox(height: 8),
+                  for (var date in entry.value)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.calendar_today),
+                        label: Text(DateFormat('MMMM d').format(date)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.teal,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PatientRecordScreen(
+                                userId: widget.userId,
+                                selectedDate: date,
                               ),
                             ),
-                            icon: const Icon(
-                              Icons.calendar_today,
-                              color: Colors.white,
-                            ),
-                            label: Text(
-                              dateFormatted,
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ],
+            );
+          },
         ),
       ),
     );
