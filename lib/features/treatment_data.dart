@@ -43,20 +43,20 @@ class _TreatmentDataScreenState extends State<TreatmentDataScreen> {
         return;
       }
 
-      final String formattedDate =
-          DateFormat('yyyy-MM-dd').format(selectedDate!);
+      final String formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate!);
 
       await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.userId)
           .collection('treatment_data')
-          .add({
-        'dialysisDate': formattedDate,
+          .doc(formattedDate) // Use date as doc ID
+          .set({
+        'dialysisDate': DateFormat('MM/dd/yyyy').format(selectedDate!),
         'preWeight': double.tryParse(_preWeightController.text) ?? 0,
         'postWeight': double.tryParse(_postWeightController.text) ?? 0,
         'ufVolume': double.tryParse(_ufVolumeController.text) ?? 0,
         'timestamp': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Treatment data saved successfully.')),
@@ -101,10 +101,7 @@ class _TreatmentDataScreenState extends State<TreatmentDataScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              const Text(
-                "Dialysis Date",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+              const Text("Dialysis Date", style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               TextField(
                 controller: _dateController,
@@ -117,10 +114,7 @@ class _TreatmentDataScreenState extends State<TreatmentDataScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
-                "Weight",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+              const Text("Weight", style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -154,10 +148,7 @@ class _TreatmentDataScreenState extends State<TreatmentDataScreen> {
                 ],
               ),
               const SizedBox(height: 20),
-              const Text(
-                "UF Volume",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+              const Text("UF Volume", style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -181,18 +172,12 @@ class _TreatmentDataScreenState extends State<TreatmentDataScreen> {
                   onPressed: _saveData,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primary,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 12,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: const Text(
-                    "Save",
-                    style: TextStyle(color: Colors.white),
-                  ),
+                  child: const Text("Save", style: TextStyle(color: Colors.white)),
                 ),
               ),
             ],

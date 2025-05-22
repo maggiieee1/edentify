@@ -25,16 +25,14 @@ class PatientRecordScreen extends StatelessWidget {
         .doc(dateKey)
         .get();
 
-    final treatmentQuery = await firestore
+    final treatmentSnapshot = await firestore
         .collection('users')
         .doc(userId)
         .collection('treatment_data')
-        .where('dialysisDate', isEqualTo: formattedDialysisDate)
+        .doc(dateKey)
         .get();
 
-    final treatmentData = treatmentQuery.docs.isNotEmpty
-        ? treatmentQuery.docs.first.data()
-        : null;
+    final treatmentData = treatmentSnapshot.exists ? treatmentSnapshot.data() : null;
 
     return {
       'waterIntake': waterSnapshot.data(),
@@ -64,7 +62,6 @@ class PatientRecordScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -73,18 +70,12 @@ class PatientRecordScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    "Patient Record",
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
+                  const Text("Patient Record", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  Text(
-                    "Date Scanned: $formattedDate",
-                    style: const TextStyle(fontStyle: FontStyle.italic),
-                  ),
+                  Text("Date Scanned: $formattedDate", style: const TextStyle(fontStyle: FontStyle.italic)),
                   const SizedBox(height: 20),
 
-                  // Edema Placeholder
+                  // Placeholder
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -105,17 +96,10 @@ class PatientRecordScreen extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text("Severe Edema",
-                                  style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white)),
+                              Text("Severe Edema", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
                               SizedBox(height: 4),
-                              Text("Recommendations:",
-                                  style: TextStyle(color: Colors.white)),
-                              Text("Limit fluid intake, consult nephrologist.",
-                                  style: TextStyle(
-                                      color: Colors.white70, fontSize: 12)),
+                              Text("Recommendations:", style: TextStyle(color: Colors.white)),
+                              Text("Limit fluid intake, consult nephrologist.", style: TextStyle(color: Colors.white70, fontSize: 12)),
                             ],
                           ),
                         ),
@@ -124,23 +108,17 @@ class PatientRecordScreen extends StatelessWidget {
                   ),
 
                   const SizedBox(height: 20),
-                  const Text("Today's Water Intake",
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text("Today's Water Intake", style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   Text(
                     "${water?['totalAmount'] ?? '0'} ml / ${((water?['totalAmount'] ?? 0) / 250).round()} cups",
-                    style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.teal),
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.teal),
                   ),
                   if (water?['waterLossCauses'] != null)
-                    Text("Notes: ${water!['waterLossCauses']}",
-                        style: const TextStyle(fontStyle: FontStyle.italic)),
+                    Text("Notes: ${water!['waterLossCauses']}", style: const TextStyle(fontStyle: FontStyle.italic)),
 
                   const SizedBox(height: 20),
-                  const Text("Appointment Data",
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text("Appointment Data", style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -162,8 +140,7 @@ class PatientRecordScreen extends StatelessWidget {
                   Text("UF Volume: ${treatment?['ufVolume'] ?? 'N/A'} L"),
 
                   const SizedBox(height: 20),
-                  const Text("Doctor's Notes:",
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text("Doctor's Notes:", style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   const Text("______________________________"),
                   const Text("______________________________"),

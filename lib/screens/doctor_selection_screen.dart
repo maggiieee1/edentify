@@ -19,20 +19,45 @@ class DoctorSelectionScreen extends StatefulWidget {
 class _DoctorSelectionScreenState extends State<DoctorSelectionScreen> {
   String? selectedDoctor;
   List<String> doctors = [];
+  String? centerName; // ✅ Center name holder
 
   @override
   void initState() {
     super.initState();
+    fetchCenterName();
     fetchDoctors();
+  }
+
+  Future<void> fetchCenterName() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('centers')
+          .doc(widget.centerId)
+          .get();
+
+      if (doc.exists) {
+        setState(() {
+          centerName = doc['name'];
+        });
+      } else {
+        setState(() {
+          centerName = "Unknown Center";
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching center name: $e');
+      setState(() {
+        centerName = "Error fetching center";
+      });
+    }
   }
 
   Future<void> fetchDoctors() async {
     try {
-      final doctorSnapshot =
-          await FirebaseFirestore.instance
-              .collection('doctor_inCharge')
-              .where('centerId', isEqualTo: widget.centerId) // ✅ Use directly
-              .get();
+      final doctorSnapshot = await FirebaseFirestore.instance
+          .collection('doctor_inCharge')
+          .where('centerId', isEqualTo: widget.centerId)
+          .get();
 
       final fetchedDoctors =
           doctorSnapshot.docs.map((doc) => doc['name'] as String).toList();
@@ -77,7 +102,7 @@ class _DoctorSelectionScreenState extends State<DoctorSelectionScreen> {
                 const Icon(Icons.local_hospital, color: Colors.black),
                 const SizedBox(width: 6),
                 Text(
-                  'Center ID: ${widget.centerId}',
+                  'Center: ${centerName ?? "Loading..."}',
                   style: const TextStyle(fontWeight: FontWeight.w500),
                 ),
               ],
@@ -101,15 +126,14 @@ class _DoctorSelectionScreenState extends State<DoctorSelectionScreen> {
                   ),
                 ),
                 value: selectedDoctor,
-                items:
-                    doctors
-                        .map(
-                          (doctor) => DropdownMenuItem(
-                            value: doctor,
-                            child: Text(doctor),
-                          ),
-                        )
-                        .toList(),
+                items: doctors
+                    .map(
+                      (doctor) => DropdownMenuItem(
+                        value: doctor,
+                        child: Text(doctor),
+                      ),
+                    )
+                    .toList(),
                 onChanged: (value) {
                   setState(() {
                     selectedDoctor = value;
@@ -119,19 +143,18 @@ class _DoctorSelectionScreenState extends State<DoctorSelectionScreen> {
             ),
             const SizedBox(height: 48),
             ElevatedButton(
-              onPressed:
-                  selectedDoctor == null
-                      ? null
-                      : () async {
-                        await saveDoctorToFirestore();
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) => MainNavigation(userId: widget.userId),
-                          ),
-                        );
-                      },
+              onPressed: selectedDoctor == null
+                  ? null
+                  : () async {
+                      await saveDoctorToFirestore();
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              MainNavigation(userId: widget.userId),
+                        ),
+                      );
+                    },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.teal,
                 padding: const EdgeInsets.symmetric(
