@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
-import 'classification_screen.dart';
+// import '../features/edema_classifier_screen.dart';
+import 'scan_history_screen.dart';
 import 'records_screen.dart';
 import 'profile_screen.dart';
 
@@ -23,7 +24,7 @@ class _MainNavigationState extends State<MainNavigation> {
     super.initState();
     _screens = [
       HomeScreen(userId: widget.userId),
-      ClassificationScreen(userId: widget.userId),
+      ScanHistoryScreen(),
       RecordScreen(userId: widget.userId),
       ProfileScreen(userId: widget.userId),
     ];

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../features/water_intake.dart';
+import '../features/edema_classifier_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userId;
@@ -76,7 +77,14 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.white,
       floatingActionButton: FloatingActionButton(
         backgroundColor: teal,
-        onPressed: () {},
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EdemaClassifierScreen(userId: widget.userId),
+            ),
+          );
+        },
         child: const Icon(Icons.camera_alt, color: Colors.white),
       ),
       body: SafeArea(
@@ -250,13 +258,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (context) => TreatmentDataScreen(userId: widget.userId),
-                            ),
-                          );
-                        },
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) =>
+                                TreatmentDataScreen(userId: widget.userId),
+                      ),
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
                     padding: const EdgeInsets.symmetric(
