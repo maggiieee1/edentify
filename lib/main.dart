@@ -7,8 +7,8 @@ import 'screens/splash_screen.dart';
 import 'screens/sign_in_screen.dart';
 import 'screens/landing_screen.dart';
 import 'screens/login_screen.dart';
-import 'package:edentify/features/classifyCamera.dart';
-import 'package:edentify/features/edema_classifier_screen.dart';
+import '/features/classifyCamera.dart';
+import '/features/edema_classifier_screen.dart';
 import 'screens/main_navigation.dart';
 
 void main() async {

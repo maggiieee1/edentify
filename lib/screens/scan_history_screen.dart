@@ -1,67 +1,84 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class ScanHistoryScreen extends StatelessWidget {
-  const ScanHistoryScreen({super.key});
-
-  Future<List<Map<String, dynamic>>> _fetchScans() async {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) return [];
-
-    final snapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('edema_scans')
-        .orderBy('timestamp', descending: true)
-        .get();
-
-    return snapshot.docs.map((doc) => doc.data()).toList();
-  }
+  final String userId;
+  const ScanHistoryScreen({super.key, required this.userId});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Scan History'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 1,
+        backgroundColor: Colors.teal,
       ),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _fetchScans(),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .collection('scanHistory')
+            .orderBy('timestamp', descending: true)
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No scan history available.'));
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text('No scan history found.'));
           }
 
-          final scans = snapshot.data!;
+          final scanDocs = snapshot.data!.docs;
 
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: scans.length,
+            itemCount: scanDocs.length,
             itemBuilder: (context, index) {
-              final scan = scans[index];
-              final label = scan['label'] ?? 'Unknown';
-              final imageUrl = scan['imageUrl'] ?? '';
-              final timestamp = scan['timestamp']?.toDate();
-              final formattedDate = timestamp != null ? '${timestamp.year}-${timestamp.month.toString().padLeft(2, '0')}-${timestamp.day.toString().padLeft(2, '0')} ${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}' : 'No date';
+              final data = scanDocs[index].data() as Map<String, dynamic>;
+              final result = data['result'] ?? 'No result';
+              final imageUrl = data['imageURL'] ?? '';
+              final recommendations = data['recommendations'] ?? 'No recommendations';
+              final timestamp = (data['timestamp'] as Timestamp?)?.toDate();
+              final formattedTime = timestamp != null
+                  ? DateFormat('yyyy-MM-dd – hh:mm a').format(timestamp)
+                  : 'Unknown time';
 
               return Card(
+                margin: const EdgeInsets.all(10),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                margin: const EdgeInsets.only(bottom: 16),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.all(12),
-                  leading: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(imageUrl, width: 60, height: 60, fit: BoxFit.cover),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (imageUrl.isNotEmpty)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            imageUrl,
+                            height: 200,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 100),
+                          ),
+                        )
+                      else
+                        const SizedBox.shrink(),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Result: $result',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Text('Recommendations: $recommendations'),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Timestamp: $formattedTime',
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                    ],
                   ),
-                  title: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text(formattedDate),
                 ),
               );
             },
@@ -70,4 +87,4 @@ class ScanHistoryScreen extends StatelessWidget {
       ),
     );
   }
-} 
+}

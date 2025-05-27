@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-class PatientRecordScreen extends StatelessWidget {
+class PatientRecordScreen extends StatefulWidget {
   final String userId;
   final DateTime selectedDate;
 
@@ -12,37 +12,60 @@ class PatientRecordScreen extends StatelessWidget {
     required this.selectedDate,
   });
 
+  @override
+  State<PatientRecordScreen> createState() => _PatientRecordScreenState();
+}
+
+class _PatientRecordScreenState extends State<PatientRecordScreen> {
   Future<Map<String, dynamic>> _fetchData() async {
-    final dateKey = DateFormat('yyyy-MM-dd').format(selectedDate);
-    final formattedDialysisDate = DateFormat('MM/dd/yyyy').format(selectedDate);
+    final dateKey = DateFormat('yyyy-MM-dd').format(widget.selectedDate);
 
     final firestore = FirebaseFirestore.instance;
 
     final waterSnapshot = await firestore
         .collection('users')
-        .doc(userId)
+        .doc(widget.userId)
         .collection('waterIntake')
         .doc(dateKey)
         .get();
 
     final treatmentSnapshot = await firestore
         .collection('users')
-        .doc(userId)
+        .doc(widget.userId)
         .collection('treatment_data')
         .doc(dateKey)
         .get();
 
+    final scanSnapshot = await firestore
+        .collection('users')
+        .doc(widget.userId)
+        .collection('scanHistory')
+        .orderBy('timestamp', descending: true)
+        .get();
+
     final treatmentData = treatmentSnapshot.exists ? treatmentSnapshot.data() : null;
+
+    // Filter scans for the selected date
+    final filteredScans = scanSnapshot.docs
+        .where((doc) {
+          final timestamp = (doc['timestamp'] as Timestamp?)?.toDate();
+          return timestamp != null &&
+              DateFormat('yyyy-MM-dd').format(timestamp) ==
+                  DateFormat('yyyy-MM-dd').format(widget.selectedDate);
+        })
+        .map((doc) => doc.data())
+        .toList();
 
     return {
       'waterIntake': waterSnapshot.data(),
       'treatment_data': treatmentData,
+      'scanHistory': filteredScans,
     };
   }
 
   @override
   Widget build(BuildContext context) {
-    final formattedDate = DateFormat('MM/dd/yyyy h:mm a').format(selectedDate);
+    final formattedDate = DateFormat('MM/dd/yyyy h:mm a').format(widget.selectedDate);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -56,6 +79,7 @@ class PatientRecordScreen extends StatelessWidget {
 
             final water = snapshot.data?['waterIntake'];
             final treatment = snapshot.data?['treatment_data'];
+            final scans = snapshot.data?['scanHistory'] as List<dynamic>? ?? [];
 
             return SingleChildScrollView(
               padding: const EdgeInsets.all(20),
@@ -75,36 +99,93 @@ class PatientRecordScreen extends StatelessWidget {
                   Text("Date Scanned: $formattedDate", style: const TextStyle(fontStyle: FontStyle.italic)),
                   const SizedBox(height: 20),
 
-                  // Placeholder
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.teal[600],
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 80,
-                          height: 80,
-                          color: Colors.white24,
-                          child: const Icon(Icons.image, color: Colors.white),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text("Severe Edema", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-                              SizedBox(height: 4),
-                              Text("Recommendations:", style: TextStyle(color: Colors.white)),
-                              Text("Limit fluid intake, consult nephrologist.", style: TextStyle(color: Colors.white70, fontSize: 12)),
-                            ],
+                  // Swipable ScanHistory Cards
+                  SizedBox(
+                    height: 140,
+                    child: scans.isEmpty
+                        ? Container(
+                            height: 120,
+                            decoration: BoxDecoration(
+                              color: Colors.teal[600],
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Center(
+                              child: Text(
+                                "No Scans Available",
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          )
+                        : PageView.builder(
+                            itemCount: scans.length,
+                            controller: PageController(viewportFraction: 0.9),
+                            itemBuilder: (context, index) {
+                              final scan = scans[index];
+                              final scanDate = (scan['timestamp'] as Timestamp?)?.toDate();
+                              final scanDateFormatted = scanDate != null
+                                  ? DateFormat('MM/dd/yyyy h:mm a').format(scanDate)
+                                  : 'No Date';
+
+                              return Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 4),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.teal[600],
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: scan['imageURL'] != null
+                                          ? Image.network(scan['imageURL'], width: 80, height: 80, fit: BoxFit.cover)
+                                          : Container(
+                                              width: 80,
+                                              height: 80,
+                                              color: Colors.white24,
+                                              child: const Icon(Icons.image, color: Colors.white),
+                                            ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            scan['result'] ?? 'No Result',
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          const Text(
+                                            "Recommendations:",
+                                            style: TextStyle(color: Colors.white, fontSize: 12),
+                                          ),
+                                          Text(
+                                            scan['recommendations'] ?? 'No Recommendation',
+                                            style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            scanDateFormatted,
+                                            style: const TextStyle(color: Colors.white60, fontSize: 10),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
                           ),
-                        ),
-                      ],
-                    ),
                   ),
 
                   const SizedBox(height: 20),

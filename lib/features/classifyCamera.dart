@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:tflite_v2/tflite_v2.dart';
 import 'package:camera/camera.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../firebase_helper.dart';
 import 'classification_result_screen.dart'; // Import the new screen
 
@@ -129,12 +130,16 @@ class _ClassifyCameraState extends State<ClassifyCamera> {
 
       if (output != null && output.isNotEmpty) {
         final label = output[0]["label"].toString().replaceAll(RegExp(r'\d'), '');
+        final user = FirebaseAuth.instance.currentUser;
+        final userId = user?.uid ?? 'unknown_user';
+
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => ClassificationResultScreen(
               imagePath: imageFile.path,
               label: label,
+              userId: userId,
             ),
           ),
         );

@@ -24,7 +24,7 @@ class _MainNavigationState extends State<MainNavigation> {
     super.initState();
     _screens = [
       HomeScreen(userId: widget.userId),
-      ScanHistoryScreen(),
+      ScanHistoryScreen(userId: widget.userId),
       RecordScreen(userId: widget.userId),
       ProfileScreen(userId: widget.userId),
     ];

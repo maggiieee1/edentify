@@ -5,8 +5,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:tflite_v2/tflite_v2.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:intl/intl.dart';
+import 'classification_result_screen.dart';
 
 class ImagePickerClassify extends StatefulWidget {
   const ImagePickerClassify({super.key});
@@ -16,17 +18,15 @@ class ImagePickerClassify extends StatefulWidget {
 }
 
 class _ImagePickerClassifyState extends State<ImagePickerClassify> {
-  List _outputs = [];
-  File? _image;
   bool _loading = false;
   bool _firebaseInitialized = false;
+  File? _image;
 
   @override
   void initState() {
     super.initState();
     _loading = true;
 
-    // Initialize Firebase
     _initializeFirebase().then((_) {
       setState(() {
         _firebaseInitialized = true;
@@ -53,7 +53,7 @@ class _ImagePickerClassifyState extends State<ImagePickerClassify> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        _endModelProcessing();
+        Tflite.close();
         return true;
       },
       child: Scaffold(
@@ -70,60 +70,23 @@ class _ImagePickerClassifyState extends State<ImagePickerClassify> {
           ),
         ),
         body: _loading
-            ? Container(
-                alignment: Alignment.center,
-                child: const CircularProgressIndicator(),
-              )
-            : Padding(
-                padding: const EdgeInsets.all(10.0),
-                child: SizedBox(
-                  width: MediaQuery.of(context).size.width,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _image == null ? Container() : Image.file(_image!),
-                      const SizedBox(height: 20),
-                      _outputs.isNotEmpty
-                          ? Text(
-                              "Classification: ${_outputs[0]["label"].toString().replaceAll(RegExp(r'\d'), '')}",
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize:
-                                    MediaQuery.of(context).size.width * 0.05,
-                                background: Paint()..color = Colors.white,
-                              ),
-                            )
-                          : Container(),
-                    ],
-                  ),
-                ),
+            ? const Center(child: CircularProgressIndicator())
+            : Center(
+                child: _image == null
+                    ? const Text("No image selected")
+                    : Image.file(_image!),
               ),
         floatingActionButton: FloatingActionButton(
-          onPressed: pickImage,
+          onPressed: _pickAndClassifyImage,
           backgroundColor: Colors.green[900],
           child: const Icon(Icons.image),
-        ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-        bottomNavigationBar: Padding(
-          padding: const EdgeInsets.all(10.0),
-          child: ElevatedButton(
-            onPressed: _image != null && _outputs.isNotEmpty && _firebaseInitialized
-                ? () => _saveToFirebase(
-                      context,
-                      _image!.path,
-                      _outputs[0]["label"],
-                    )
-                : null,
-            child: const Text("Save to Firebase"),
-          ),
         ),
       ),
     );
   }
 
-  Future<void> pickImage() async {
-    final ImagePicker picker = ImagePicker();
+  Future<void> _pickAndClassifyImage() async {
+    final picker = ImagePicker();
     XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
     if (image == null) return;
@@ -135,83 +98,60 @@ class _ImagePickerClassifyState extends State<ImagePickerClassify> {
       _image = imageFile;
     });
 
-    classifyImage(imageFile);
-  }
-
-  classifyImage(File image) async {
-    var output = await Tflite.runModelOnImage(
-      path: image.path,
-      numResults: 3,
-      threshold: 0.5,
-      imageMean: 127.5,
-      imageStd: 127.5,
-    );
-    setState(() {
-      _loading = false;
-      _outputs = output ?? [];
-    });
-  }
-
-  loadModel() async {
-    await Tflite.loadModel(
-      model: "assets/model_edema.tflite",
-      labels: "assets/labels_edema.txt",
-    );
-  }
-
-  void _endModelProcessing() {
-    Tflite.close();
-  }
-
-  Future<void> _saveToFirebase(
-      BuildContext context, String imagePath, String label) async {
-    if (!_firebaseInitialized) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Firebase not initialized yet')),
-      );
-      return;
-    }
-
     try {
+      var output = await Tflite.runModelOnImage(
+        path: imageFile.path,
+        numResults: 3,
+        threshold: 0.5,
+        imageMean: 127.5,
+        imageStd: 127.5,
+      );
+
       setState(() {
-        _loading = true;
+        _loading = false;
       });
 
-      // Upload image to Firebase Storage
-      String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-      Reference storageRef = FirebaseStorage.instance
-          .ref()
-          .child('classification_images/$fileName.jpg');
-      await storageRef.putFile(File(imagePath));
-      
-      // Get the download URL
-      String imageUrl = await storageRef.getDownloadURL();
+      if (output != null && output.isNotEmpty) {
+        final label = output[0]["label"].toString().replaceAll(RegExp(r'\d'), '');
+        final user = FirebaseAuth.instance.currentUser;
+        final userId = user?.uid ?? 'unknown_user';
 
-      // Save data to Firestore
-      await FirebaseFirestore.instance.collection('classification_results').add({
-        'imageUrl': imageUrl,
-        'label': label,
-        'timestamp': FieldValue.serverTimestamp(),
-        'formattedDate': DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saved to Firebase successfully')),
-      );
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ClassificationResultScreen(
+              imagePath: imageFile.path,
+              label: label,
+              userId: userId,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No classification result')),
+        );
+      }
     } catch (e) {
+      print("Error: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving to Firebase: $e')),
+        SnackBar(content: Text('Error: $e')),
       );
-    } finally {
       setState(() {
         _loading = false;
       });
     }
   }
 
+  Future<void> loadModel() async {
+    await Tflite.loadModel(
+      model: "assets/model_edema.tflite",
+      labels: "assets/labels_edema.txt",
+    );
+  }
+
   @override
   void dispose() {
-    _endModelProcessing();
+    Tflite.close();
     super.dispose();
   }
 }
