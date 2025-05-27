@@ -1,4 +1,4 @@
-0 Normal
-1 Mild
-2 Moderate
-3 Severe
+Normal
+Mild
+Moderate
+Severe

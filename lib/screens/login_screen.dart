@@ -13,64 +13,64 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _firestore = FirebaseFirestore.instance;
 
-  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   bool _isLoading = false;
   String? _error;
 
   Future<void> _loginUser() async {
-  setState(() {
-    _isLoading = true;
-    _error = null;
-  });
-
-  try {
-    final phone = _phoneController.text.trim();
-    final password = _passwordController.text.trim();
-
-    if (phone.isEmpty || password.isEmpty) {
-      setState(() {
-        _error = 'Phone and password are required.';
-      });
-      return;
-    }
-
-    final hashedInputPassword = hashPassword(password);
-    print('Logging in with phone: $phone and hashed password: $hashedInputPassword');
-
-    final querySnapshot = await _firestore
-        .collection('users')
-        .where('phone', isEqualTo: phone)
-        .where('password', isEqualTo: hashedInputPassword)
-        .get();
-
-    if (querySnapshot.docs.isEmpty) {
-      setState(() {
-        _error = 'Invalid phone number or password.';
-      });
-      return;
-    }
-
-    final userId = querySnapshot.docs.first.id;
-    print('Login successful. User ID: $userId');
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => MainNavigation(userId: userId)),
-    );
-  } catch (e, stack) {
-    print('Login error: $e');
-    print(stack);
     setState(() {
-      _error = 'Something went wrong. Please try again.';
+      _isLoading = true;
+      _error = null;
     });
-  } finally {
-    setState(() {
-      _isLoading = false;
-    });
+
+    try {
+      final email = _emailController.text.trim();
+      final password = _passwordController.text.trim();
+
+      if (email.isEmpty || password.isEmpty) {
+        setState(() {
+          _error = 'Email and password are required.';
+        });
+        return;
+      }
+
+      final hashedInputPassword = hashPassword(password);
+      print('Logging in with email: $email and hashed password: $hashedInputPassword');
+
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .where('password', isEqualTo: hashedInputPassword)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        setState(() {
+          _error = 'Invalid email or password.';
+        });
+        return;
+      }
+
+      final userId = querySnapshot.docs.first.id;
+      print('Login successful. User ID: $userId');
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => MainNavigation(userId: userId)),
+      );
+    } catch (e, stack) {
+      print('Login error: $e');
+      print(stack);
+      setState(() {
+        _error = 'Something went wrong. Please try again.';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -93,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       'Log In',
                       style: TextStyle(
                         fontSize: size.width * 0.08,
-                        color: Colors.white,
+                        color: Colors.teal,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -104,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Text(
                           "Don't have an account yet?",
                           style: TextStyle(
-                            color: Colors.white,
+                            color: Colors.teal,
                             fontSize: size.width * 0.035,
                           ),
                         ),
@@ -140,7 +140,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      "Phone Number",
+                      "Email",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
@@ -149,8 +149,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   SizedBox(height: 5),
                   TextField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
                     style: TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                       fillColor: Colors.white24,
@@ -207,16 +207,15 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       onPressed: _isLoading ? null : _loginUser,
-                      child:
-                          _isLoading
-                              ? CircularProgressIndicator(color: Colors.teal)
-                              : Text(
-                                'Log In',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: size.width * 0.045,
-                                ),
+                      child: _isLoading
+                          ? CircularProgressIndicator(color: Colors.teal)
+                          : Text(
+                              'Log In',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: size.width * 0.045,
                               ),
+                            ),
                     ),
                   ),
                 ],

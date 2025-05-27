@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'center_selection_screen.dart';
 import '../utils/hash_utils.dart'; // adjust path as needed
 
@@ -12,7 +13,7 @@ class SignInScreen extends StatefulWidget {
 
 class _SignInScreenState extends State<SignInScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   final _birthdayController = TextEditingController();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
@@ -27,47 +28,34 @@ class _SignInScreenState extends State<SignInScreen> {
   void _showTermsDialog() {
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Center(
+      builder: (context) => AlertDialog(
+        title: Center(
+          child: Text(
+            'Terms and Agreement',
+            style: TextStyle(color: Colors.teal, fontWeight: FontWeight.bold),
+          ),
+        ),
+        content: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.5,
+          child: SingleChildScrollView(
             child: Text(
-              'Terms and Agreement',
-              style: TextStyle(color: Colors.teal, fontWeight: FontWeight.bold),
+              '''[Same Terms as before]''',
+              textAlign: TextAlign.justify,
             ),
           ),
-          content: SizedBox(
-            height: MediaQuery.of(context).size.height * 0.5,
-            child: SingleChildScrollView(
-              child: Text(
-                '''At Edentify, we are committed to providing a reliable tool for detecting and monitoring edema severity in dialysis patients. By using our mobile application, you agree to these Terms and Agreement, which outline the guidelines for using Edentify and how we handle your data.
-
-Edentify is designed to assist with edema monitoring, but it does not provide medical diagnosis or treatment. Always consult a qualified healthcare professional before making medical decisions based on the app’s results. When using Edentify, you are responsible for providing accurate images and ensuring they are clear and relevant for proper assessment. Misuse of the app, including interfering with its functionality or violating applicable laws, is strictly prohibited.
-
-To provide personalized edema monitoring, Edentify collects and processes data such as images, metadata, and device usage information. This data helps improve accuracy, enhance performance, and refine our detection models. If you provide personal details, such as contact information, they will be handled responsibly and in accordance with this agreement. Rest assured that your data will never be sold to third parties.
-
-You have control over your data. You can request access, updates, or deletion of your information by reaching out to us. We implement security measures to protect your data, but no system is completely secure. We encourage you to take necessary precautions to safeguard your account information. We retain data only as long as needed to provide our services and comply with legal requirements. This agreement may be updated from time to time, and continued use of Edentify means you accept any changes.
-
-The app and its features, including its image classification model and interface, are protected by intellectual property laws and belong to Edentify. You may not copy, modify, or distribute any part of the app without prior permission. We do our best to ensure Edentify functions properly, but we do not guarantee it will always be free from errors or interruptions. We are not responsible for any issues or damages resulting from using or being unable to use the app.
-
-If you have any questions or concerns, please contact us at support@edentify.com
-''',
-                textAlign: TextAlign.justify,
-              ),
-            ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Decline', style: TextStyle(color: Colors.grey)),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Decline', style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-              child: Text('Accept'),
-            ),
-          ],
-        );
-      },
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+            child: Text('Accept'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -94,56 +82,50 @@ If you have any questions or concerns, please contact us at support@edentify.com
       return;
     }
 
-    if (_passwordController.text.trim() !=
-        _confirmPasswordController.text.trim()) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Passwords do not match')));
+    if (_passwordController.text.trim() != _confirmPasswordController.text.trim()) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Passwords do not match')));
       return;
     }
 
     setState(() => _isSendingCode = true);
 
     try {
-      final trimmedPhone = _phoneController.text.trim();
-      final existing =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .where('phone', isEqualTo: trimmedPhone)
-              .get();
+      final email = _emailController.text.trim();
+      final password = _passwordController.text.trim();
 
-      if (existing.docs.isNotEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Phone number already in use.')));
-        return;
-      }
+      final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-      final userRef = await FirebaseFirestore.instance.collection('users').add({
+      final userRef = await FirebaseFirestore.instance.collection('users').doc(credential.user!.uid).set({
         'firstName': _firstNameController.text.trim(),
         'lastName': _lastNameController.text.trim(),
         'middleName': _middleNameController.text.trim(),
         'birthday': _birthdayController.text.trim(),
-        'phone': trimmedPhone,
-        'password': hashPassword(_passwordController.text.trim()),
+        'email': email,
+        'password': hashPassword(password),
         'centerId': '',
         'doctorsId': '',
         'healthCondition': '',
         'startDate': '',
         'createdAt': Timestamp.now(),
       });
-      final userId = userRef.id;
 
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => CenterSelectionScreen(userId: userId),
+          builder: (_) => CenterSelectionScreen(userId: credential.user!.uid),
         ),
       );
+    } on FirebaseAuthException catch (e) {
+      String message = 'Failed to register.';
+      if (e.code == 'email-already-in-use') {
+        message = 'Email already in use.';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to sign in: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       setState(() => _isSendingCode = false);
     }
@@ -182,15 +164,12 @@ If you have any questions or concerns, please contact us at support@edentify.com
                 SizedBox(height: size.height * 0.05),
                 _buildTextField('First Name', controller: _firstNameController),
                 _buildTextField('Last Name', controller: _lastNameController),
-                _buildTextField(
-                  'Middle Name',
-                  controller: _middleNameController,
-                ),
+                _buildTextField('Middle Name', controller: _middleNameController),
                 _buildBirthdayField(),
                 _buildTextField(
-                  'Phone No.',
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
+                  'Email',
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
                 ),
                 _buildTextField(
                   'Password',
@@ -224,16 +203,15 @@ If you have any questions or concerns, please contact us at support@edentify.com
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child:
-                      _isSendingCode
-                          ? CircularProgressIndicator(color: Colors.teal)
-                          : Text(
-                            'Sign In',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: size.width * 0.045,
-                            ),
+                  child: _isSendingCode
+                      ? CircularProgressIndicator(color: Colors.teal)
+                      : Text(
+                          'Sign In',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: size.width * 0.045,
                           ),
+                        ),
                 ),
                 SizedBox(height: size.height * 0.05),
               ],
@@ -262,11 +240,8 @@ If you have any questions or concerns, please contact us at support@edentify.com
           hintText: label,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         ),
-        validator:
-            (value) =>
-                value == null || value.trim().isEmpty
-                    ? 'Please enter $label'
-                    : null,
+        validator: (value) =>
+            value == null || value.trim().isEmpty ? 'Please enter $label' : null,
       ),
     );
   }
@@ -285,11 +260,8 @@ If you have any questions or concerns, please contact us at support@edentify.com
           suffixIcon: Icon(Icons.calendar_today),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         ),
-        validator:
-            (value) =>
-                value == null || value.isEmpty
-                    ? 'Please select birthday'
-                    : null,
+        validator: (value) =>
+            value == null || value.isEmpty ? 'Please select birthday' : null,
       ),
     );
   }

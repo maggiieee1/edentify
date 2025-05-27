@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
+import 'center_selection_screen.dart';
 
 class VerificationScreen extends StatefulWidget {
   final String verificationId;
+  final Map<String, dynamic> userData;
 
-  const VerificationScreen({super.key, required this.verificationId});
+  const VerificationScreen({
+    super.key,
+    required this.verificationId,
+    required this.userData,
+  });
 
   @override
   State<VerificationScreen> createState() => _VerificationScreenState();
@@ -14,47 +23,126 @@ class VerificationScreen extends StatefulWidget {
 class _VerificationScreenState extends State<VerificationScreen> {
   final TextEditingController _otpController = TextEditingController();
   bool _isVerifying = false;
+  bool _isResending = false;
   int _secondsRemaining = 60;
-  late final Timer _timer;
+  Timer? _timer;
+
+  late String _currentVerificationId;
 
   @override
   void initState() {
     super.initState();
-    _startTimer();
+    _currentVerificationId = widget.verificationId;
+    _startResendTimer();
   }
 
-  void _startTimer() {
-    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+  void _startResendTimer() {
+    _timer?.cancel();
+    _secondsRemaining = 60;
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_secondsRemaining == 0) {
         timer.cancel();
       } else {
-        setState(() {
-          _secondsRemaining--;
-        });
+        setState(() => _secondsRemaining--);
       }
     });
   }
 
+  String _hashPassword(String password) {
+    final bytes = utf8.encode(password);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
+
   Future<void> _verifyOTP() async {
+    final smsCode = _otpController.text.trim();
+    if (smsCode.length != 6) {
+      _showSnackBar('Please enter a 6-digit code');
+      return;
+    }
+
     setState(() => _isVerifying = true);
+
     try {
-      PhoneAuthCredential credential = PhoneAuthProvider.credential(
-        verificationId: widget.verificationId,
-        smsCode: _otpController.text.trim(),
+      final credential = PhoneAuthProvider.credential(
+        verificationId: _currentVerificationId,
+        smsCode: smsCode,
       );
-      await FirebaseAuth.instance.signInWithCredential(credential);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Phone verified!')));
-      // Navigate to the next screen
+
+      final userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
+      final user = userCredential.user;
+
+      if (user != null) {
+        final userDataToSave = {
+          ...widget.userData,
+          'password': _hashPassword(widget.userData['password']),
+          'centerId': '',
+          'doctorsId': '',
+          'healthCondition': '',
+          'startDate': '',
+          'createdAt': Timestamp.now(),
+        };
+
+        final userRef = await FirebaseFirestore.instance
+            .collection('users')
+            .add(userDataToSave);
+
+        final userId = userRef.id;
+
+        _showSnackBar('Phone number verified!');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => CenterSelectionScreen(userId: userId)),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      _showSnackBar(e.message ?? 'Verification failed.');
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Invalid code')));
+      _showSnackBar('Something went wrong. Please try again.');
     } finally {
       setState(() => _isVerifying = false);
     }
   }
 
+  Future<void> _resendOTP() async {
+    setState(() => _isResending = true);
+
+    try {
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: widget.userData['phone'],
+        timeout: const Duration(seconds: 60),
+        verificationCompleted: (PhoneAuthCredential credential) {},
+        verificationFailed: (FirebaseAuthException e) {
+          _showSnackBar(e.message ?? 'OTP resend failed.');
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          _showSnackBar('OTP resent successfully.');
+          setState(() {
+            _currentVerificationId = verificationId;
+          });
+          _startResendTimer();
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          setState(() {
+            _currentVerificationId = verificationId;
+          });
+        },
+      );
+    } catch (e) {
+      _showSnackBar('Failed to resend OTP. Please try again.');
+    } finally {
+      setState(() => _isResending = false);
+    }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   @override
   void dispose() {
-    _timer.cancel();
+    _timer?.cancel();
     _otpController.dispose();
     super.dispose();
   }
@@ -62,42 +150,58 @@ class _VerificationScreenState extends State<VerificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.teal,
+      backgroundColor: Colors.teal.shade700,
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
+          padding: const EdgeInsets.symmetric(horizontal: 32.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('Verification', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
-              SizedBox(height: 8),
-              Text('Enter the OTP to verify your account', style: TextStyle(color: Colors.white70)),
-              SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(4, (index) {
-                  return SizedBox(
-                    width: 50,
-                    child: TextField(
-                      controller: _otpController,
-                      keyboardType: TextInputType.number,
-                      maxLength: 6, // usually OTP is 6 digits
-                      decoration: InputDecoration(counterText: '', filled: true, fillColor: Colors.white),
-                      textAlign: TextAlign.center,
-                    ),
-                  );
-                }),
+              const Text(
+                'Verification',
+                style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white),
               ),
-              SizedBox(height: 16),
-              Text(
-                _secondsRemaining > 0 ? 'Resend SMS. (00:${_secondsRemaining.toString().padLeft(2, '0')})' : 'Resend SMS',
-                style: TextStyle(color: Colors.white),
+              const SizedBox(height: 8),
+              const Text(
+                'Enter the 6-digit OTP sent to your phone',
+                style: TextStyle(color: Colors.white70),
+                textAlign: TextAlign.center,
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 32),
+              TextField(
+                controller: _otpController,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 20, letterSpacing: 6),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.white,
+                  counterText: '',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: _secondsRemaining > 0 || _isResending ? null : _resendOTP,
+                child: Text(
+                  _secondsRemaining > 0
+                      ? 'Resend SMS in 00:${_secondsRemaining.toString().padLeft(2, '0')}'
+                      : 'Didn’t receive code? Resend now',
+                  style: const TextStyle(color: Colors.white70),
+                ),
+              ),
+              const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _isVerifying ? null : _verifyOTP,
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.teal),
-                child: Text('Verify'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.teal.shade800,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                ),
+                child: _isVerifying
+                    ? const CircularProgressIndicator(color: Colors.teal)
+                    : const Text('Verify'),
               ),
             ],
           ),

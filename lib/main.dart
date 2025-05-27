@@ -1,13 +1,14 @@
+import 'package:edentify/features/imagePickerClassify.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
-
-// Screens
 import 'screens/splash_screen.dart';
 import 'screens/sign_in_screen.dart';
 import 'screens/landing_screen.dart';
 import 'screens/login_screen.dart';
+import 'package:edentify/features/classifyCamera.dart';
+import 'package:edentify/features/edema_classifier_screen.dart';
 import 'screens/main_navigation.dart';
 
 void main() async {
@@ -35,6 +36,9 @@ class EdentifyApp extends StatelessWidget {
         '/landing': (context) => LandingScreen(),
         '/sign-in': (context) => SignInScreen(),
         '/login': (context) => LoginScreen(),
+        '/classify': (context) => EdemaClassifierScreen(),
+        '/classifyCamera': (context) => const ClassifyCamera(),
+        '/imagePickerClassify': (context) => const ImagePickerClassify(),
       },
     );
   }
