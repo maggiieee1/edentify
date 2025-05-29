@@ -1,3 +1,4 @@
+import 'package:edentify/screens/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -24,38 +25,44 @@ class _SignInScreenState extends State<SignInScreen> {
   bool _isRead = false;
   bool _isAgree = false;
   bool _isSendingCode = false;
+  bool _showPassword = false;
+  bool _showConfirmPassword = false;
 
   void _showTermsDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Center(
-          child: Text(
-            'Terms and Agreement',
-            style: TextStyle(color: Colors.teal, fontWeight: FontWeight.bold),
-          ),
-        ),
-        content: SizedBox(
-          height: MediaQuery.of(context).size.height * 0.5,
-          child: SingleChildScrollView(
-            child: Text(
-              '''[Same Terms as before]''',
-              textAlign: TextAlign.justify,
+      builder:
+          (context) => AlertDialog(
+            title: Center(
+              child: Text(
+                'Terms and Agreement',
+                style: TextStyle(
+                  color: Colors.teal,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
+            content: SizedBox(
+              height: MediaQuery.of(context).size.height * 0.5,
+              child: SingleChildScrollView(
+                child: Text(
+                  '''[Same Terms as before]''',
+                  textAlign: TextAlign.justify,
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Decline', style: TextStyle(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+                child: Text('Accept'),
+              ),
+            ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Decline', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-            child: Text('Accept'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -82,8 +89,11 @@ class _SignInScreenState extends State<SignInScreen> {
       return;
     }
 
-    if (_passwordController.text.trim() != _confirmPasswordController.text.trim()) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Passwords do not match')));
+    if (_passwordController.text.trim() !=
+        _confirmPasswordController.text.trim()) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Passwords do not match')));
       return;
     }
 
@@ -93,24 +103,25 @@ class _SignInScreenState extends State<SignInScreen> {
       final email = _emailController.text.trim();
       final password = _passwordController.text.trim();
 
-      final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
 
-      final userRef = await FirebaseFirestore.instance.collection('users').doc(credential.user!.uid).set({
-        'firstName': _firstNameController.text.trim(),
-        'lastName': _lastNameController.text.trim(),
-        'middleName': _middleNameController.text.trim(),
-        'birthday': _birthdayController.text.trim(),
-        'email': email,
-        'password': hashPassword(password),
-        'centerId': '',
-        'doctorsId': '',
-        'healthCondition': '',
-        'startDate': '',
-        'createdAt': Timestamp.now(),
-      });
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(credential.user!.uid)
+          .set({
+            'firstName': _firstNameController.text.trim(),
+            'lastName': _lastNameController.text.trim(),
+            'middleName': _middleNameController.text.trim(),
+            'birthday': _birthdayController.text.trim(),
+            'email': email,
+            'password': hashPassword(password),
+            'centerId': '',
+            'doctorsId': '',
+            'healthCondition': '',
+            'startDate': '',
+            'createdAt': Timestamp.now(),
+          });
 
       Navigator.pushReplacement(
         context,
@@ -123,9 +134,13 @@ class _SignInScreenState extends State<SignInScreen> {
       if (e.code == 'email-already-in-use') {
         message = 'Email already in use.';
       }
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       setState(() => _isSendingCode = false);
     }
@@ -137,86 +152,115 @@ class _SignInScreenState extends State<SignInScreen> {
 
     return Scaffold(
       backgroundColor: Colors.teal,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(horizontal: size.width * 0.08),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              children: [
-                SizedBox(height: size.height * 0.05),
-                Text(
-                  'Sign In',
-                  style: TextStyle(
-                    fontSize: size.width * 0.08,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: size.height * 0.01),
-                Text(
-                  'Already have an account? Log In.',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: size.width * 0.04,
-                  ),
-                ),
-                SizedBox(height: size.height * 0.05),
-                _buildTextField('First Name', controller: _firstNameController),
-                _buildTextField('Last Name', controller: _lastNameController),
-                _buildTextField('Middle Name', controller: _middleNameController),
-                _buildBirthdayField(),
-                _buildTextField(
-                  'Email',
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                _buildTextField(
-                  'Password',
-                  isPassword: true,
-                  controller: _passwordController,
-                ),
-                _buildTextField(
-                  'Confirm Password',
-                  isPassword: true,
-                  controller: _confirmPasswordController,
-                ),
-                SizedBox(height: size.height * 0.02),
-                _buildCheckbox(
-                  'I have read the Terms & Agreement',
-                  _isRead,
-                  (val) => setState(() => _isRead = val!),
-                ),
-                _buildCheckbox(
-                  'I agree with the Terms & Agreement',
-                  _isAgree,
-                  (val) => setState(() => _isAgree = val!),
-                ),
-                SizedBox(height: size.height * 0.02),
-                ElevatedButton(
-                  onPressed: _isSendingCode ? null : _signInAndGoHome,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.teal,
-                    minimumSize: Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: _isSendingCode
-                      ? CircularProgressIndicator(color: Colors.teal)
-                      : Text(
-                          'Sign In',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: size.width * 0.045,
-                          ),
-                        ),
-                ),
-                SizedBox(height: size.height * 0.05),
-              ],
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            ClipPath(
+              clipper: CurveClipper(),
+              child: Container(
+                height: size.height * 0.25,
+                width: double.infinity,
+                color: Colors.white,
+              ),
             ),
-          ),
+            SizedBox(height: size.height * 0.01),
+            Text(
+              'Sign In',
+              style: TextStyle(
+                fontSize: size.width * 0.08,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              'Already have an account? Log In.',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: size.width * 0.04,
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: size.width * 0.08),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    SizedBox(height: size.height * 0.03),
+                    _buildTextField(
+                      'First Name',
+                      controller: _firstNameController,
+                    ),
+                    _buildTextField(
+                      'Last Name',
+                      controller: _lastNameController,
+                    ),
+                    _buildTextField(
+                      'Middle Name',
+                      controller: _middleNameController,
+                    ),
+                    _buildBirthdayField(),
+                    _buildTextField(
+                      'Email',
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    _buildTextField(
+                      'Password',
+                      isPassword: true,
+                      controller: _passwordController,
+                      obscureText: !_showPassword,
+                      toggleVisibility:
+                          () => setState(() => _showPassword = !_showPassword),
+                    ),
+                    _buildTextField(
+                      'Confirm Password',
+                      isPassword: true,
+                      controller: _confirmPasswordController,
+                      obscureText: !_showConfirmPassword,
+                      toggleVisibility:
+                          () => setState(
+                            () => _showConfirmPassword = !_showConfirmPassword,
+                          ),
+                    ),
+                    SizedBox(height: size.height * 0.02),
+                    _buildCheckbox(
+                      'I have read the Terms & Agreement',
+                      _isRead,
+                      (val) => setState(() => _isRead = val!),
+                    ),
+                    _buildCheckbox(
+                      'I agree with the Terms & Agreement',
+                      _isAgree,
+                      (val) => setState(() => _isAgree = val!),
+                    ),
+                    SizedBox(height: size.height * 0.02),
+                    ElevatedButton(
+                      onPressed: _isSendingCode ? null : _signInAndGoHome,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.teal,
+                        minimumSize: Size(double.infinity, 50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child:
+                          _isSendingCode
+                              ? CircularProgressIndicator(color: Colors.teal)
+                              : Text(
+                                'Sign In',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: size.width * 0.045,
+                                ),
+                              ),
+                    ),
+                    SizedBox(height: size.height * 0.05),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -227,21 +271,45 @@ class _SignInScreenState extends State<SignInScreen> {
     bool isPassword = false,
     TextEditingController? controller,
     TextInputType keyboardType = TextInputType.text,
+    bool obscureText = true,
+    VoidCallback? toggleVisibility,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: TextFormField(
         controller: controller,
-        obscureText: isPassword,
+        obscureText: isPassword ? obscureText : false,
         keyboardType: keyboardType,
         decoration: InputDecoration(
           filled: true,
           fillColor: Colors.white,
           hintText: label,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          suffixIcon:
+              isPassword
+                  ? IconButton(
+                    icon: Icon(
+                      obscureText ? Icons.visibility_off : Icons.visibility,
+                    ),
+                    onPressed: toggleVisibility,
+                  )
+                  : null,
         ),
-        validator: (value) =>
-            value == null || value.trim().isEmpty ? 'Please enter $label' : null,
+        validator: (value) {
+          if (value == null || value.trim().isEmpty) {
+            return 'Please enter $label';
+          }
+
+          if (label == 'Password') {
+            final password = value.trim();
+            final passwordRegex = RegExp(r'^(?=.*\d).{6,}$');
+            if (!passwordRegex.hasMatch(password)) {
+              return 'Password must be at least 6 characters and include a number.';
+            }
+          }
+
+          return null;
+        },
       ),
     );
   }
@@ -260,8 +328,11 @@ class _SignInScreenState extends State<SignInScreen> {
           suffixIcon: Icon(Icons.calendar_today),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         ),
-        validator: (value) =>
-            value == null || value.isEmpty ? 'Please select birthday' : null,
+        validator:
+            (value) =>
+                value == null || value.isEmpty
+                    ? 'Please select birthday'
+                    : null,
       ),
     );
   }
@@ -290,4 +361,24 @@ class _SignInScreenState extends State<SignInScreen> {
       ],
     );
   }
+}
+
+class CurveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    var path = Path();
+    path.lineTo(0, size.height);
+    path.quadraticBezierTo(
+      size.width / 2,
+      size.height - 40,
+      size.width,
+      size.height,
+    );
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
