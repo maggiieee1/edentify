@@ -20,19 +20,23 @@ class _HomeScreenState extends State<HomeScreen> {
   final int mlPerCup = 125;
   final int alertThresholdMl = 800;
 
+  String? _latestScanImageUrl;
+  String _latestScanResult = '';
+  DateTime? _latestScanTime;
+
   @override
   void initState() {
     super.initState();
     _loadUserData();
     _loadTodayWaterIntake();
+    _loadLatestScan();
   }
 
   Future<void> _loadUserData() async {
-    final doc =
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(widget.userId)
-            .get();
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .get();
 
     if (doc.exists) {
       final userData = doc.data()!;
@@ -46,13 +50,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final now = DateTime.now();
     final dateKey = DateFormat('yyyy-MM-dd').format(now);
 
-    final docSnapshot =
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(widget.userId)
-            .collection('waterIntake')
-            .doc(dateKey)
-            .get();
+    final docSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .collection('waterIntake')
+        .doc(dateKey)
+        .get();
 
     if (docSnapshot.exists) {
       final data = docSnapshot.data()!;
@@ -62,6 +65,25 @@ class _HomeScreenState extends State<HomeScreen> {
     } else {
       setState(() {
         _waterIntakeMl = 0;
+      });
+    }
+  }
+
+  Future<void> _loadLatestScan() async {
+    final query = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .collection('scanHistory')
+        .orderBy('timestamp', descending: true)
+        .limit(1)
+        .get();
+
+    if (query.docs.isNotEmpty) {
+      final scanData = query.docs.first.data();
+      setState(() {
+        _latestScanImageUrl = scanData['imageURL'];
+        _latestScanResult = scanData['result'];
+        _latestScanTime = (scanData['timestamp'] as Timestamp?)?.toDate();
       });
     }
   }
@@ -140,14 +162,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Icon(
                           Icons.local_drink,
                           size: 28,
-                          color:
-                              index < waterCups
-                                  ? (_waterIntakeMl >= 1000
-                                      ? Colors.red
-                                      : isAlert
+                          color: index < waterCups
+                              ? (_waterIntakeMl >= 1000
+                                  ? Colors.red
+                                  : isAlert
                                       ? Colors.orange
                                       : Colors.black)
-                                  : Colors.black26,
+                              : Colors.black26,
                         ),
                       );
                     }),
@@ -176,10 +197,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder:
-                                  (context) => UpdateWaterIntakeScreen(
-                                    userId: widget.userId,
-                                  ),
+                              builder: (context) => UpdateWaterIntakeScreen(
+                                userId: widget.userId,
+                              ),
                             ),
                           ).then((_) => _loadTodayWaterIntake());
                         },
@@ -197,7 +217,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
               const SizedBox(height: 8),
-              // ⚠️ Warning message
               if (_waterIntakeMl >= 800)
                 Padding(
                   padding: const EdgeInsets.only(top: 4.0),
@@ -212,10 +231,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               : "You're nearing the daily limit of 1000ml. Please monitor your intake.",
                           style: TextStyle(
                             fontSize: 13,
-                            color:
-                                _waterIntakeMl >= 1000
-                                    ? Colors.red
-                                    : Colors.orange,
+                            color: _waterIntakeMl >= 1000
+                                ? Colors.red
+                                : Colors.orange,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -225,33 +243,77 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               const SizedBox(height: 20),
 
-              // No Scans Yet container
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: teal,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                height: 130,
-                width: double.infinity,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'No Scans Yet',
-                      style: TextStyle(color: Colors.white, fontSize: 18),
-                    ),
-                    Container(
-                      height: 80,
-                      width: 80,
+              // Latest Scan Display
+              _latestScanImageUrl == null
+                  ? Container(
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: teal,
                         borderRadius: BorderRadius.circular(12),
                       ),
+                      height: 130,
+                      width: double.infinity,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: const [
+                          Text(
+                            'No Scans Yet',
+                            style: TextStyle(color: Colors.white, fontSize: 18),
+                          ),
+                          Icon(Icons.image_not_supported,
+                              size: 40, color: Colors.white),
+                        ],
+                      ),
+                    )
+                  : Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: teal,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      height: 130,
+                      width: double.infinity,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Latest Scan: $_latestScanResult',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                if (_latestScanTime != null)
+                                  Text(
+                                    'Date: ${DateFormat('MMM dd, yyyy – hh:mm a').format(_latestScanTime!)}',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              _latestScanImageUrl!,
+                              height: 80,
+                              width: 80,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
-              ),
 
               const SizedBox(height: 16),
               Center(
@@ -260,9 +322,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder:
-                            (context) =>
-                                TreatmentDataScreen(userId: widget.userId),
+                        builder: (context) =>
+                            TreatmentDataScreen(userId: widget.userId),
                       ),
                     );
                   },
