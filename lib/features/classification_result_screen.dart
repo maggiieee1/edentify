@@ -14,7 +14,6 @@ class ClassificationResultScreen extends StatelessWidget {
     required this.userId,
   });
 
-  // Determine text color based on result
   Color _getSeverityColor(String severity) {
     switch (severity.toLowerCase()) {
       case 'normal':
@@ -30,7 +29,6 @@ class ClassificationResultScreen extends StatelessWidget {
     }
   }
 
-  // Generate recommendations based on result
   List<String> _getRecommendations(String severity) {
     switch (severity.toLowerCase()) {
       case 'normal':
@@ -89,63 +87,71 @@ class ClassificationResultScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Image.asset('assets/logo.png', width: 40, height: 40),
-                  const Icon(Icons.notifications, size: 28),
                 ],
               ),
               const SizedBox(height: 20),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: severityColor,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                width: double.infinity,
-                height: 300,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  image: DecorationImage(
-                    image: FileImage(File(imagePath)),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Align(
-                alignment: Alignment.centerLeft,
+
+              // Severity label
+              Center(
                 child: Text(
-                  'Recommendations:',
+                  label,
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
+                    color: severityColor,
                   ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Image display (with aspect ratio to prevent cropping)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: AspectRatio(
+                  aspectRatio: 3 / 4, // Adjust this based on typical image shape
+                  child: Image.file(
+                    File(imagePath),
+                    fit: BoxFit.contain,
+                    width: double.infinity,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Recommendations title
+              const Text(
+                'Recommendations:',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: recommendations.map((rec) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Text(
-                      '- $rec',
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const Spacer(),
+
+              // Recommendations list
+              ...recommendations.map((rec) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Text(
+                    '- $rec',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                );
+              }).toList(),
+
+              const SizedBox(height: 30),
+
+              // Buttons
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -175,7 +181,6 @@ class ClassificationResultScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
             ],
           ),
         ),

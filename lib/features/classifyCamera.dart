@@ -5,7 +5,6 @@ import 'package:tflite_v2/tflite_v2.dart';
 import 'package:camera/camera.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../firebase_helper.dart';
 import 'classification_result_screen.dart'; // Import the new screen
 
 class ClassifyCamera extends StatefulWidget {
