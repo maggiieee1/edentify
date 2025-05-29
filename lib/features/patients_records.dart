@@ -96,7 +96,6 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
                   const SizedBox(height: 16),
                   const Text("Patient Record", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  Text("Date Scanned: $formattedDate", style: const TextStyle(fontStyle: FontStyle.italic)),
                   const SizedBox(height: 20),
 
                   // Swipable ScanHistory Cards
@@ -189,14 +188,14 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
                   ),
 
                   const SizedBox(height: 20),
-                  const Text("Today's Water Intake", style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text("Water Intake", style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   Text(
                     "${water?['totalAmount'] ?? '0'} ml / ${((water?['totalAmount'] ?? 0) / 250).round()} cups",
                     style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.teal),
                   ),
                   if (water?['waterLossCauses'] != null)
-                    Text("Notes: ${water!['waterLossCauses']}", style: const TextStyle(fontStyle: FontStyle.italic)),
+                    Text("Water loss cause: ${water!['waterLossCauses']}", style: const TextStyle(fontStyle: FontStyle.italic)),
 
                   const SizedBox(height: 20),
                   const Text("Appointment Data", style: TextStyle(fontWeight: FontWeight.bold)),

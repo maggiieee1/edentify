@@ -58,13 +58,13 @@ class _ImagePickerClassifyState extends State<ImagePickerClassify> {
       },
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: Colors.green[700],
+          backgroundColor: Colors.teal[700],
           centerTitle: true,
           title: Text(
             "Edentify",
             style: GoogleFonts.roboto(
-              color: Colors.black,
-              fontSize: 25.0,
+              color: Colors.white,
+              fontSize: 22.0,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -78,7 +78,7 @@ class _ImagePickerClassifyState extends State<ImagePickerClassify> {
               ),
         floatingActionButton: FloatingActionButton(
           onPressed: _pickAndClassifyImage,
-          backgroundColor: Colors.green[900],
+          backgroundColor: Colors.teal[900],
           child: const Icon(Icons.image),
         ),
       ),

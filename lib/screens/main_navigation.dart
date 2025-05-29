@@ -46,7 +46,7 @@ class _MainNavigationState extends State<MainNavigation> {
         showUnselectedLabels: false,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.qr_code_scanner), label: 'Classification'),
+          BottomNavigationBarItem(icon: Icon(Icons.image_sharp), label: 'Classification'),
           BottomNavigationBarItem(icon: Icon(Icons.library_books), label: 'Records'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],

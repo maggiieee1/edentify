@@ -15,10 +15,20 @@ class UpdateWaterIntakeScreen extends StatefulWidget {
 class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
   final TextEditingController _waterController = TextEditingController();
   double totalMl = 0;
-  final int mlPerCup = 125;
-  final int dailyLimitMl = 1000; // 1 liter limit
-  final int alertThresholdMl = 800; // Alert at 800 ml
-  List<String> waterLossCauses = [
+
+  final int mlPerCup = 240; // Updated per PH glass standard
+  final int dailyLimitMl = 1000;
+  final int alertThresholdMl = 800;
+
+  final List<String> cupSuggestions = [
+    '1 cup (240ml)',
+    '2 cups (480ml)',
+    '3 cups (720ml)',
+    '4 cups (960ml)',
+    '5 cups (1200ml)',
+  ];
+
+  final List<String> waterLossCauses = [
     "Fever",
     "Sweating",
     "Vomiting",
@@ -27,7 +37,7 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
   ];
   List<String> selectedCauses = [];
 
-  int get cups => (totalMl / mlPerCup).floor();
+  int get cups => (totalMl / mlPerCup).floor().clamp(0, 5);
 
   @override
   void initState() {
@@ -39,13 +49,12 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
     final now = DateTime.now();
     final dateKey = DateFormat('yyyy-MM-dd').format(now);
 
-    final doc =
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(widget.userId)
-            .collection('waterIntake')
-            .doc(dateKey)
-            .get();
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .collection('waterIntake')
+        .doc(dateKey)
+        .get();
 
     if (doc.exists) {
       final data = doc.data()!;
@@ -128,27 +137,26 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
   void _showAlertThresholdDialogAndRedirect() {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Hydration Alert'),
-            content: Text(
-              'You have consumed $totalMl ml of water today. Make sure to monitor your intake.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context); // Close dialog
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => MainNavigation(userId: widget.userId),
-                    ),
-                  );
-                },
-                child: const Text('OK'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('Hydration Alert'),
+        content: Text(
+          'You have consumed $totalMl ml of water today. Make sure to monitor your intake.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MainNavigation(userId: widget.userId),
+                ),
+              );
+            },
+            child: const Text('OK'),
           ),
+        ],
+      ),
     );
   }
 
@@ -182,15 +190,15 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
               Wrap(
                 spacing: 4,
                 runSpacing: 4,
-                children: List.generate(8, (index) {
+                children: List.generate(5, (index) {
                   Color cupColor;
                   if (index < cups) {
                     if (totalMl >= dailyLimitMl) {
-                      cupColor = Colors.red; // Limit reached
+                      cupColor = Colors.red;
                     } else if (totalMl >= alertThresholdMl) {
-                      cupColor = Colors.orange; // Warning zone
+                      cupColor = Colors.orange;
                     } else {
-                      cupColor = Colors.teal; // Normal
+                      cupColor = Colors.teal;
                     }
                   } else {
                     cupColor = Colors.black12;
@@ -199,7 +207,6 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
                   return Icon(Icons.local_drink, size: 36, color: cupColor);
                 }),
               ),
-
               const SizedBox(height: 8),
               Text(
                 "${totalMl.toInt().toString().padLeft(2, '0')} ml / $cups cups",
@@ -225,9 +232,26 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
                 ),
               ),
               const SizedBox(height: 6),
-              Text(
-                "= ${_waterController.text.isEmpty ? "00" : _waterController.text} ml",
-                style: const TextStyle(fontStyle: FontStyle.italic),
+              
+              const SizedBox(height: 12),
+              const Text("Or select an approximate amount:"),
+              DropdownButtonFormField<String>(
+                isExpanded: true,
+                hint: const Text("Select cups"),
+                value: null,
+                onChanged: (value) {
+                  if (value != null) {
+                    final ml = int.tryParse(
+                            value.split('(')[1].replaceAll('ml)', '')) ??
+                        0;
+                    setState(() {
+                      _waterController.text = ml.toString();
+                    });
+                  }
+                },
+                items: cupSuggestions.map((option) {
+                  return DropdownMenuItem(value: option, child: Text(option));
+                }).toList(),
               ),
               const SizedBox(height: 24),
               const Text(
@@ -245,25 +269,23 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
                     setState(() => selectedCauses.add(value));
                   }
                 },
-                items:
-                    waterLossCauses.map((cause) {
-                      return DropdownMenuItem(value: cause, child: Text(cause));
-                    }).toList(),
+                items: waterLossCauses.map((cause) {
+                  return DropdownMenuItem(value: cause, child: Text(cause));
+                }).toList(),
               ),
               Wrap(
-                children:
-                    selectedCauses.map((cause) {
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 8, right: 6),
-                        child: Chip(
-                          label: Text(cause),
-                          deleteIcon: const Icon(Icons.close),
-                          onDeleted: () {
-                            setState(() => selectedCauses.remove(cause));
-                          },
-                        ),
-                      );
-                    }).toList(),
+                children: selectedCauses.map((cause) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8, right: 6),
+                    child: Chip(
+                      label: Text(cause),
+                      deleteIcon: const Icon(Icons.close),
+                      onDeleted: () {
+                        setState(() => selectedCauses.remove(cause));
+                      },
+                    ),
+                  );
+                }).toList(),
               ),
               const SizedBox(height: 24),
               Center(
