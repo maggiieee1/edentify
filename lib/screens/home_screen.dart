@@ -212,7 +212,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 child: Icon(
                                   Icons.local_drink,
-                                  size: 45,
+                                  size: 34,
                                   color: isFilled ? cupColor : Colors.black26,
                                 ),
                               );

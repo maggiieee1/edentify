@@ -13,12 +13,19 @@ class ScanDetailsScreen extends StatelessWidget {
     final imageUrl = scanData['imageURL'] ?? '';
     final recommendations = scanData['recommendations'] ?? 'No recommendations';
     final timestamp = (scanData['timestamp'] as Timestamp?)?.toDate();
-    final formattedTime = timestamp != null
-        ? DateFormat('yyyy-MM-dd – hh:mm a').format(timestamp)
-        : 'Unknown time';
+    final formattedTime =
+        timestamp != null
+            ? DateFormat('yyyy-MM-dd – hh:mm a').format(timestamp)
+            : 'Unknown time';
 
-    final doctorClassification = scanData['doctorClassification'] ?? 'Not classified by doctor yet';
-    final notes = scanData['doctorNotes'] ?? 'No additional notes';
+    final doctorClassification =
+        scanData['doctorClassification'] ?? 'Not classified by doctor yet';
+    final notes = scanData['doctor_note'] ?? 'No additional notes';
+    final isApproved = scanData['approved'] == true;
+    if (isApproved)
+      Text('✔ Approved by doctor', style: TextStyle(color: Colors.green));
+    else
+      Text('Pending doctor approval', style: TextStyle(color: Colors.red));
 
     return Scaffold(
       appBar: AppBar(
@@ -37,17 +44,15 @@ class ScanDetailsScreen extends StatelessWidget {
                   imageUrl,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const Icon(Icons.broken_image, size: 150),
+                  errorBuilder:
+                      (context, error, stackTrace) =>
+                          const Icon(Icons.broken_image, size: 150),
                 ),
               ),
             const SizedBox(height: 20),
             Text(
               'Result: $result',
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             Text(
@@ -91,10 +96,7 @@ class ScanDetailsScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      notes,
-                      style: const TextStyle(fontSize: 16),
-                    ),
+                    Text(notes, style: const TextStyle(fontSize: 16)),
                   ],
                 ),
               ),
