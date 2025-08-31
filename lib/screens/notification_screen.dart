@@ -8,7 +8,7 @@ class NotificationScreen extends StatelessWidget {
     final notifications = [
       {
         'icon': Icons.medical_services,
-        'color': Colors.teal,
+        'color': Color(0xFF056C5B),
         'title': 'Doctor Reclassified Result',
         'message': 'Your scan on May 28 was reclassified from "Mild" to "Severe". Please consult your nephrologist as soon as possible.',
         'timestamp': '2 hours ago',
@@ -46,7 +46,7 @@ class NotificationScreen extends StatelessWidget {
               "Notifications",
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
-            const Divider(color: Colors.teal, thickness: 1),
+            const Divider(color: Color(0xFF056C5B), thickness: 1),
 
             // Notification List
             Expanded(

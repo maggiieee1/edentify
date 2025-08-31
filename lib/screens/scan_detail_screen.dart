@@ -30,7 +30,7 @@ class ScanDetailsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scan Details'),
-        backgroundColor: Colors.teal,
+        backgroundColor: Color(0xFF056C5B),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),

@@ -245,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ).then((_) => _loadTodayWaterIntake());
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.teal,
+                                  backgroundColor: Color(0xFF056C5B),
                                 ),
                                 child: const Text(
                                   "Update",

@@ -13,9 +13,21 @@ class TreatmentDataScreen extends StatefulWidget {
 
 class _TreatmentDataScreenState extends State<TreatmentDataScreen> {
   final TextEditingController _dateController = TextEditingController();
+
+  // Vital signs controllers
+  final TextEditingController _hrController = TextEditingController();
+  final TextEditingController _bpController = TextEditingController();
+  final TextEditingController _rrController = TextEditingController();
+  final TextEditingController _tempController = TextEditingController();
+  final TextEditingController _spo2Controller = TextEditingController();
+
+  // Weight controllers
   final TextEditingController _preWeightController = TextEditingController();
   final TextEditingController _postWeightController = TextEditingController();
-  final TextEditingController _ufVolumeController = TextEditingController();
+
+  // UF controllers
+  final TextEditingController _ufGoalController = TextEditingController();
+  final TextEditingController _ufRemovedController = TextEditingController();
 
   DateTime? selectedDate;
 
@@ -52,9 +64,21 @@ class _TreatmentDataScreenState extends State<TreatmentDataScreen> {
           .doc(formattedDate) // Use date as doc ID
           .set({
         'dialysisDate': DateFormat('MM/dd/yyyy').format(selectedDate!),
-        'preWeight': double.tryParse(_preWeightController.text) ?? 0,
-        'postWeight': double.tryParse(_postWeightController.text) ?? 0,
-        'ufVolume': double.tryParse(_ufVolumeController.text) ?? 0,
+        'vitalSigns': {
+          'HR': int.tryParse(_hrController.text) ?? 0,
+          'BP': _bpController.text.trim(),
+          'RR': int.tryParse(_rrController.text) ?? 0,
+          'Temp': double.tryParse(_tempController.text) ?? 0,
+          'SpO2': int.tryParse(_spo2Controller.text) ?? 0,
+        },
+        'weight': {
+          'pre': double.tryParse(_preWeightController.text) ?? 0,
+          'post': double.tryParse(_postWeightController.text) ?? 0,
+        },
+        'uf': {
+          'goal': double.tryParse(_ufGoalController.text) ?? 0,
+          'removed': double.tryParse(_ufRemovedController.text) ?? 0,
+        },
         'timestamp': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
@@ -62,10 +86,17 @@ class _TreatmentDataScreenState extends State<TreatmentDataScreen> {
         const SnackBar(content: Text('Treatment data saved successfully.')),
       );
 
+      // Clear inputs
       _dateController.clear();
+      _hrController.clear();
+      _bpController.clear();
+      _rrController.clear();
+      _tempController.clear();
+      _spo2Controller.clear();
       _preWeightController.clear();
       _postWeightController.clear();
-      _ufVolumeController.clear();
+      _ufGoalController.clear();
+      _ufRemovedController.clear();
       selectedDate = null;
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -81,11 +112,12 @@ class _TreatmentDataScreenState extends State<TreatmentDataScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -101,6 +133,8 @@ class _TreatmentDataScreenState extends State<TreatmentDataScreen> {
                 ),
               ),
               const SizedBox(height: 24),
+
+              // Dialysis Date
               const Text("Dialysis Date", style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               TextField(
@@ -114,6 +148,72 @@ class _TreatmentDataScreenState extends State<TreatmentDataScreen> {
                 ),
               ),
               const SizedBox(height: 20),
+
+              // Vital Signs
+              const Text("Vital Signs", style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _hrController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'HR',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _bpController,
+                      decoration: const InputDecoration(
+                        labelText: 'BP',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _rrController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'RR',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _tempController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Temp',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _spo2Controller,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'SpO2',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Weight
               const Text("Weight", style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Row(
@@ -123,49 +223,55 @@ class _TreatmentDataScreenState extends State<TreatmentDataScreen> {
                       controller: _preWeightController,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
-                        labelText: 'Pre',
-                        hintText: 'Kilograms',
+                        labelText: 'Pre (kg)',
                         border: OutlineInputBorder(),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  const Text("kg"),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: TextField(
                       controller: _postWeightController,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
-                        labelText: 'Post',
-                        hintText: 'Kilograms',
+                        labelText: 'Post (kg)',
                         border: OutlineInputBorder(),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  const Text("kg"),
                 ],
               ),
               const SizedBox(height: 20),
+
+              // UF Removed
               const Text("UF Volume", style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
                     child: TextField(
-                      controller: _ufVolumeController,
+                      controller: _ufGoalController,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
-                        hintText: 'Liters',
+                        labelText: 'UF Goal (L)',
                         border: OutlineInputBorder(),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  const Text("L"),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _ufRemovedController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'UF Removed (L)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
                 ],
               ),
+
               const SizedBox(height: 32),
               Center(
                 child: ElevatedButton(

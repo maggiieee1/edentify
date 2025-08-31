@@ -36,7 +36,7 @@ class _SignInScreenState extends State<SignInScreen> {
               child: Text(
                 'Terms and Agreement',
                 style: TextStyle(
-                  color: Colors.teal,
+                  color: Color(0xFF056C5B),
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -57,7 +57,7 @@ class _SignInScreenState extends State<SignInScreen> {
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+                style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF056C5B)),
                 child: Text('Accept'),
               ),
             ],
@@ -150,7 +150,7 @@ class _SignInScreenState extends State<SignInScreen> {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: Colors.teal,
+      backgroundColor: Color(0xFF056C5B),
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -237,7 +237,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       onPressed: _isSendingCode ? null : _signInAndGoHome,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
-                        foregroundColor: Colors.teal,
+                        foregroundColor: Color(0xFF056C5B),
                         minimumSize: Size(double.infinity, 50),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -245,7 +245,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       ),
                       child:
                           _isSendingCode
-                              ? CircularProgressIndicator(color: Colors.teal)
+                              ? CircularProgressIndicator(color: Color(0xFF056C5B))
                               : Text(
                                 'Sign In',
                                 style: TextStyle(
@@ -343,7 +343,7 @@ class _SignInScreenState extends State<SignInScreen> {
           value: value,
           onChanged: onChanged,
           activeColor: Colors.white,
-          checkColor: Colors.teal,
+          checkColor: Color(0xFF056C5B),
         ),
         Flexible(
           child: GestureDetector(

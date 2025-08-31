@@ -150,7 +150,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.teal.shade700,
+      backgroundColor: Color(0xFF056C5B),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32.0),
@@ -196,11 +196,11 @@ class _VerificationScreenState extends State<VerificationScreen> {
                 onPressed: _isVerifying ? null : _verifyOTP,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
-                  foregroundColor: Colors.teal.shade800,
+                  foregroundColor: Color(0xFF056C5B),
                   padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
                 ),
                 child: _isVerifying
-                    ? const CircularProgressIndicator(color: Colors.teal)
+                    ? const CircularProgressIndicator(color: Color(0xFF056C5B))
                     : const Text('Verify'),
               ),
             ],

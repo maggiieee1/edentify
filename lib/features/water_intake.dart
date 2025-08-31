@@ -117,7 +117,7 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Water Intake Updated!'),
-        backgroundColor: Colors.teal,
+        backgroundColor: Color(0xFF056C5B),
         duration: Duration(seconds: 1),
       ),
     );
@@ -198,7 +198,7 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
                     } else if (totalMl >= alertThresholdMl) {
                       cupColor = Colors.orange;
                     } else {
-                      cupColor = Colors.teal;
+                      cupColor = Color(0xFF056C5B);
                     }
                   } else {
                     cupColor = Colors.black12;
@@ -211,7 +211,7 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
               Text(
                 "${totalMl.toInt().toString().padLeft(2, '0')} ml / $cups cups",
                 style: const TextStyle(
-                  color: Colors.teal,
+                  color: Color(0xFF056C5B),
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
@@ -290,7 +290,7 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
               const SizedBox(height: 24),
               Center(
                 child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+                  style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF056C5B),),
                   onPressed: () async {
                     await updateWaterIntake();
                   },

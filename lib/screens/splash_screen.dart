@@ -14,8 +14,9 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     Timer(const Duration(seconds: 3), () {
+      if (!mounted) return; // make sure the widget is still in the tree
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => LandingScreen()),
+        MaterialPageRoute(builder: (_) => const LandingScreen()),
       );
     });
   }
@@ -35,7 +36,7 @@ class _SplashScreenState extends State<SplashScreen> {
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
-                color: Colors.teal,
+                color: Color(0xFF056C5B)
               ),
             ),
           ],

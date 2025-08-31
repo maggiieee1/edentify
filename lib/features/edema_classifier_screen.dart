@@ -10,7 +10,7 @@ class EdemaClassifierScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edema Classifier'),
-        backgroundColor: tealColor,
+        backgroundColor: Color(0xFF056C5B),
       ),
       body: SafeArea(
         child: Center(
@@ -22,7 +22,7 @@ class EdemaClassifierScreen extends StatelessWidget {
                 ElevatedButton.icon(
                   icon: const Icon(Icons.camera_alt),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: tealColor,
+                    backgroundColor: Color(0xFF056C5B),
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                     textStyle: const TextStyle(fontSize: 18),
                   ),
@@ -35,7 +35,7 @@ class EdemaClassifierScreen extends StatelessWidget {
                 ElevatedButton.icon(
                   icon: const Icon(Icons.photo_library),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: tealColor,
+                    backgroundColor: Color(0xFF056C5B),
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                     textStyle: const TextStyle(fontSize: 18),
                   ),

@@ -102,7 +102,7 @@ class _RecordScreenState extends State<RecordScreen> {
                         icon: const Icon(Icons.calendar_today),
                         label: Text(DateFormat('MMMM d').format(date)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.teal,
+                          backgroundColor: Color(0xFF056C5B),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(

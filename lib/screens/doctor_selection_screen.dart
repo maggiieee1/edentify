@@ -91,7 +91,7 @@ class _DoctorSelectionScreenState extends State<DoctorSelectionScreen> {
             const Text(
               'Select Doctor',
               style: TextStyle(
-                color: Colors.teal,
+                color: Color(0xFF056C5B),
                 fontSize: 36,
                 fontWeight: FontWeight.bold,
               ),
@@ -157,7 +157,7 @@ class _DoctorSelectionScreenState extends State<DoctorSelectionScreen> {
                       );
                     },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
+                backgroundColor: Color(0xFF056C5B),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 80,
                   vertical: 14,
@@ -178,7 +178,7 @@ class _DoctorSelectionScreenState extends State<DoctorSelectionScreen> {
             Container(
               height: 180,
               decoration: const BoxDecoration(
-                color: Colors.teal,
+                color: Color(0xFF056C5B),
                 borderRadius: BorderRadius.vertical(
                   top: Radius.elliptical(400, 120),
                 ),

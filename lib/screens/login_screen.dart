@@ -72,7 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: Colors.teal,
+      backgroundColor: Color(0xFF056C5B),
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -162,7 +162,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                          color: Colors.teal,
+                          color: Color(0xFF056C5B),
                         ),
                         onPressed: () {
                           setState(() {
@@ -178,7 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     height: 45,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        foregroundColor: Colors.teal,
+                        foregroundColor: Color(0xFF056C5B),
                         backgroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -186,7 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       onPressed: _isLoading ? null : _loginUser,
                       child: _isLoading
-                          ? CircularProgressIndicator(color: Colors.teal)
+                          ? CircularProgressIndicator(color: Color(0xFF056C5B))
                           : Text(
                               'Log In',
                               style: TextStyle(

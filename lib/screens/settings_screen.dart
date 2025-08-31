@@ -119,7 +119,7 @@ class SettingsScreen extends StatelessWidget {
     return Column(
       children: [
         ListTile(
-          leading: Icon(icon, color: Colors.teal),
+          leading: Icon(icon, color: Color(0xFF056C5B)),
           title: Text(
             text,
             style: const TextStyle(fontWeight: FontWeight.w500),

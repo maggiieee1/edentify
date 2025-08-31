@@ -40,7 +40,7 @@ class _MainNavigationState extends State<MainNavigation> {
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
         backgroundColor: teal,
-        selectedItemColor: Colors.teal,
+        selectedItemColor: Color(0xFF056C5B),
         unselectedItemColor: Colors.grey,
         showSelectedLabels: false,
         showUnselectedLabels: false,

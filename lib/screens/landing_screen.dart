@@ -32,7 +32,7 @@ class LandingScreen extends StatelessWidget {
                       style: TextStyle(
                         fontSize: size.width * 0.09,
                         fontWeight: FontWeight.bold,
-                        color: Colors.teal,
+                        color: Color(0xFF056C5B),
                       ),
                     ),
                     SizedBox(height: size.height * 0.015),
@@ -52,7 +52,7 @@ class LandingScreen extends StatelessWidget {
               child: Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: Colors.teal,
+                  color: Color(0xFF056C5B),
                   borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(50),
                     topRight: Radius.circular(50),
@@ -74,7 +74,7 @@ class LandingScreen extends StatelessWidget {
                     SizedBox(height: size.height * 0.03),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        foregroundColor: Colors.teal,
+                        foregroundColor: Color(0xFF056C5B),
                         backgroundColor: Colors.white,
                         minimumSize: Size(double.infinity, 50),
                         shape: RoundedRectangleBorder(

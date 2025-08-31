@@ -113,7 +113,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onPressed: () => Navigator.of(context).pop(false),
                 ),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+                  style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF056C5B)),
                   child: const Text('Set Image'),
                   onPressed: () => Navigator.of(context).pop(true),
                 ),
