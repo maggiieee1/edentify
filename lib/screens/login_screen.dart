@@ -37,11 +37,12 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       final hashedInputPassword = hashPassword(password);
-      final querySnapshot = await _firestore
-          .collection('users')
-          .where('email', isEqualTo: email)
-          .where('password', isEqualTo: hashedInputPassword)
-          .get();
+      final querySnapshot =
+          await _firestore
+              .collection('users')
+              .where('email', isEqualTo: email)
+              .where('password', isEqualTo: hashedInputPassword)
+              .get();
 
       if (querySnapshot.docs.isEmpty) {
         setState(() {
@@ -54,7 +55,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => MainNavigation(userId: userId)),
+        MaterialPageRoute(
+          builder:
+              (context) =>
+                  MainNavigation(userId: userId), // pass Firestore docId
+        ),
       );
     } catch (e) {
       setState(() {
@@ -161,7 +166,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
                           color: Color(0xFF056C5B),
                         ),
                         onPressed: () {
@@ -185,15 +192,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       onPressed: _isLoading ? null : _loginUser,
-                      child: _isLoading
-                          ? CircularProgressIndicator(color: Color(0xFF056C5B))
-                          : Text(
-                              'Log In',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: size.width * 0.045,
+                      child:
+                          _isLoading
+                              ? CircularProgressIndicator(
+                                color: Color(0xFF056C5B),
+                              )
+                              : Text(
+                                'Log In',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: size.width * 0.045,
+                                ),
                               ),
-                            ),
                     ),
                   ),
                   SizedBox(height: size.height * 0.05),

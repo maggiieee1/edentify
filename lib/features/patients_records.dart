@@ -21,39 +21,43 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
     final dateKey = DateFormat('yyyy-MM-dd').format(widget.selectedDate);
     final firestore = FirebaseFirestore.instance;
 
-    final waterSnapshot = await firestore
-        .collection('users')
-        .doc(widget.userId)
-        .collection('waterIntake')
-        .doc(dateKey)
-        .get();
+    final waterSnapshot =
+        await firestore
+            .collection('users')
+            .doc(widget.userId)
+            .collection('waterIntake')
+            .doc(dateKey)
+            .get();
 
-    final treatmentSnapshot = await firestore
-        .collection('users')
-        .doc(widget.userId)
-        .collection('treatment_data')
-        .doc(dateKey)
-        .get();
+    final treatmentSnapshot =
+        await firestore
+            .collection('users')
+            .doc(widget.userId)
+            .collection('treatment_data')
+            .doc(dateKey)
+            .get();
 
-    final scanSnapshot = await firestore
-        .collection('users')
-        .doc(widget.userId)
-        .collection('scanHistory')
-        .orderBy('timestamp', descending: true)
-        .get();
+    final scanSnapshot =
+        await firestore
+            .collection('users')
+            .doc(widget.userId)
+            .collection('scanHistory')
+            .orderBy('timestamp', descending: true)
+            .get();
 
     final treatmentData =
         treatmentSnapshot.exists ? treatmentSnapshot.data() : null;
 
-    final filteredScans = scanSnapshot.docs
-        .where((doc) {
-          final timestamp = (doc['timestamp'] as Timestamp?)?.toDate();
-          return timestamp != null &&
-              DateFormat('yyyy-MM-dd').format(timestamp) ==
-                  DateFormat('yyyy-MM-dd').format(widget.selectedDate);
-        })
-        .map((doc) => doc.data())
-        .toList();
+    final filteredScans =
+        scanSnapshot.docs
+            .where((doc) {
+              final timestamp = (doc['timestamp'] as Timestamp?)?.toDate();
+              return timestamp != null &&
+                  DateFormat('yyyy-MM-dd').format(timestamp) ==
+                      DateFormat('yyyy-MM-dd').format(widget.selectedDate);
+            })
+            .map((doc) => doc.data())
+            .toList();
 
     return {
       'waterIntake': waterSnapshot.data(),
@@ -93,216 +97,263 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  const Text(
-                    "Patient Record",
-                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                  /// TITLE + DATE
+                  Column(
+                    children: [
+                      const Text(
+                        "Patient Record",
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.calendar_today, size: 16),
+                          const SizedBox(width: 6),
+                          Text(
+                            DateFormat(
+                              'MM/dd/yyyy',
+                            ).format(widget.selectedDate),
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 24),
 
-                  /// SCAN HISTORY (swipeable cards)
+                  /// SCANS
                   const Text(
-                    "Scan History",
+                    "Scans",
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
-                    height: 200,
-                    child: scans.isEmpty
-                        ? Container(
-                            decoration: BoxDecoration(
-                              color: Colors.teal[600],
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: const Center(
-                              child: Text(
-                                "No Scans Available",
-                                style: TextStyle(color: Colors.white),
+                    height: 160,
+                    child:
+                        scans.isEmpty
+                            ? Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey[300],
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                            ),
-                          )
-                        : PageView.builder(
-                            itemCount: scans.length,
-                            controller: PageController(viewportFraction: 0.9),
-                            itemBuilder: (context, index) {
-                              final scan = scans[index];
-                              final scanDate =
-                                  (scan['timestamp'] as Timestamp?)?.toDate();
-                              final scanDateFormatted = scanDate != null
-                                  ? DateFormat('MM/dd/yyyy h:mm a')
-                                      .format(scanDate)
-                                  : 'No Date';
+                              child: const Center(
+                                child: Text("No Scans Available"),
+                              ),
+                            )
+                            : PageView.builder(
+                              itemCount: scans.length,
+                              controller: PageController(viewportFraction: 0.9),
+                              itemBuilder: (context, index) {
+                                final scan = scans[index];
+                                final scanDate =
+                                    (scan['timestamp'] as Timestamp?)?.toDate();
+                                final scanDateFormatted =
+                                    scanDate != null
+                                        ? DateFormat(
+                                          'MM/dd/yyyy h:mm a',
+                                        ).format(scanDate)
+                                        : 'No Date';
 
-                              return Container(
-                                margin:
-                                    const EdgeInsets.symmetric(horizontal: 6),
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: Colors.teal[600],
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: scan['imageURL'] != null
-                                          ? Image.network(
-                                              scan['imageURL'],
-                                              width: 90,
-                                              height: 90,
-                                              fit: BoxFit.cover,
-                                            )
-                                          : Container(
-                                              width: 90,
-                                              height: 90,
-                                              color: Colors.white24,
-                                              child: const Icon(
-                                                Icons.image,
+                                return Container(
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                  ),
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red[700],
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              "Latest Scan",
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              "Edema Classification:",
+                                              style: TextStyle(
+                                                color: Colors.white.withOpacity(
+                                                  0.8,
+                                                ),
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                            Text(
+                                              scan['result'] ?? 'Unknown',
+                                              style: const TextStyle(
+                                                fontSize: 22,
+                                                fontWeight: FontWeight.bold,
                                                 color: Colors.white,
                                               ),
                                             ),
-                                    ),
-                                    const SizedBox(width: 14),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            scan['result'] ?? 'No Result',
-                                            style: const TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 6),
-                                          const Text(
-                                            "Recommendations:",
-                                            style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w600),
-                                          ),
-                                          Text(
-                                            scan['recommendations'] ??
-                                                'No Recommendation',
-                                            style: const TextStyle(
+                                            const Spacer(),
+                                            Text(
+                                              "Date Scanned: $scanDateFormatted",
+                                              style: TextStyle(
                                                 color: Colors.white70,
-                                                fontSize: 13),
-                                            maxLines: 3,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          const Spacer(),
-                                          Text(
-                                            scanDateFormatted,
-                                            style: const TextStyle(
-                                                color: Colors.white60,
-                                                fontSize: 11),
-                                          ),
-                                        ],
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
+                                      const SizedBox(width: 10),
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child:
+                                            scan['imageURL'] != null
+                                                ? Image.network(
+                                                  scan['imageURL'],
+                                                  width: 90,
+                                                  height: 90,
+                                                  fit: BoxFit.cover,
+                                                )
+                                                : Container(
+                                                  width: 90,
+                                                  height: 90,
+                                                  color: Colors.white24,
+                                                  child: const Icon(
+                                                    Icons.image,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
                   ),
-
                   const SizedBox(height: 30),
 
-                  /// WATER INTAKE
+                  /// VITAL SIGNS
                   const Text(
-                    "Water Intake",
+                    "Vital Signs",
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 8),
-                  Card(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    elevation: 2,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "${water?['totalAmount'] ?? '0'} ml / ${((water?['totalAmount'] ?? 0) / 250).round()} cups",
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF056C5B),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.teal, width: 2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildVital("HR", treatment?['hr']),
+                        _buildVital("BP", treatment?['bp']),
+                        _buildVital("RR", treatment?['rr']),
+                        _buildVital("SpO2", treatment?['spo2']),
+                        _buildVital("TEMP", treatment?['temp']),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+
+                  /// WEIGHT & UF
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Weight in kg",
+                              style: TextStyle(fontWeight: FontWeight.bold),
                             ),
-                          ),
-                          if (water?['waterLossCauses'] != null) ...[
                             const SizedBox(height: 8),
-                            Text(
-                              "Cause of water loss: ${water!['waterLossCauses']}",
-                              style: const TextStyle(
-                                fontStyle: FontStyle.italic,
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Colors.teal,
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceAround,
+                                children: [
+                                  _buildVital("Pre", treatment?['preWeight']),
+                                  _buildVital("Post", treatment?['postWeight']),
+                                ],
                               ),
                             ),
                           ],
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  /// APPOINTMENT
-                  const Text(
-                    "Appointment Data",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Card(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    elevation: 2,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("Dialysis Date: ${treatment?['dialysisDate'] ?? 'N/A'}"),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Text("Weight - Pre: ${treatment?['preWeight'] ?? 'N/A'} kg"),
-                              const SizedBox(width: 16),
-                              Text("Post: ${treatment?['postWeight'] ?? 'N/A'} kg"),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text("UF Volume: ${treatment?['ufVolume'] ?? 'N/A'} L"),
-                        ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "UF Volume in L",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Colors.teal,
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceAround,
+                                children: [
+                                  _buildVital("Goal", treatment?['ufGoal']),
+                                  _buildVital(
+                                    "Removed",
+                                    treatment?['ufVolume'],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-
                   const SizedBox(height: 30),
 
                   /// NOTES
                   const Text(
-                    "Doctor's Notes",
+                    "Doctor's Notes:",
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  Card(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    elevation: 2,
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        children: const [
-                          Text("______________________________"),
-                          Text("______________________________"),
-                          Text("______________________________"),
-                        ],
-                      ),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade400),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text("______________________________"),
+                        Text("______________________________"),
+                        Text("______________________________"),
+                      ],
                     ),
                   ),
                 ],
@@ -311,6 +362,19 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildVital(String label, dynamic value) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+        ),
+        const SizedBox(height: 4),
+        Text(value?.toString() ?? "00", style: const TextStyle(fontSize: 14)),
+      ],
     );
   }
 }

@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../features/water_intake.dart';
 import '../features/edema_classifier_screen.dart';
+import 'main_navigation.dart'; // ⭐ added
+import '../screens/treatment_record_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userId;
@@ -101,304 +103,338 @@ class _HomeScreenState extends State<HomeScreen> {
     final hour = DateTime.now().hour;
     final greeting =
         hour < 12
-            ? 'Good morning'
+            ? 'Good Morning'
             : hour < 17
-            ? 'Good afternoon'
-            : 'Good evening';
+            ? 'Good Afternoon'
+            : 'Good Evening';
 
     return Scaffold(
       backgroundColor: Colors.white,
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: teal,
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => EdemaClassifierScreen()),
-          );
-        },
-        child: const Icon(Icons.camera_alt, color: Colors.white),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: Image.asset('assets/logo.png', height: 28, width: 28),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_none, color: Colors.black),
+            onPressed: () {
+              // TODO: Navigate to Notifications Screen
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Image.asset('assets/logo.png', height: 32),
-                    const Icon(Icons.notifications, color: Colors.black),
-                  ],
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Greeting
+              Text(
+                '$greeting, $_firstName.',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
                 ),
-                const SizedBox(height: 16),
+              ),
+              const SizedBox(height: 12),
 
-                // Greeting
-                Text(
-                  '$greeting, $_firstName!',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: teal,
-                  ),
-                ),
+              // Upcoming Appointments
+              const Text(
+                "Upcoming Appointments",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 16),
 
-                const SizedBox(height: 20),
-
-                // Edema Progression
-                const Text(
-                  'Edema Progression',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  height: 110,
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Water Intake Section
-                Container(
+              // Dialysis Treatment Record
+              InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) =>
+                              TreatmentRecordScreen(userId: widget.userId),
+                    ),
+                  );
+                },
+                child: Container(
+                  width: double.infinity,
                   padding: const EdgeInsets.all(16),
-                  margin: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 6,
-                        offset: Offset(0, 3),
-                      ),
-                    ],
+                    color: Colors.teal.shade100,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Water Intake',
+                  child: Row(
+                    children: const [
+                      Icon(Icons.article, size: 32, color: Colors.teal),
+                      SizedBox(width: 12),
+                      Text(
+                        "Dialysis Treatment Record",
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black,
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: List.generate(5, (index) {
-                              final bool isFilled = index < waterCups;
-                              Color cupColor;
-
-                              if (_waterIntakeMl >= 1000) {
-                                cupColor = Colors.red;
-                              } else if (_waterIntakeMl >= alertThresholdMl) {
-                                cupColor = Colors.orange;
-                              } else {
-                                cupColor = Colors.black;
-                              }
-
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 2,
-                                ),
-                                child: Icon(
-                                  Icons.local_drink,
-                                  size: 34,
-                                  color: isFilled ? cupColor : Colors.black26,
-                                ),
-                              );
-                            }),
-                          ),
-
-                          // Intake text and update button
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                '${_waterIntakeMl.toInt().toString().padLeft(2, '0')} ml',
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              ElevatedButton(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder:
-                                          (context) => UpdateWaterIntakeScreen(
-                                            userId: widget.userId,
-                                          ),
-                                    ),
-                                  ).then((_) => _loadTodayWaterIntake());
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Color(0xFF056C5B),
-                                ),
-                                child: const Text(
-                                  "Update",
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
                       ),
                     ],
                   ),
                 ),
+              ),
+              const SizedBox(height: 12),
 
-                const SizedBox(height: 8),
-                if (_waterIntakeMl >= 800)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4.0),
+              // Row: Water Intake + Dialysis Session
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Water Intake Card
+                  Expanded(
+                    child: AspectRatio(
+                      aspectRatio: 1, // ✅ Forces square shape
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.local_drink,
+                              size: 32,
+                              color: Colors.blue,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              "${_waterIntakeMl.toInt()}/1000 mL",
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            ElevatedButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (context) => UpdateWaterIntakeScreen(
+                                          userId: widget.userId,
+                                        ),
+                                  ),
+                                ).then((_) => _loadTodayWaterIntake());
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                minimumSize: const Size(80, 32),
+                                padding: EdgeInsets.zero,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                              ),
+                              child: const Text(
+                                "Update",
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+
+                  // Dialysis Session Card
+                  Expanded(
+                    child: AspectRatio(
+                      aspectRatio: 1, // ✅ Same square size as water intake card
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade700,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Text(
+                              "00",
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              "Tue",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(height: 6),
+                            Text(
+                              "R&B Dialysis Center",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white70,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              // Latest Scan Section
+              _latestScanImageUrl == null
+                  ? Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    height: 130,
+                    width: double.infinity,
+                    child: const Center(
+                      child: Text(
+                        'No Scans Yet',
+                        style: TextStyle(fontSize: 18, color: Colors.black54),
+                      ),
+                    ),
+                  )
+                  : Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade400,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    height: 130,
+                    width: double.infinity,
                     child: Row(
                       children: [
-                        const Icon(
-                          Icons.warning,
-                          color: Colors.orange,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
                         Expanded(
-                          child: Text(
-                            _waterIntakeMl >= 1000
-                                ? "Water intake limit is reached! Avoid drinking water."
-                                : "You're nearing the daily limit of 1000ml. Please monitor your intake.",
-                            style: TextStyle(
-                              fontSize: 13,
-                              color:
-                                  _waterIntakeMl >= 1000
-                                      ? Colors.red
-                                      : Colors.orange,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text(
+                                "Latest Scan",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                "Edema Classification: $_latestScanResult",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              if (_latestScanTime != null)
+                                Text(
+                                  DateFormat(
+                                    'MMM dd, yyyy – hh:mm a',
+                                  ).format(_latestScanTime!),
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            _latestScanImageUrl!,
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
                           ),
                         ),
                       ],
                     ),
                   ),
-                const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-                // Latest Scan Display
-                _latestScanImageUrl == null
-                    ? Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: teal,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      height: 130,
-                      width: double.infinity,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: const [
-                          Text(
-                            'No Scans Yet',
-                            style: TextStyle(color: Colors.white, fontSize: 18),
-                          ),
-                          Icon(
-                            Icons.image_not_supported,
-                            size: 40,
-                            color: Colors.white,
-                          ),
-                        ],
-                      ),
-                    )
-                    : Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: teal,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      height: 130,
-                      width: double.infinity,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Latest Scan: $_latestScanResult',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                if (_latestScanTime != null)
-                                  Text(
-                                    'Date: ${DateFormat('MMM dd, yyyy – hh:mm a').format(_latestScanTime!)}',
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              _latestScanImageUrl!,
-                              height: 80,
-                              width: 80,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ],
-                      ),
+              // Edema Progression with floating button
+              Stack(
+                children: [
+                  Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-
-                const SizedBox(height: 16),
-                Center(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (context) =>
-                                  TreatmentDataScreen(userId: widget.userId),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
+                    elevation: 3,
+                    child: Container(
+                      height: 200,
+                      padding: const EdgeInsets.all(12),
+                      child: const Center(
+                        child: Text("Edema Progression Graph"),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text(
-                      'Dialysis Treatment Data',
-                      style: TextStyle(color: Colors.white),
                     ),
                   ),
-                ),
-              ],
-            ),
+                  Positioned(
+                    bottom: 16,
+                    right: 16,
+                    child: FloatingActionButton(
+                      backgroundColor: teal,
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => EdemaClassifierScreen(),
+                          ),
+                        );
+                      },
+                      child: const Icon(Icons.camera_alt, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _infoCard(
+    IconData icon,
+    String title,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 28, color: Colors.black87),
+            const SizedBox(height: 8),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+          ],
         ),
       ),
     );

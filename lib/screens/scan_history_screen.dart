@@ -14,17 +14,11 @@ class ScanHistoryScreen extends StatefulWidget {
 class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
   String _selectedFilter = 'All';
 
-  final Map<String, Color> resultColors = {
-    'Normal': Colors.green.shade100,
-    'Mild': Colors.yellow.shade300,
-    'Moderate': Colors.amber.shade100,
-    'Severe': Colors.red.shade100,
-  };
-  final Map<String, Color> borderColors = {
-    'Normal': Colors.green,
-    'Mild': Colors.yellow,
-    'Moderate': Colors.amber,
-    'Severe': Colors.red,
+  final Map<String, Color> cardColors = {
+    'Normal': Colors.green.shade200,
+    'Mild': Colors.yellow.shade200,
+    'Moderate': Colors.orange.shade200,
+    'Severe': Colors.red.shade300,
   };
 
   @override
@@ -33,58 +27,43 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top section with logo and title
+            /// Top bar (title + icons)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Image.asset(
-                    'assets/logo.png', // Replace with your actual asset path
-                    height: 40,
-                  ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 40), // keeps title centered
                   const Text(
-                    'Scan History',
+                    "Scan History",
                     style: TextStyle(
-                      fontSize: 22,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF056C5B),
                     ),
+                  ),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.filter_alt_outlined),
+                        onPressed: () {
+                          // optional: implement filter sheet
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.notifications_none),
+                        onPressed: () {
+                          // notification navigation
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
 
-            // Dropdown filter
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: 'Filter by Result',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                value: _selectedFilter,
-                items: ['All', 'Normal', 'Mild', 'Moderate', 'Severe']
-                    .map(
-                      (label) => DropdownMenuItem(
-                        value: label,
-                        child: Text(label),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedFilter = value!;
-                  });
-                },
-              ),
-            ),
-
-            // Expanded scan list
+            /// History list
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
@@ -99,7 +78,7 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                   }
 
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return const Center(child: Text('No scan history found.'));
+                    return const Center(child: Text("No scan history found."));
                   }
 
                   final scanDocs = snapshot.data!.docs.where((doc) {
@@ -109,21 +88,19 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                   }).toList();
 
                   return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     itemCount: scanDocs.length,
                     itemBuilder: (context, index) {
                       final data = scanDocs[index].data() as Map<String, dynamic>;
                       final result = data['result'] ?? 'No result';
                       final imageUrl = data['imageURL'] ?? '';
-                      final recommendations =
-                          data['recommendations'] ?? 'No recommendations';
                       final timestamp = (data['timestamp'] as Timestamp?)?.toDate();
-                      final formattedTime = timestamp != null
-                          ? DateFormat('yyyy-MM-dd – hh:mm a').format(timestamp)
-                          : 'Unknown time';
+                      final formattedDate = timestamp != null
+                          ? DateFormat('MM/dd/yyyy').format(timestamp)
+                          : 'Unknown date';
 
                       return GestureDetector(
                         onTap: () {
-                          // Navigate to details screen, passing the entire scan data
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -132,56 +109,68 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                             ),
                           );
                         },
-                        child: Card(
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          shape: RoundedRectangleBorder(
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: cardColors[result] ?? Colors.grey.shade300,
                             borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(
-                              color: borderColors[result] ?? Colors.grey,
-                              width: 2,
-                            ),
                           ),
-                          color: resultColors[result] ?? Colors.grey.shade200,
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (imageUrl.isNotEmpty)
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(
-                                      imageUrl,
-                                      height: 200,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) =>
-                                          const Icon(
-                                        Icons.broken_image,
-                                        size: 100,
-                                      ),
+                          child: Row(
+                            children: [
+                              /// Left side image
+                              if (imageUrl.isNotEmpty)
+                                ClipRRect(
+                                  borderRadius: const BorderRadius.only(
+                                    topLeft: Radius.circular(12),
+                                    bottomLeft: Radius.circular(12),
+                                  ),
+                                  child: Image.network(
+                                    imageUrl,
+                                    width: 100,
+                                    height: 100,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) =>
+                                        const Icon(Icons.broken_image, size: 50),
+                                  ),
+                                )
+                              else
+                                Container(
+                                  width: 100,
+                                  height: 100,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.black12,
+                                    borderRadius: BorderRadius.only(
+                                      topLeft: Radius.circular(12),
+                                      bottomLeft: Radius.circular(12),
                                     ),
                                   ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'Result: $result',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                                  child: const Icon(Icons.image_not_supported),
+                                ),
+
+                              /// Right side text
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "Classification: $result",
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        "Date: $formattedDate",
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const SizedBox(height: 8),
-                                Text('Recommendations: $recommendations'),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Timestamp: $formattedTime',
-                                  style: const TextStyle(color: Colors.black54),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       );

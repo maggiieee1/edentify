@@ -14,6 +14,7 @@ class RecordScreen extends StatefulWidget {
 
 class _RecordScreenState extends State<RecordScreen> {
   late Future<Map<String, List<DateTime>>> _dateMapFuture;
+  bool _isAscending = false; // false = newest first (default)
 
   @override
   void initState() {
@@ -45,9 +46,9 @@ class _RecordScreenState extends State<RecordScreen> {
       } catch (_) {}
     }
 
-    // Sort and group by month-year
+    // Sort based on ascending/descending flag
     List<DateTime> sortedDates = uniqueDates.toList()
-      ..sort((a, b) => b.compareTo(a));
+      ..sort((a, b) => _isAscending ? a.compareTo(b) : b.compareTo(a));
 
     Map<String, List<DateTime>> grouped = {};
     for (var date in sortedDates) {
@@ -75,6 +76,7 @@ class _RecordScreenState extends State<RecordScreen> {
             return ListView(
               padding: const EdgeInsets.all(20),
               children: [
+                // Header row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -83,45 +85,111 @@ class _RecordScreenState extends State<RecordScreen> {
                   ],
                 ),
                 const SizedBox(height: 20),
+
                 const Text(
                   "Patient Record",
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
+
+                // Loop grouped dates (monthKey = "2025 March")
                 for (var entry in groupedDates.entries) ...[
-                  Text(
-                    entry.key,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  const SizedBox(height: 8),
-                  for (var date in entry.value)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.calendar_today),
-                        label: Text(DateFormat('MMMM d').format(date)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFF056C5B),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => PatientRecordScreen(
-                                userId: widget.userId,
-                                selectedDate: date,
+                  // Split "2025 March" → year + month
+                  Builder(
+                    builder: (context) {
+                      final parts = entry.key.split(" ");
+                      final year = parts[0];
+                      final month = parts.sublist(1).join(" ");
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Year + Sort by
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                year,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
+                              InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _isAscending = !_isAscending;
+                                    _dateMapFuture = _fetchAndGroupDates();
+                                  });
+                                },
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      _isAscending
+                                          ? Icons.arrow_upward
+                                          : Icons.arrow_downward,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Text(
+                                      "Sort by",
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+
+                          // Month
+                          Text(
+                            month,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
                             ),
-                          );
-                        },
-                      ),
-                    ),
+                          ),
+                          const SizedBox(height: 8),
+
+                          // Dates list
+                          for (var date in entry.value)
+                            Column(
+                              children: [
+                                ListTile(
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: const Icon(
+                                    Icons.calendar_today,
+                                    size: 20,
+                                  ),
+                                  title: Text(
+                                    DateFormat('MMMM d').format(date),
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => PatientRecordScreen(
+                                          userId: widget.userId,
+                                          selectedDate: date,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                const Divider(height: 1),
+                              ],
+                            ),
+                          const SizedBox(height: 16),
+                        ],
+                      );
+                    },
+                  ),
                 ],
               ],
             );

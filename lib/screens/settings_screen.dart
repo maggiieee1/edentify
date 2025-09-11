@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'settings/terms_and_agreement.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'account_settings_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+  final String userId; // ✅ Pass userId into this screen
+
+  const SettingsScreen({super.key, required this.userId});
 
   @override
   Widget build(BuildContext context) {
@@ -25,12 +27,6 @@ class SettingsScreen extends StatelessWidget {
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        actions: const [
-          /*Padding(
-            padding: EdgeInsets.only(right: 12),
-            child: Icon(Icons.notifications, color: Colors.black),
-          ),*/
-        ],
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -40,7 +36,12 @@ class SettingsScreen extends StatelessWidget {
             icon: Icons.person,
             text: "Account Settings",
             onTap: () {
-              // TODO: Navigate to Account Settings Screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AccountSettingsScreen(userId: userId),
+                ),
+              );
             },
           ),
           _buildSettingsTile(
@@ -56,14 +57,6 @@ class SettingsScreen extends StatelessWidget {
               );
             },
           ),
-          /*_buildSettingsTile(
-            context,
-            icon: Icons.notifications,
-            text: "Notifications",
-            onTap: () {
-              // TODO: Navigate to Notifications Settings
-            },
-          ),*/
           _buildSettingsTile(
             context,
             icon: Icons.local_hospital_rounded,
@@ -79,29 +72,32 @@ class SettingsScreen extends StatelessWidget {
             onTap: () async {
               final shouldLogout = await showDialog<bool>(
                 context: context,
-                builder:
-                    (context) => AlertDialog(
-                      title: const Text("Confirm Logout"),
-                      content: const Text("Are you sure you want to log out?"),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text("Cancel"),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text(
-                            "Log Out",
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ),
-                      ],
+                builder: (context) => AlertDialog(
+                  title: const Text("Confirm Logout"),
+                  content: const Text("Are you sure you want to log out?"),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text("Cancel"),
                     ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text(
+                        "Log Out",
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ),
               );
 
               if (shouldLogout == true) {
-                await FirebaseAuth.instance.signOut();
-                Navigator.pushReplacementNamed(context, '/landing');
+                // ✅ Clear navigation stack and go back to landing
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/landing',
+                  (route) => false,
+                );
               }
             },
           ),
