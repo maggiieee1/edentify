@@ -14,9 +14,7 @@ import 'screens/main_navigation.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // 🔹 Enable offline persistence for Firestore
   FirebaseFirestore.instance.settings = const Settings(
@@ -33,10 +31,7 @@ class EdentifyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Edentify',
-      theme: ThemeData(
-        colorSchemeSeed: Colors.teal,
-        useMaterial3: true,
-      ),
+      theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
       debugShowCheckedModeBanner: false,
       home: const AuthWrapper(),
       routes: {
@@ -46,6 +41,12 @@ class EdentifyApp extends StatelessWidget {
         '/classify': (context) => EdemaClassifierScreen(),
         '/classifyCamera': (context) => const ClassifyCamera(),
         '/imagePickerClassify': (context) => const ImagePickerClassify(),
+        '/home': (context) {
+          final args =
+              ModalRoute.of(context)!.settings.arguments
+                  as Map<String, dynamic>;
+          return MainNavigation(userId: args['uid']);
+        },
       },
     );
   }

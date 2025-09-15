@@ -12,6 +12,7 @@ class LandingScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
+            // Top welcome section
             Expanded(
               flex: 2,
               child: Padding(
@@ -32,7 +33,7 @@ class LandingScreen extends StatelessWidget {
                       style: TextStyle(
                         fontSize: size.width * 0.09,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF056C5B),
+                        color: const Color(0xFF056C5B),
                       ),
                     ),
                     SizedBox(height: size.height * 0.015),
@@ -47,11 +48,13 @@ class LandingScreen extends StatelessWidget {
                 ),
               ),
             ),
+
+            // Bottom action section
             Expanded(
               flex: 1,
               child: Container(
                 width: double.infinity,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: Color(0xFF056C5B),
                   borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(50),
@@ -72,36 +75,25 @@ class LandingScreen extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: size.height * 0.03),
+
+                    // 👉 Only Login button retained
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        foregroundColor: Color(0xFF056C5B),
+                        foregroundColor: const Color(0xFF056C5B),
                         backgroundColor: Colors.white,
-                        minimumSize: Size(double.infinity, 50),
+                        minimumSize: const Size(double.infinity, 50),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                       onPressed: () {
-                        Navigator.pushNamed(context, '/sign-in');
-                      },
-                      child: Text(
-                        'Create an Account',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: size.width * 0.045,
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: size.height * 0.02),
-                    GestureDetector(
-                      onTap: () {
                         Navigator.pushNamed(context, '/login');
                       },
                       child: Text(
-                        'Already have an account? Log In.',
+                        'Log In',
                         style: TextStyle(
-                          color: Colors.white,
-                          fontSize: size.width * 0.04,
+                          fontWeight: FontWeight.bold,
+                          fontSize: size.width * 0.045,
                         ),
                       ),
                     ),

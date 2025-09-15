@@ -1,7 +1,7 @@
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../utils/hash_utils.dart';
-import 'main_navigation.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,65 +11,78 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _firestore = FirebaseFirestore.instance;
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _mobileController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   bool _isLoading = false;
-  bool _obscurePassword = true;
-  String? _error;
+  String? _errorMessage;
 
-  Future<void> _loginUser() async {
+  /// 🔑 Hash function (SHA-256)
+  String hashPassword(String input) {
+    final bytes = utf8.encode(input);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
+
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
+
     setState(() {
       _isLoading = true;
-      _error = null;
+      _errorMessage = null;
     });
 
     try {
-      final email = _emailController.text.trim();
-      final password = _passwordController.text.trim();
+      final mobile = _mobileController.text.trim();
+      final rawPassword = _passwordController.text.trim();
+      final hashedPassword = hashPassword(rawPassword);
 
-      if (email.isEmpty || password.isEmpty) {
+      // 🔍 Query Firestore by mobileNumber + hashed password
+      final query = await FirebaseFirestore.instance
+          .collection('users')
+          .where('mobileNumber', isEqualTo: mobile)
+          .where('password', isEqualTo: hashedPassword)
+          .limit(1)
+          .get();
+
+      if (query.docs.isNotEmpty) {
+        final userDoc = query.docs.first;
+        final userData = userDoc.data();
+
+        // ✅ Ensure user status is active
+        if (userData['status'] == 'active') {
+          Navigator.pushReplacementNamed(
+            context,
+            '/home',
+            arguments: {
+              'uid': userDoc.id, // 👈 Firestore document ID
+              'firstName': userData['firstName'],
+              'lastName': userData['lastName'],
+              'doctorId': userData['doctorId'],
+              'centerId': userData['centerId'],
+            },
+          );
+          return;
+        } else {
+          setState(() {
+            _errorMessage = "Your account is not active.";
+          });
+        }
+      } else {
         setState(() {
-          _error = 'Email and password are required.';
+          _errorMessage = "Invalid mobile number or password.";
         });
-        return;
       }
-
-      final hashedInputPassword = hashPassword(password);
-      final querySnapshot =
-          await _firestore
-              .collection('users')
-              .where('email', isEqualTo: email)
-              .where('password', isEqualTo: hashedInputPassword)
-              .get();
-
-      if (querySnapshot.docs.isEmpty) {
-        setState(() {
-          _error = 'Invalid email or password.';
-        });
-        return;
-      }
-
-      final userId = querySnapshot.docs.first.id;
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder:
-              (context) =>
-                  MainNavigation(userId: userId), // pass Firestore docId
-        ),
-      );
     } catch (e) {
       setState(() {
-        _error = 'Something went wrong. Please try again.';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
+        _errorMessage = "Error logging in: $e";
       });
     }
+
+    setState(() {
+      _isLoading = false;
+    });
   }
 
   @override
@@ -77,162 +90,63 @@ class _LoginScreenState extends State<LoginScreen> {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: Color(0xFF056C5B),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            ClipPath(
-              clipper: CurveClipper(),
-              child: Container(
-                width: double.infinity,
-                color: Colors.white,
-                height: size.height * 0.25,
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text("Log In"),
+        backgroundColor: const Color(0xFF056C5B),
+      ),
+      body: Padding(
+        padding: EdgeInsets.all(size.width * 0.08),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              TextFormField(
+                controller: _mobileController,
+                decoration: const InputDecoration(labelText: "Mobile Number"),
+                keyboardType: TextInputType.phone,
+                validator: (value) =>
+                    value == null || value.isEmpty ? "Enter mobile number" : null,
               ),
-            ),
-            SizedBox(height: size.height * 0.02),
-            Text(
-              'Log In',
-              style: TextStyle(
-                fontSize: size.width * 0.08,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+              SizedBox(height: size.height * 0.02),
+              TextFormField(
+                controller: _passwordController,
+                decoration: const InputDecoration(labelText: "Password"),
+                obscureText: true,
+                validator: (value) =>
+                    value == null || value.isEmpty ? "Enter password" : null,
               ),
-            ),
-            SizedBox(height: size.height * 0.005),
-            Text(
-              "Don't have an account yet? Sign In.",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: size.width * 0.035,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            SizedBox(height: size.height * 0.04),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: size.width * 0.1),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_error != null) ...[
-                    Text(_error!, style: TextStyle(color: Colors.red)),
-                    SizedBox(height: 10),
-                  ],
-                  Text(
-                    "Email",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  SizedBox(height: 5),
-                  TextField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    style: TextStyle(color: Colors.black),
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(
-                        vertical: 10,
-                        horizontal: 15,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: size.height * 0.02),
-                  Text(
-                    "Password",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  SizedBox(height: 5),
-                  TextField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    style: TextStyle(color: Colors.black),
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(
-                        vertical: 10,
-                        horizontal: 15,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                          color: Color(0xFF056C5B),
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: size.height * 0.04),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 45,
-                    child: ElevatedButton(
+              SizedBox(height: size.height * 0.03),
+
+              if (_errorMessage != null)
+                Text(
+                  _errorMessage!,
+                  style: const TextStyle(color: Colors.red),
+                ),
+
+              SizedBox(height: size.height * 0.02),
+
+              _isLoading
+                  ? const CircularProgressIndicator()
+                  : ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        foregroundColor: Color(0xFF056C5B),
-                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.white,
+                        backgroundColor: const Color(0xFF056C5B),
+                        minimumSize: const Size(double.infinity, 50),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      onPressed: _isLoading ? null : _loginUser,
-                      child:
-                          _isLoading
-                              ? CircularProgressIndicator(
-                                color: Color(0xFF056C5B),
-                              )
-                              : Text(
-                                'Log In',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: size.width * 0.045,
-                                ),
-                              ),
+                      onPressed: _login,
+                      child: const Text(
+                        "Log In",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
-                  ),
-                  SizedBox(height: size.height * 0.05),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
-}
-
-class CurveClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-    path.lineTo(0, size.height);
-    path.quadraticBezierTo(
-      size.width / 2,
-      size.height - 100,
-      size.width,
-      size.height,
-    );
-    path.lineTo(size.width, 0);
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

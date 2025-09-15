@@ -4,11 +4,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../features/water_intake.dart';
 import '../features/edema_classifier_screen.dart';
-import 'main_navigation.dart'; // ⭐ added
 import '../screens/treatment_record_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  final String userId;
+  final String userId; // Firestore doc.id passed from login
 
   const HomeScreen({super.key, required this.userId});
 
@@ -34,62 +33,73 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadLatestScan();
   }
 
+  /// Load user's first name directly by Firestore docId
   Future<void> _loadUserData() async {
-    final doc =
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(widget.userId)
-            .get();
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .get();
 
-    if (doc.exists) {
-      final userData = doc.data()!;
-      setState(() {
-        _firstName = userData['firstName'] ?? '';
-      });
+      if (doc.exists) {
+        setState(() {
+          _firstName = doc['firstName'] ?? '';
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading user data: $e");
     }
   }
 
+  /// Load water intake for today's date
   Future<void> _loadTodayWaterIntake() async {
-    final now = DateTime.now();
-    final dateKey = DateFormat('yyyy-MM-dd').format(now);
+    try {
+      final now = DateTime.now();
+      final dateKey = DateFormat('yyyy-MM-dd').format(now);
 
-    final docSnapshot =
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(widget.userId)
-            .collection('waterIntake')
-            .doc(dateKey)
-            .get();
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .collection('waterIntake')
+          .doc(dateKey)
+          .get();
 
-    if (docSnapshot.exists) {
-      final data = docSnapshot.data()!;
-      setState(() {
-        _waterIntakeMl = (data['totalAmount'] ?? 0).toDouble();
-      });
-    } else {
-      setState(() {
-        _waterIntakeMl = 0;
-      });
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data()!;
+        setState(() {
+          _waterIntakeMl = (data['totalAmount'] ?? 0).toDouble();
+        });
+      } else {
+        setState(() {
+          _waterIntakeMl = 0;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading water intake: $e");
     }
   }
 
+  /// Load the most recent scan
   Future<void> _loadLatestScan() async {
-    final query =
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(widget.userId)
-            .collection('scanHistory')
-            .orderBy('timestamp', descending: true)
-            .limit(1)
-            .get();
+    try {
+      final query = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .collection('scanHistory')
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
 
-    if (query.docs.isNotEmpty) {
-      final scanData = query.docs.first.data();
-      setState(() {
-        _latestScanImageUrl = scanData['imageURL'];
-        _latestScanResult = scanData['result'];
-        _latestScanTime = (scanData['timestamp'] as Timestamp?)?.toDate();
-      });
+      if (query.docs.isNotEmpty) {
+        final scanData = query.docs.first.data();
+        setState(() {
+          _latestScanImageUrl = scanData['imageURL'];
+          _latestScanResult = scanData['result'];
+          _latestScanTime = (scanData['timestamp'] as Timestamp?)?.toDate();
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading latest scan: $e");
     }
   }
 
@@ -102,11 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final hour = DateTime.now().hour;
     final greeting =
-        hour < 12
-            ? 'Good Morning'
-            : hour < 17
-            ? 'Good Afternoon'
-            : 'Good Evening';
+        hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -132,7 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Greeting
+              /// Greeting
               Text(
                 '$greeting, $_firstName.',
                 style: const TextStyle(
@@ -143,22 +149,21 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Upcoming Appointments
+              /// Upcoming Appointments
               const Text(
                 "Upcoming Appointments",
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 16),
 
-              // Dialysis Treatment Record
+              /// Dialysis Treatment Record
               InkWell(
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder:
-                          (context) =>
-                              TreatmentRecordScreen(userId: widget.userId),
+                      builder: (context) =>
+                          TreatmentRecordScreen(userId: widget.userId),
                     ),
                   );
                 },
@@ -186,14 +191,14 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Row: Water Intake + Dialysis Session
+              /// Row: Water Intake + Dialysis Session
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Water Intake Card
+                  /// Water Intake Card
                   Expanded(
                     child: AspectRatio(
-                      aspectRatio: 1, // ✅ Forces square shape
+                      aspectRatio: 1, // Square
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -203,11 +208,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(
-                              Icons.local_drink,
-                              size: 32,
-                              color: Colors.blue,
-                            ),
+                            const Icon(Icons.local_drink,
+                                size: 32, color: Colors.blue),
                             const SizedBox(height: 8),
                             Text(
                               "${_waterIntakeMl.toInt()}/1000 mL",
@@ -222,10 +224,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder:
-                                        (context) => UpdateWaterIntakeScreen(
-                                          userId: widget.userId,
-                                        ),
+                                    builder: (context) =>
+                                        UpdateWaterIntakeScreen(
+                                      userId: widget.userId,
+                                    ),
                                   ),
                                 ).then((_) => _loadTodayWaterIntake());
                               },
@@ -249,10 +251,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(width: 12),
 
-                  // Dialysis Session Card
+                  /// Dialysis Session Card (static placeholder for now)
                   Expanded(
                     child: AspectRatio(
-                      aspectRatio: 1, // ✅ Same square size as water intake card
+                      aspectRatio: 1,
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -295,85 +297,83 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 20),
 
-              // Latest Scan Section
+              /// Latest Scan Section
               _latestScanImageUrl == null
                   ? Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    height: 130,
-                    width: double.infinity,
-                    child: const Center(
-                      child: Text(
-                        'No Scans Yet',
-                        style: TextStyle(fontSize: 18, color: Colors.black54),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ),
-                  )
+                      height: 130,
+                      width: double.infinity,
+                      child: const Center(
+                        child: Text(
+                          'No Scans Yet',
+                          style: TextStyle(fontSize: 18, color: Colors.black54),
+                        ),
+                      ),
+                    )
                   : Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade400,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    height: 130,
-                    width: double.infinity,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text(
-                                "Latest Scan",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                "Edema Classification: $_latestScanResult",
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              if (_latestScanTime != null)
-                                Text(
-                                  DateFormat(
-                                    'MMM dd, yyyy – hh:mm a',
-                                  ).format(_latestScanTime!),
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade400,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      height: 130,
+                      width: double.infinity,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text(
+                                  "Latest Scan",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                            ],
+                                const SizedBox(height: 6),
+                                Text(
+                                  "Edema Classification: $_latestScanResult",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                if (_latestScanTime != null)
+                                  Text(
+                                    DateFormat('MMM dd, yyyy – hh:mm a')
+                                        .format(_latestScanTime!),
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
-                        ),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            _latestScanImageUrl!,
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.cover,
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              _latestScanImageUrl!,
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
               const SizedBox(height: 20),
 
-              // Edema Progression with floating button
+              /// Edema Progression with floating button
               Stack(
                 children: [
                   Card(
@@ -402,39 +402,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         );
                       },
-                      child: const Icon(Icons.camera_alt, color: Colors.white),
+                      child:
+                          const Icon(Icons.camera_alt, color: Colors.white),
                     ),
                   ),
                 ],
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _infoCard(
-    IconData icon,
-    String title,
-    Color color,
-    VoidCallback onTap,
-  ) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 28, color: Colors.black87),
-            const SizedBox(height: 8),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-          ],
         ),
       ),
     );
