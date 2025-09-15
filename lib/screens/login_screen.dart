@@ -91,62 +91,134 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text("Log In"),
-        backgroundColor: const Color(0xFF056C5B),
-      ),
-      body: Padding(
-        padding: EdgeInsets.all(size.width * 0.08),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _mobileController,
-                decoration: const InputDecoration(labelText: "Mobile Number"),
-                keyboardType: TextInputType.phone,
-                validator: (value) =>
-                    value == null || value.isEmpty ? "Enter mobile number" : null,
-              ),
-              SizedBox(height: size.height * 0.02),
-              TextFormField(
-                controller: _passwordController,
-                decoration: const InputDecoration(labelText: "Password"),
-                obscureText: true,
-                validator: (value) =>
-                    value == null || value.isEmpty ? "Enter password" : null,
-              ),
-              SizedBox(height: size.height * 0.03),
-
-              if (_errorMessage != null)
-                Text(
-                  _errorMessage!,
-                  style: const TextStyle(color: Colors.red),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // 🔹 Curved green header
+            ClipPath(
+              clipper: _CurveClipper(),
+              child: Container(
+                height: size.height * 0.35,
+                width: double.infinity,
+                color: const Color(0xFF056C5B),
+                child: const Center(
+                  child: Text(
+                    "Log In",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
+              ),
+            ),
 
-              SizedBox(height: size.height * 0.02),
+            // 🔹 Form section
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: size.width * 0.08),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 25),
 
-              _isLoading
-                  ? const CircularProgressIndicator()
-                  : ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        backgroundColor: const Color(0xFF056C5B),
-                        minimumSize: const Size(double.infinity, 50),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                    // Email / Mobile field
+                    TextFormField(
+                      controller: _mobileController,
+                      decoration: InputDecoration(
+                        labelText: "Email / Mobile",
+                        filled: true,
+                        fillColor: Colors.grey[200],
+                        prefixIcon: const Icon(Icons.person),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none,
                         ),
                       ),
-                      onPressed: _login,
-                      child: const Text(
-                        "Log In",
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (value) =>
+                          value == null || value.isEmpty ? "Enter your email or mobile" : null,
                     ),
-            ],
-          ),
+                    const SizedBox(height: 20),
+
+                    // Password field
+                    TextFormField(
+                      controller: _passwordController,
+                      decoration: InputDecoration(
+                        labelText: "Password",
+                        filled: true,
+                        fillColor: Colors.grey[200],
+                        prefixIcon: const Icon(Icons.lock),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      obscureText: true,
+                      validator: (value) =>
+                          value == null || value.isEmpty ? "Enter password" : null,
+                    ),
+                    const SizedBox(height: 25),
+
+                    // Error message
+                    if (_errorMessage != null)
+                      Text(
+                        _errorMessage!,
+                        style: const TextStyle(color: Colors.red),
+                        textAlign: TextAlign.center,
+                      ),
+
+                    const SizedBox(height: 15),
+
+                    // Log In button
+                    _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF056C5B),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            onPressed: _login,
+                            child: const Text(
+                              "Log In",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+}
+
+/// 🔹 Custom curve for the top green container
+class _CurveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.lineTo(0, size.height - 50);
+    path.quadraticBezierTo(
+      size.width / 2, size.height,
+      size.width, size.height - 50,
+    );
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
