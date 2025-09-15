@@ -239,6 +239,50 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
                   ),
                   const SizedBox(height: 30),
 
+                  /// WATER INTAKE
+                  const Text(
+                    "Water Intake",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  water == null
+                      ? Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text("No Water Intake Records Available"),
+                      )
+                      : Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.blue, width: 2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Water Intake: ${water['intakeAmount'] ?? 0} mL"
+                              "${water['intakeAmount'] != null ? ' (${(water['intakeAmount'] / 240).round()} cup/s)' : ''}",
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              "Cause of Water Loss: ${water['waterLossCauses'] ?? 'N/A'}",
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                          ],
+                        ),
+                      ),
+                  const SizedBox(height: 30),
+
                   /// VITAL SIGNS
                   const Text(
                     "Vital Signs",
