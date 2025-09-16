@@ -163,7 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
-                          TreatmentRecordScreen(userId: widget.userId),
+                          TreatmentRecordScreen(patientId: widget.userId),
                     ),
                   );
                 },

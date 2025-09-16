@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 
 class TreatmentDetailScreen extends StatelessWidget {
   final String date;
+  final Map<String, dynamic> record;
 
-  const TreatmentDetailScreen({super.key, required this.date});
+  const TreatmentDetailScreen({
+    super.key,
+    required this.date,
+    required this.record,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -20,12 +25,12 @@ class TreatmentDetailScreen extends StatelessWidget {
           style: TextStyle(
             color: Colors.black87,
             fontWeight: FontWeight.bold,
-            fontSize: 20, // bigger title
+            fontSize: 20,
           ),
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(20.0), // more breathing room
+        padding: const EdgeInsets.all(20.0),
         child: Card(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -36,18 +41,17 @@ class TreatmentDetailScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _infoRow("Name", "John Doe"),
-                _infoRow("Birthdate", "01/01/1990"),
-                _infoRow("Pre Weight", "65kg"),
-                _infoRow("Post Weight", "63kg"),
-                _infoRow("UF Goal", "2000ml"),
-                _infoRow("UF Removed", "1800ml"),
+                _infoRow("Date", date),
+                _infoRow("Pre Weight", "${record['preWeight'] ?? '-'} kg"),
+                _infoRow("Post Weight", "${record['postWeight'] ?? '-'} kg"),
+                _infoRow("UF Goal", "${record['ufGoal'] ?? '-'} ml"),
+                _infoRow("UF Removed", "${record['ufRemoved'] ?? '-'} ml"),
                 const SizedBox(height: 16),
                 const Text(
                   "Vital Signs",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 18, // bigger subtitle
+                    fontSize: 18,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -58,10 +62,14 @@ class TreatmentDetailScreen extends StatelessWidget {
                     border: Border.all(color: Colors.teal, width: 2),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Text(
-                    "HR: 00   BP: 00   RR: 00   SpO2: 00   TEMP: 00",
-                    style: TextStyle(
-                      fontSize: 16, // bigger vitals text
+                  child: Text(
+                    "HR: ${record['pulseRate'] ?? '--'}   "
+                    "BP: ${record['bloodPressure'] ?? '--'}   "
+                    "RR: ${record['respiration'] ?? '--'}   "
+                    "SpO₂: ${record['oxygenSaturation'] ?? '--'}   "
+                    "TEMP: ${record['temperature'] ?? '--'} °C",
+                    style: const TextStyle(
+                      fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -76,7 +84,7 @@ class TreatmentDetailScreen extends StatelessWidget {
 
   Widget _infoRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8), // more spacing
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
           Container(
@@ -92,14 +100,14 @@ class TreatmentDetailScreen extends StatelessWidget {
             label,
             style: const TextStyle(
               fontWeight: FontWeight.w600,
-              fontSize: 16, // bigger label
+              fontSize: 16,
             ),
           ),
           const SizedBox(width: 12),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 16, // bigger value
+              fontSize: 16,
             ),
           ),
         ],

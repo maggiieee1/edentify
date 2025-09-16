@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'treatment_detail_screen.dart';
 
 class TreatmentRecordScreen extends StatelessWidget {
-  final String userId;
+  final String patientId;
 
-  const TreatmentRecordScreen({super.key, required this.userId});
+  const TreatmentRecordScreen({super.key, required this.patientId});
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +31,8 @@ class TreatmentRecordScreen extends StatelessWidget {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
+
+            // 🔍 Search + Add button
             Row(
               children: [
                 Expanded(
@@ -40,8 +43,9 @@ class TreatmentRecordScreen extends StatelessWidget {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(30),
                       ),
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 16),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                      ),
                     ),
                   ),
                 ),
@@ -57,26 +61,47 @@ class TreatmentRecordScreen extends StatelessWidget {
                 ),
               ],
             ),
+
             const SizedBox(height: 20),
             const Text(
               "Recently Added",
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
-            _recordCard(context, "August 31, 2025"),
-            const SizedBox(height: 20),
-            const Text(
-              "August Records",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
+
+            // 🔹 Fetch Firestore data
             Expanded(
-              child: ListView(
-                children: [
-                  _recordCard(context, "August 31, 2025"),
-                  _recordCard(context, "August 30, 2025"),
-                  _recordCard(context, "August 29, 2025"),
-                ],
+              child: StreamBuilder<QuerySnapshot>(
+                stream:
+                    FirebaseFirestore.instance
+                        .collection("records")
+                        .doc(patientId) // ✅ make sure same id used when saving
+                        .collection("dates")
+                        .orderBy("createdAt", descending: true)
+                        .snapshots(),
+
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const Center(
+                      child: Text("No treatment records found"),
+                    );
+                  }
+
+                  final docs = snapshot.data!.docs;
+
+                  return ListView.builder(
+                    itemCount: docs.length,
+                    itemBuilder: (context, index) {
+                      final data = docs[index].data() as Map<String, dynamic>;
+                      final date = docs[index].id; // document ID = yyyy-MM-dd
+
+                      return _recordCard(context, date, data);
+                    },
+                  );
+                },
               ),
             ),
           ],
@@ -85,13 +110,17 @@ class TreatmentRecordScreen extends StatelessWidget {
     );
   }
 
-  Widget _recordCard(BuildContext context, String date) {
+  Widget _recordCard(
+    BuildContext context,
+    String date,
+    Map<String, dynamic> data,
+  ) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => TreatmentDetailScreen(date: date),
+            builder: (_) => TreatmentDetailScreen(date: date, record: data),
           ),
         );
       },
@@ -101,7 +130,10 @@ class TreatmentRecordScreen extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 6),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Text(date, style: const TextStyle(fontSize: 16)),
+          child: Text(
+            date, // ✅ Only show the date
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
         ),
       ),
     );
