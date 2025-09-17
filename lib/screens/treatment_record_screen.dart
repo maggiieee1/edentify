@@ -120,7 +120,11 @@ class TreatmentRecordScreen extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => TreatmentDetailScreen(date: date, record: data),
+            builder:
+                (_) => TreatmentDetailScreen(
+                  patientId: patientId, // ✅ required
+                  date: date, // ✅ required
+                ),
           ),
         );
       },
