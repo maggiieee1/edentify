@@ -103,6 +103,69 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  /// Load the nearest upcoming schedule for this patient
+  /// Load the nearest upcoming schedule for this patient
+Future<Map<String, dynamic>?> _loadUpcomingSchedule() async {
+  try {
+    final snapshot = await FirebaseFirestore.instance
+        .collectionGroup('schedules') // search across all centers
+        .where('patientId', isEqualTo: widget.userId)
+        .get();
+
+    if (snapshot.docs.isEmpty) return null;
+
+    final schedules = snapshot.docs.map((doc) => doc.data()).toList();
+
+    // Flatten all days into DateTime list
+    List<DateTime> allDays = [];
+    Map<DateTime, Map<String, dynamic>> scheduleMap = {};
+
+    for (var sched in schedules) {
+      if (sched['days'] != null) {
+        for (var d in List.from(sched['days'])) {
+          final date = DateTime.tryParse(d);
+          if (date != null &&
+              date.isAfter(DateTime.now().subtract(const Duration(days: 1)))) {
+            allDays.add(date);
+            scheduleMap[date] = sched;
+          }
+        }
+      }
+    }
+
+    if (allDays.isEmpty) return null;
+
+    // Sort & pick nearest
+    allDays.sort();
+    final nextDate = allDays.first;
+    final schedData = scheduleMap[nextDate]!;
+
+    // Fetch center name using centerId
+    String? centerName;
+    if (schedData['centerId'] != null) {
+      final centerDoc = await FirebaseFirestore.instance
+          .collection('centers')
+          .doc(schedData['centerId'])
+          .get();
+      if (centerDoc.exists && centerDoc.data()!.containsKey('name')) {
+        centerName = centerDoc['name'];
+      }
+    }
+
+    return {
+      "date": nextDate,
+      "centerId": schedData['centerId'],
+      "centerName": centerName ?? "Dialysis Center",
+      "shift": schedData['shift'],
+      "patientName": schedData['patientName'],
+    };
+  } catch (e) {
+    debugPrint("Error loading schedule: $e");
+    return null;
+  }
+}
+
+
   @override
   Widget build(BuildContext context) {
     const Color teal = Color(0xFF0CB49D);
@@ -251,47 +314,89 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(width: 12),
 
-                  /// Dialysis Session Card (static placeholder for now)
+                  /// Dynamic Dialysis Session Card
                   Expanded(
                     child: AspectRatio(
                       aspectRatio: 1,
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade700,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Text(
-                              "00",
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                      child: FutureBuilder<Map<String, dynamic>?>(
+                        future: _loadUpcomingSchedule(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade200,
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              "Tue",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                    color: Colors.white),
                               ),
-                            ),
-                            SizedBox(height: 6),
-                            Text(
-                              "R&B Dialysis Center",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white70,
+                            );
+                          }
+
+                          if (!snapshot.hasData || snapshot.data == null) {
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade400,
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              textAlign: TextAlign.center,
+                              child: const Center(
+                                child: Text(
+                                  "No Upcoming\nAppointments",
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            );
+                          }
+
+                          final sched = snapshot.data!;
+                          final DateTime date = sched["date"];
+                          final dayNumber = DateFormat('dd').format(date);
+                          final weekday = DateFormat('E').format(date);
+
+                          return Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade700,
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          ],
-                        ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  dayNumber,
+                                  style: const TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  weekday,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  sched["centerName"] ?? "Dialysis Center",
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white70,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ),
