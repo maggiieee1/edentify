@@ -74,9 +74,9 @@ class TreatmentRecordScreen extends StatelessWidget {
               child: StreamBuilder<QuerySnapshot>(
                 stream:
                     FirebaseFirestore.instance
-                        .collection("records")
+                        .collection("users")
                         .doc(patientId) // ✅ make sure same id used when saving
-                        .collection("dates")
+                        .collection("records")
                         .orderBy("createdAt", descending: true)
                         .snapshots(),
 
