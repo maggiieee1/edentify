@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../features/water_intake.dart';
 import '../features/edema_classifier_screen.dart';
 import '../screens/treatment_record_screen.dart';
+import '../screens/appointment_details_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userId; // Firestore doc.id passed from login
@@ -36,10 +37,11 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Load user's first name directly by Firestore docId
   Future<void> _loadUserData() async {
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.userId)
-          .get();
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.userId)
+              .get();
 
       if (doc.exists) {
         setState(() {
@@ -57,12 +59,13 @@ class _HomeScreenState extends State<HomeScreen> {
       final now = DateTime.now();
       final dateKey = DateFormat('yyyy-MM-dd').format(now);
 
-      final docSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.userId)
-          .collection('waterIntake')
-          .doc(dateKey)
-          .get();
+      final docSnapshot =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.userId)
+              .collection('waterIntake')
+              .doc(dateKey)
+              .get();
 
       if (docSnapshot.exists) {
         final data = docSnapshot.data()!;
@@ -82,13 +85,14 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Load the most recent scan
   Future<void> _loadLatestScan() async {
     try {
-      final query = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.userId)
-          .collection('scanHistory')
-          .orderBy('timestamp', descending: true)
-          .limit(1)
-          .get();
+      final query =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.userId)
+              .collection('scanHistory')
+              .orderBy('timestamp', descending: true)
+              .limit(1)
+              .get();
 
       if (query.docs.isNotEmpty) {
         final scanData = query.docs.first.data();
@@ -104,67 +108,69 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// Load the nearest upcoming schedule for this patient
-  /// Load the nearest upcoming schedule for this patient
-Future<Map<String, dynamic>?> _loadUpcomingSchedule() async {
-  try {
-    final snapshot = await FirebaseFirestore.instance
-        .collectionGroup('schedules') // search across all centers
-        .where('patientId', isEqualTo: widget.userId)
-        .get();
+  Future<Map<String, dynamic>?> _loadUpcomingSchedule() async {
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collectionGroup('schedules') // search across all centers
+              .where('patientId', isEqualTo: widget.userId)
+              .get();
 
-    if (snapshot.docs.isEmpty) return null;
+      if (snapshot.docs.isEmpty) return null;
 
-    final schedules = snapshot.docs.map((doc) => doc.data()).toList();
+      final schedules = snapshot.docs.map((doc) => doc.data()).toList();
 
-    // Flatten all days into DateTime list
-    List<DateTime> allDays = [];
-    Map<DateTime, Map<String, dynamic>> scheduleMap = {};
+      // Flatten all days into DateTime list
+      List<DateTime> allDays = [];
+      Map<DateTime, Map<String, dynamic>> scheduleMap = {};
 
-    for (var sched in schedules) {
-      if (sched['days'] != null) {
-        for (var d in List.from(sched['days'])) {
-          final date = DateTime.tryParse(d);
-          if (date != null &&
-              date.isAfter(DateTime.now().subtract(const Duration(days: 1)))) {
-            allDays.add(date);
-            scheduleMap[date] = sched;
+      for (var sched in schedules) {
+        if (sched['days'] != null) {
+          for (var d in List.from(sched['days'])) {
+            final date = DateTime.tryParse(d);
+            if (date != null &&
+                date.isAfter(
+                  DateTime.now().subtract(const Duration(days: 1)),
+                )) {
+              allDays.add(date);
+              scheduleMap[date] = sched;
+            }
           }
         }
       }
-    }
 
-    if (allDays.isEmpty) return null;
+      if (allDays.isEmpty) return null;
 
-    // Sort & pick nearest
-    allDays.sort();
-    final nextDate = allDays.first;
-    final schedData = scheduleMap[nextDate]!;
+      // Sort & pick nearest
+      allDays.sort();
+      final nextDate = allDays.first;
+      final schedData = scheduleMap[nextDate]!;
 
-    // Fetch center name using centerId
-    String? centerName;
-    if (schedData['centerId'] != null) {
-      final centerDoc = await FirebaseFirestore.instance
-          .collection('centers')
-          .doc(schedData['centerId'])
-          .get();
-      if (centerDoc.exists && centerDoc.data()!.containsKey('name')) {
-        centerName = centerDoc['name'];
+      // Fetch center name using centerId
+      String? centerName;
+      if (schedData['centerId'] != null) {
+        final centerDoc =
+            await FirebaseFirestore.instance
+                .collection('centers')
+                .doc(schedData['centerId'])
+                .get();
+        if (centerDoc.exists && centerDoc.data()!.containsKey('name')) {
+          centerName = centerDoc['name'];
+        }
       }
+
+      return {
+        "date": nextDate,
+        "centerId": schedData['centerId'],
+        "centerName": centerName ?? "Dialysis Center",
+        "shift": schedData['shift'],
+        "patientName": schedData['patientName'],
+      };
+    } catch (e) {
+      debugPrint("Error loading schedule: $e");
+      return null;
     }
-
-    return {
-      "date": nextDate,
-      "centerId": schedData['centerId'],
-      "centerName": centerName ?? "Dialysis Center",
-      "shift": schedData['shift'],
-      "patientName": schedData['patientName'],
-    };
-  } catch (e) {
-    debugPrint("Error loading schedule: $e");
-    return null;
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -175,7 +181,11 @@ Future<Map<String, dynamic>?> _loadUpcomingSchedule() async {
 
     final hour = DateTime.now().hour;
     final greeting =
-        hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+        hour < 12
+            ? 'Good Morning'
+            : hour < 17
+            ? 'Good Afternoon'
+            : 'Good Evening';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -225,8 +235,9 @@ Future<Map<String, dynamic>?> _loadUpcomingSchedule() async {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) =>
-                          TreatmentRecordScreen(patientId: widget.userId),
+                      builder:
+                          (context) =>
+                              TreatmentRecordScreen(patientId: widget.userId),
                     ),
                   );
                 },
@@ -271,8 +282,11 @@ Future<Map<String, dynamic>?> _loadUpcomingSchedule() async {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.local_drink,
-                                size: 32, color: Colors.blue),
+                            const Icon(
+                              Icons.local_drink,
+                              size: 32,
+                              color: Colors.blue,
+                            ),
                             const SizedBox(height: 8),
                             Text(
                               "${_waterIntakeMl.toInt()}/1000 mL",
@@ -287,10 +301,10 @@ Future<Map<String, dynamic>?> _loadUpcomingSchedule() async {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) =>
-                                        UpdateWaterIntakeScreen(
-                                      userId: widget.userId,
-                                    ),
+                                    builder:
+                                        (context) => UpdateWaterIntakeScreen(
+                                          userId: widget.userId,
+                                        ),
                                   ),
                                 ).then((_) => _loadTodayWaterIntake());
                               },
@@ -314,7 +328,7 @@ Future<Map<String, dynamic>?> _loadUpcomingSchedule() async {
                   ),
                   const SizedBox(width: 12),
 
-                  /// Dynamic Dialysis Session Card
+                  /// Dynamic Dialysis Session Card (clickable)
                   Expanded(
                     child: AspectRatio(
                       aspectRatio: 1,
@@ -330,7 +344,8 @@ Future<Map<String, dynamic>?> _loadUpcomingSchedule() async {
                               ),
                               child: const Center(
                                 child: CircularProgressIndicator(
-                                    color: Colors.white),
+                                  color: Colors.white,
+                                ),
                               ),
                             );
                           }
@@ -345,8 +360,9 @@ Future<Map<String, dynamic>?> _loadUpcomingSchedule() async {
                                 child: Text(
                                   "No Upcoming\nAppointments",
                                   style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600),
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
@@ -358,42 +374,56 @@ Future<Map<String, dynamic>?> _loadUpcomingSchedule() async {
                           final dayNumber = DateFormat('dd').format(date);
                           final weekday = DateFormat('E').format(date);
 
-                          return Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.green.shade700,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  dayNumber,
-                                  style: const TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
+                          return InkWell(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => AppointmentDetailsScreen(
+                                        appointmentData: sched,
+                                      ),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  weekday,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade700,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    dayNumber,
+                                    style: const TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  sched["centerName"] ?? "Dialysis Center",
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.white70,
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    weekday,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
                                   ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    sched["centerName"] ?? "Dialysis Center",
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.white70,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
                             ),
                           );
                         },
@@ -407,75 +437,76 @@ Future<Map<String, dynamic>?> _loadUpcomingSchedule() async {
               /// Latest Scan Section
               _latestScanImageUrl == null
                   ? Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      height: 130,
-                      width: double.infinity,
-                      child: const Center(
-                        child: Text(
-                          'No Scans Yet',
-                          style: TextStyle(fontSize: 18, color: Colors.black54),
-                        ),
-                      ),
-                    )
-                  : Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade400,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      height: 130,
-                      width: double.infinity,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text(
-                                  "Latest Scan",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  "Edema Classification: $_latestScanResult",
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                if (_latestScanTime != null)
-                                  Text(
-                                    DateFormat('MMM dd, yyyy – hh:mm a')
-                                        .format(_latestScanTime!),
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              _latestScanImageUrl!,
-                              width: 80,
-                              height: 80,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ],
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    height: 130,
+                    width: double.infinity,
+                    child: const Center(
+                      child: Text(
+                        'No Scans Yet',
+                        style: TextStyle(fontSize: 18, color: Colors.black54),
                       ),
                     ),
+                  )
+                  : Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade400,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    height: 130,
+                    width: double.infinity,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text(
+                                "Latest Scan",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                "Edema Classification: $_latestScanResult",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              if (_latestScanTime != null)
+                                Text(
+                                  DateFormat(
+                                    'MMM dd, yyyy – hh:mm a',
+                                  ).format(_latestScanTime!),
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            _latestScanImageUrl!,
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
               const SizedBox(height: 20),
 
               /// Edema Progression with floating button
@@ -507,8 +538,7 @@ Future<Map<String, dynamic>?> _loadUpcomingSchedule() async {
                           ),
                         );
                       },
-                      child:
-                          const Icon(Icons.camera_alt, color: Colors.white),
+                      child: const Icon(Icons.camera_alt, color: Colors.white),
                     ),
                   ),
                 ],
