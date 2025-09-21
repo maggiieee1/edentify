@@ -57,7 +57,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadTodayWaterIntake() async {
     try {
       final now = DateTime.now();
-      final dateKey = DateFormat('yyyy-MM-dd').format(now);
+      final localDate = DateTime(now.year, now.month, now.day);
+      final dateKey = DateFormat('yyyy-MM-dd').format(localDate);
 
       final docSnapshot =
           await FirebaseFirestore.instance
