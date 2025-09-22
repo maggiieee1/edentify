@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,19 +13,21 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _mobileController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   bool _isLoading = false;
   String? _errorMessage;
+  String? _verificationId;
 
-  /// 🔑 Hash function (SHA-256)
+  /// Hash password with SHA-256
   String hashPassword(String input) {
     final bytes = utf8.encode(input);
     final digest = sha256.convert(bytes);
     return digest.toString();
   }
 
+  /// Main login function
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -34,55 +37,93 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final mobile = _mobileController.text.trim();
+      final phoneInput = _phoneController.text.trim();
       final rawPassword = _passwordController.text.trim();
       final hashedPassword = hashPassword(rawPassword);
 
-      // 🔍 Query Firestore by mobileNumber + hashed password
+      // Query Firestore for phone + password
       final query = await FirebaseFirestore.instance
           .collection('users')
-          .where('mobileNumber', isEqualTo: mobile)
+          .where('phone', isEqualTo: phoneInput)
           .where('password', isEqualTo: hashedPassword)
           .limit(1)
           .get();
 
-      if (query.docs.isNotEmpty) {
-        final userDoc = query.docs.first;
-        final userData = userDoc.data();
-
-        // ✅ Ensure user status is active
-        if (userData['status'] == 'active') {
-          Navigator.pushReplacementNamed(
-            context,
-            '/home',
-            arguments: {
-              'uid': userDoc.id, // 👈 Firestore document ID
-              'firstName': userData['firstName'],
-              'lastName': userData['lastName'],
-              'doctorId': userData['doctorId'],
-              'centerId': userData['centerId'],
-            },
-          );
-          return;
-        } else {
-          setState(() {
-            _errorMessage = "Your account is not active.";
-          });
-        }
-      } else {
+      if (query.docs.isEmpty) {
         setState(() {
-          _errorMessage = "Invalid mobile number or password.";
+          _errorMessage = "Invalid phone number or password.";
+          _isLoading = false;
         });
+        return;
       }
+
+      final userDoc = query.docs.first;
+      final userData = userDoc.data();
+
+      if (userData['status'] != 'active') {
+        setState(() {
+          _errorMessage = "Your account is not active.";
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Send OTP via phone
+      await _sendOtpPhone(userData['phone']);
+
+      // Navigate to OTP screen
+      Navigator.pushReplacementNamed(
+        context,
+        '/otpVerification',
+        arguments: {
+          'uid': userDoc.id,
+          'firstName': userData['firstName'],
+          'lastName': userData['lastName'],
+          'doctorId': userData['doctorId'],
+          'centerId': userData['centerId'],
+          'phone': userData['phone'] ?? '',
+          'verificationId': _verificationId,
+        },
+      );
     } catch (e) {
       setState(() {
         _errorMessage = "Error logging in: $e";
       });
+    } finally {
+      setState(() => _isLoading = false);
     }
+  }
 
-    setState(() {
-      _isLoading = false;
-    });
+  /// Send OTP via Firebase Phone Auth
+  Future<void> _sendOtpPhone(String phone) async {
+    if (phone.startsWith('0')) phone = phone.substring(1);
+    phone = '+63$phone';
+
+    try {
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: phone,
+        verificationCompleted: (credential) async {
+          if (!mounted) return;
+          await FirebaseAuth.instance.signInWithCredential(credential);
+        },
+        verificationFailed: (e) {
+          if (!mounted) return;
+          setState(() => _errorMessage = e.message);
+        },
+        codeSent: (verId, resendToken) {
+          if (!mounted) return;
+          setState(() {
+            _verificationId = verId;
+          });
+        },
+        codeAutoRetrievalTimeout: (verId) {
+          _verificationId = verId;
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _errorMessage = e.toString());
+    }
   }
 
   @override
@@ -94,7 +135,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // 🔹 Curved green header
+            // Green curved header
             ClipPath(
               clipper: _CurveClipper(),
               child: Container(
@@ -114,7 +155,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
 
-            // 🔹 Form section
+            // Form section
             Padding(
               padding: EdgeInsets.symmetric(horizontal: size.width * 0.08),
               child: Form(
@@ -124,22 +165,24 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     const SizedBox(height: 25),
 
-                    // Email / Mobile field
+                    // Phone field
                     TextFormField(
-                      controller: _mobileController,
+                      controller: _phoneController,
                       decoration: InputDecoration(
-                        labelText: "Email / Mobile",
+                        labelText: "Phone Number",
                         filled: true,
                         fillColor: Colors.grey[200],
-                        prefixIcon: const Icon(Icons.person),
+                        prefixIcon: const Icon(Icons.phone),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: BorderSide.none,
                         ),
                       ),
-                      keyboardType: TextInputType.emailAddress,
+                      keyboardType: TextInputType.phone,
                       validator: (value) =>
-                          value == null || value.isEmpty ? "Enter your email or mobile" : null,
+                          value == null || value.isEmpty
+                              ? "Enter your phone number"
+                              : null,
                     ),
                     const SizedBox(height: 20),
 
@@ -158,7 +201,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       obscureText: true,
                       validator: (value) =>
-                          value == null || value.isEmpty ? "Enter password" : null,
+                          value == null || value.isEmpty
+                              ? "Enter password"
+                              : null,
                     ),
                     const SizedBox(height: 25),
 
@@ -169,10 +214,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: const TextStyle(color: Colors.red),
                         textAlign: TextAlign.center,
                       ),
-
                     const SizedBox(height: 15),
 
-                    // Log In button
+                    // Login button
                     _isLoading
                         ? const Center(child: CircularProgressIndicator())
                         : ElevatedButton(
@@ -204,15 +248,17 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-/// 🔹 Custom curve for the top green container
+/// Custom curve for top container
 class _CurveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final path = Path();
     path.lineTo(0, size.height - 50);
     path.quadraticBezierTo(
-      size.width / 2, size.height,
-      size.width, size.height - 50,
+      size.width / 2,
+      size.height,
+      size.width,
+      size.height - 50,
     );
     path.lineTo(size.width, 0);
     path.close();

@@ -90,7 +90,7 @@ class LandingScreen extends StatelessWidget {
                         Navigator.pushNamed(context, '/login');
                       },
                       child: Text(
-                        'Log In',
+                        'Sign in via Center',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: size.width * 0.045,
