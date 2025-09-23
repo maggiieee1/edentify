@@ -39,7 +39,7 @@ class EdentifyApp extends StatelessWidget {
         '/landing': (context) => LandingScreen(),
         '/sign-in': (context) => SignInScreen(),
         '/login': (context) => LoginScreen(),
-        '/classify': (context) => EdemaClassifierScreen(),
+        '/classify': (context) => EdemaClassifierScreen(userId: '',),
         '/classifyCamera': (context) => const ClassifyCamera(),
         '/imagePickerClassify': (context) => const ImagePickerClassify(),
         '/otpVerification': (context) => const OtpVerificationScreen(),
