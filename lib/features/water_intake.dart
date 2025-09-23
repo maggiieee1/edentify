@@ -5,7 +5,7 @@ import '../screens/main_navigation.dart';
 
 class UpdateWaterIntakeScreen extends StatefulWidget {
   final String userId;
-  const UpdateWaterIntakeScreen({super.key, required this.userId});
+  const UpdateWaterIntakeScreen({super.key, required this.userId, required int waterIntake, required Future<void> Function() onUpdated});
 
   @override
   State<UpdateWaterIntakeScreen> createState() =>

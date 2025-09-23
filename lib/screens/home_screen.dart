@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+
 import '../features/water_intake.dart';
 import '../features/edema_classifier_screen.dart';
 import '../screens/treatment_record_screen.dart';
 import '../screens/appointment_details_screen.dart';
+import '../screens/progression_tab.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userId; // Firestore doc.id passed from login
@@ -43,11 +45,8 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Load user's first name
   Future<void> _loadUserData() async {
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.userId)
-          .get();
-
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(widget.userId).get();
       if (doc.exists) {
         setState(() {
           _firstName = doc['firstName'] ?? '';
@@ -146,8 +145,8 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       if (allDays.isEmpty) return null;
-
       allDays.sort();
+
       final nextDate = allDays.first;
       final schedData = scheduleMap[nextDate]!;
 
@@ -178,6 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     const Color teal = Color(0xFF0CB49D);
+
     final int waterCups = (_waterIntakeMl / mlPerCup).floor();
     final bool isAlert = _waterIntakeMl >= alertThresholdMl && _waterIntakeMl < 1000;
 
@@ -230,14 +230,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                /// Dialysis Treatment Record
+                /// Treatment Record
                 InkWell(
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            TreatmentRecordScreen(patientId: widget.userId),
+                        builder: (context) => TreatmentRecordScreen(
+                          patientId: widget.userId,
+                        ),
                       ),
                     ).then((_) => _refreshData());
                   },
@@ -265,7 +266,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                /// Row: Water Intake + Dialysis Session
+                /// Water Intake + Dialysis Session
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -298,9 +299,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) =>
-                                          UpdateWaterIntakeScreen(
+                                      builder: (context) => UpdateWaterIntakeScreen(
                                         userId: widget.userId,
+                                        waterIntake: _waterIntakeMl.toInt(),
+                                        onUpdated: _refreshData,
                                       ),
                                     ),
                                   ).then((_) => _refreshData());
@@ -325,7 +327,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(width: 12),
 
-                    /// Dynamic Dialysis Session Card
+                    /// Upcoming Appointment Card
                     Expanded(
                       child: AspectRatio(
                         aspectRatio: 1,
@@ -376,8 +378,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) =>
-                                        AppointmentDetailsScreen(
+                                    builder: (context) => AppointmentDetailsScreen(
                                       appointmentData: sched,
                                     ),
                                   ),
@@ -439,13 +440,17 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: Colors.grey.shade300,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        height: 130,
                         width: double.infinity,
                         child: const Center(
-                          child: Text(
-                            'No Scans Yet',
-                            style:
-                                TextStyle(fontSize: 18, color: Colors.black54),
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 20),
+                            child: Text(
+                              'No Scans Yet',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.black54,
+                              ),
+                            ),
                           ),
                         ),
                       )
@@ -455,14 +460,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: Colors.red.shade400,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        height: 130,
                         width: double.infinity,
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   const Text(
                                     "Latest Scan",
@@ -480,15 +484,18 @@ class _HomeScreenState extends State<HomeScreen> {
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
-                                  if (_latestScanTime != null)
+                                  if (_latestScanTime != null) ...[
+                                    const SizedBox(height: 4),
                                     Text(
-                                      DateFormat('MMM dd, yyyy – hh:mm a')
-                                          .format(_latestScanTime!),
+                                      DateFormat(
+                                        'MMM dd, yyyy – hh:mm a',
+                                      ).format(_latestScanTime!),
                                       style: const TextStyle(
                                         color: Colors.white70,
                                         fontSize: 12,
                                       ),
                                     ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -504,24 +511,61 @@ class _HomeScreenState extends State<HomeScreen> {
                           ],
                         ),
                       ),
+
                 const SizedBox(height: 20),
 
-                /// Edema Progression
+                /// Edema Progression Section
                 Stack(
                   children: [
-                    Card(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 3,
-                      child: Container(
-                        height: 200,
-                        padding: const EdgeInsets.all(12),
-                        child: const Center(
-                          child: Text("Edema Progression Graph"),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ProgressionTab(
+                              userId: widget.userId,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Card(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 3,
+                        child: Container(
+                          height: 200,
+                          padding: const EdgeInsets.all(12),
+                          child: const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.show_chart,
+                                    color: Colors.teal, size: 40),
+                                SizedBox(height: 8),
+                                Text(
+                                  "View Edema Progression",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  "Tap to see detailed graphs",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ),
+
+                    /// Floating Scan Button
                     Positioned(
                       bottom: 16,
                       right: 16,
@@ -531,12 +575,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => EdemaClassifierScreen(),
+                              builder: (context) => const EdemaClassifierScreen(),
                             ),
                           ).then((_) => _refreshData());
                         },
-                        child:
-                            const Icon(Icons.camera_alt, color: Colors.white),
+                        child: const Icon(
+                          Icons.camera_alt,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ],
