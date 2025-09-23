@@ -28,19 +28,25 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadUserData();
-    _loadTodayWaterIntake();
-    _loadLatestScan();
+    _refreshData();
   }
 
-  /// Load user's first name directly by Firestore docId
+  /// Refresh all the data
+  Future<void> _refreshData() async {
+    await Future.wait([
+      _loadUserData(),
+      _loadTodayWaterIntake(),
+      _loadLatestScan(),
+    ]);
+  }
+
+  /// Load user's first name
   Future<void> _loadUserData() async {
     try {
-      final doc =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(widget.userId)
-              .get();
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .get();
 
       if (doc.exists) {
         setState(() {
@@ -59,13 +65,12 @@ class _HomeScreenState extends State<HomeScreen> {
       final localDate = DateTime(now.year, now.month, now.day);
       final dateKey = DateFormat('yyyy-MM-dd').format(localDate);
 
-      final docSnapshot =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(widget.userId)
-              .collection('waterIntake')
-              .doc(dateKey)
-              .get();
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .collection('waterIntake')
+          .doc(dateKey)
+          .get();
 
       if (docSnapshot.exists) {
         final data = docSnapshot.data()!;
@@ -85,14 +90,13 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Load the most recent scan
   Future<void> _loadLatestScan() async {
     try {
-      final query =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(widget.userId)
-              .collection('scanHistory')
-              .orderBy('timestamp', descending: true)
-              .limit(1)
-              .get();
+      final query = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .collection('scanHistory')
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
 
       if (query.docs.isNotEmpty) {
         final scanData = query.docs.first.data();
@@ -101,26 +105,30 @@ class _HomeScreenState extends State<HomeScreen> {
           _latestScanResult = scanData['result'];
           _latestScanTime = (scanData['timestamp'] as Timestamp?)?.toDate();
         });
+      } else {
+        setState(() {
+          _latestScanImageUrl = null;
+          _latestScanResult = '';
+          _latestScanTime = null;
+        });
       }
     } catch (e) {
       debugPrint("Error loading latest scan: $e");
     }
   }
 
-  /// Load the nearest upcoming schedule for this patient
+  /// Load the nearest upcoming schedule
   Future<Map<String, dynamic>?> _loadUpcomingSchedule() async {
     try {
-      final snapshot =
-          await FirebaseFirestore.instance
-              .collectionGroup('schedules') // search across all centers
-              .where('patientId', isEqualTo: widget.userId)
-              .get();
+      final snapshot = await FirebaseFirestore.instance
+          .collectionGroup('schedules')
+          .where('patientId', isEqualTo: widget.userId)
+          .get();
 
       if (snapshot.docs.isEmpty) return null;
 
       final schedules = snapshot.docs.map((doc) => doc.data()).toList();
 
-      // Flatten all days into DateTime list
       List<DateTime> allDays = [];
       Map<DateTime, Map<String, dynamic>> scheduleMap = {};
 
@@ -129,9 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
           for (var d in List.from(sched['days'])) {
             final date = DateTime.tryParse(d);
             if (date != null &&
-                date.isAfter(
-                  DateTime.now().subtract(const Duration(days: 1)),
-                )) {
+                date.isAfter(DateTime.now().subtract(const Duration(days: 1)))) {
               allDays.add(date);
               scheduleMap[date] = sched;
             }
@@ -141,19 +147,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (allDays.isEmpty) return null;
 
-      // Sort & pick nearest
       allDays.sort();
       final nextDate = allDays.first;
       final schedData = scheduleMap[nextDate]!;
 
-      // Fetch center name using centerId
       String? centerName;
       if (schedData['centerId'] != null) {
-        final centerDoc =
-            await FirebaseFirestore.instance
-                .collection('centers')
-                .doc(schedData['centerId'])
-                .get();
+        final centerDoc = await FirebaseFirestore.instance
+            .collection('centers')
+            .doc(schedData['centerId'])
+            .get();
         if (centerDoc.exists && centerDoc.data()!.containsKey('name')) {
           centerName = centerDoc['name'];
         }
@@ -176,16 +179,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     const Color teal = Color(0xFF0CB49D);
     final int waterCups = (_waterIntakeMl / mlPerCup).floor();
-    final bool isAlert =
-        _waterIntakeMl >= alertThresholdMl && _waterIntakeMl < 1000;
+    final bool isAlert = _waterIntakeMl >= alertThresholdMl && _waterIntakeMl < 1000;
 
     final hour = DateTime.now().hour;
     final greeting =
-        hour < 12
-            ? 'Good Morning'
-            : hour < 17
-            ? 'Good Afternoon'
-            : 'Good Evening';
+        hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -205,345 +203,346 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              /// Greeting
-              Text(
-                '$greeting, $_firstName.',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              /// Upcoming Appointments
-              const Text(
-                "Upcoming Appointments",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 16),
-
-              /// Dialysis Treatment Record
-              InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (context) =>
-                              TreatmentRecordScreen(patientId: widget.userId),
-                    ),
-                  );
-                },
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.teal.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: const [
-                      Icon(Icons.article, size: 32, color: Colors.teal),
-                      SizedBox(width: 12),
-                      Text(
-                        "Dialysis Treatment Record",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+      body: RefreshIndicator(
+        onRefresh: _refreshData,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                /// Greeting
+                Text(
+                  '$greeting, $_firstName.',
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
+                const SizedBox(height: 12),
 
-              /// Row: Water Intake + Dialysis Session
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  /// Water Intake Card
-                  Expanded(
-                    child: AspectRatio(
-                      aspectRatio: 1, // Square
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade100,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.local_drink,
-                              size: 32,
-                              color: Colors.blue,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              "${_waterIntakeMl.toInt()}/1000 mL",
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            ElevatedButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder:
-                                        (context) => UpdateWaterIntakeScreen(
-                                          userId: widget.userId,
-                                        ),
-                                  ),
-                                ).then((_) => _loadTodayWaterIntake());
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
-                                minimumSize: const Size(80, 32),
-                                padding: EdgeInsets.zero,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                              ),
-                              child: const Text(
-                                "Update",
-                                style: TextStyle(color: Colors.white),
-                              ),
-                            ),
-                          ],
-                        ),
+                /// Upcoming Appointments
+                const Text(
+                  "Upcoming Appointments",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 16),
+
+                /// Dialysis Treatment Record
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            TreatmentRecordScreen(patientId: widget.userId),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  /// Dynamic Dialysis Session Card (clickable)
-                  Expanded(
-                    child: AspectRatio(
-                      aspectRatio: 1,
-                      child: FutureBuilder<Map<String, dynamic>?>(
-                        future: _loadUpcomingSchedule(),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return Container(
-                              decoration: BoxDecoration(
-                                color: Colors.green.shade200,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Center(
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                ),
-                              ),
-                            );
-                          }
-
-                          if (!snapshot.hasData || snapshot.data == null) {
-                            return Container(
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade400,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Center(
-                                child: Text(
-                                  "No Upcoming\nAppointments",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            );
-                          }
-
-                          final sched = snapshot.data!;
-                          final DateTime date = sched["date"];
-                          final dayNumber = DateFormat('dd').format(date);
-                          final weekday = DateFormat('E').format(date);
-
-                          return InkWell(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (context) => AppointmentDetailsScreen(
-                                        appointmentData: sched,
-                                      ),
-                                ),
-                              );
-                            },
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.green.shade700,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    dayNumber,
-                                    style: const TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    weekday,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    sched["centerName"] ?? "Dialysis Center",
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.white70,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              /// Latest Scan Section
-              _latestScanImageUrl == null
-                  ? Container(
-                    padding: const EdgeInsets.all(12),
+                    ).then((_) => _refreshData());
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
+                      color: Colors.teal.shade100,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    height: 130,
-                    width: double.infinity,
-                    child: const Center(
-                      child: Text(
-                        'No Scans Yet',
-                        style: TextStyle(fontSize: 18, color: Colors.black54),
-                      ),
-                    ),
-                  )
-                  : Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade400,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    height: 130,
-                    width: double.infinity,
                     child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text(
-                                "Latest Scan",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                "Edema Classification: $_latestScanResult",
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              if (_latestScanTime != null)
-                                Text(
-                                  DateFormat(
-                                    'MMM dd, yyyy – hh:mm a',
-                                  ).format(_latestScanTime!),
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            _latestScanImageUrl!,
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.cover,
+                      children: const [
+                        Icon(Icons.article, size: 32, color: Colors.teal),
+                        SizedBox(width: 12),
+                        Text(
+                          "Dialysis Treatment Record",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ],
                     ),
                   ),
-              const SizedBox(height: 20),
+                ),
+                const SizedBox(height: 12),
 
-              /// Edema Progression with floating button
-              Stack(
-                children: [
-                  Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 3,
-                    child: Container(
-                      height: 200,
-                      padding: const EdgeInsets.all(12),
-                      child: const Center(
-                        child: Text("Edema Progression Graph"),
+                /// Row: Water Intake + Dialysis Session
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    /// Water Intake Card
+                    Expanded(
+                      child: AspectRatio(
+                        aspectRatio: 1,
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.local_drink,
+                                  size: 32, color: Colors.blue),
+                              const SizedBox(height: 8),
+                              Text(
+                                "${_waterIntakeMl.toInt()}/1000 mL",
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          UpdateWaterIntakeScreen(
+                                        userId: widget.userId,
+                                      ),
+                                    ),
+                                  ).then((_) => _refreshData());
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  minimumSize: const Size(80, 32),
+                                  padding: EdgeInsets.zero,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                ),
+                                child: const Text(
+                                  "Update",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                  Positioned(
-                    bottom: 16,
-                    right: 16,
-                    child: FloatingActionButton(
-                      backgroundColor: teal,
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => EdemaClassifierScreen(),
-                          ),
-                        );
-                      },
-                      child: const Icon(Icons.camera_alt, color: Colors.white),
+                    const SizedBox(width: 12),
+
+                    /// Dynamic Dialysis Session Card
+                    Expanded(
+                      child: AspectRatio(
+                        aspectRatio: 1,
+                        child: FutureBuilder<Map<String, dynamic>?>(
+                          future: _loadUpcomingSchedule(),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade200,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Center(
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              );
+                            }
+
+                            if (!snapshot.hasData || snapshot.data == null) {
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade400,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Center(
+                                  child: Text(
+                                    "No Upcoming\nAppointments",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              );
+                            }
+
+                            final sched = snapshot.data!;
+                            final DateTime date = sched["date"];
+                            final dayNumber = DateFormat('dd').format(date);
+                            final weekday = DateFormat('E').format(date);
+
+                            return InkWell(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        AppointmentDetailsScreen(
+                                      appointmentData: sched,
+                                    ),
+                                  ),
+                                ).then((_) => _refreshData());
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade700,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      dayNumber,
+                                      style: const TextStyle(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      weekday,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      sched["centerName"] ?? "Dialysis Center",
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white70,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                /// Latest Scan Section
+                _latestScanImageUrl == null
+                    ? Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        height: 130,
+                        width: double.infinity,
+                        child: const Center(
+                          child: Text(
+                            'No Scans Yet',
+                            style:
+                                TextStyle(fontSize: 18, color: Colors.black54),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade400,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        height: 130,
+                        width: double.infinity,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Text(
+                                    "Latest Scan",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    "Edema Classification: $_latestScanResult",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  if (_latestScanTime != null)
+                                    Text(
+                                      DateFormat('MMM dd, yyyy – hh:mm a')
+                                          .format(_latestScanTime!),
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                _latestScanImageUrl!,
+                                width: 80,
+                                height: 80,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                const SizedBox(height: 20),
+
+                /// Edema Progression
+                Stack(
+                  children: [
+                    Card(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 3,
+                      child: Container(
+                        height: 200,
+                        padding: const EdgeInsets.all(12),
+                        child: const Center(
+                          child: Text("Edema Progression Graph"),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 16,
+                      right: 16,
+                      child: FloatingActionButton(
+                        backgroundColor: teal,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => EdemaClassifierScreen(),
+                            ),
+                          ).then((_) => _refreshData());
+                        },
+                        child:
+                            const Icon(Icons.camera_alt, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
