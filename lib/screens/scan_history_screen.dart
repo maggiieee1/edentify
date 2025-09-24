@@ -13,6 +13,7 @@ class ScanHistoryScreen extends StatefulWidget {
 
 class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
   String _selectedFilter = 'All';
+  bool _isRecentFirst = true;
 
   final Map<String, Color> cardColors = {
     'Normal': Colors.green.shade200,
@@ -20,6 +21,8 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
     'Moderate': Colors.orange.shade200,
     'Severe': Colors.red.shade300,
   };
+
+  final List<String> filterOptions = ['All', 'Normal', 'Mild', 'Moderate', 'Severe'];
 
   @override
   Widget build(BuildContext context) {
@@ -29,39 +32,80 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// Top bar (title + icons)
+            /// Top bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const SizedBox(width: 40), // keeps title centered
                   const Text(
                     "Scan History",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   Row(
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.filter_alt_outlined),
-                        onPressed: () {
-                          // optional: implement filter sheet
-                        },
+                      DropdownButtonHideUnderline(
+                        child: DropdownButton<bool>(
+                          value: _isRecentFirst,
+                          items: const [
+                            DropdownMenuItem(
+                              value: true,
+                              child: Text("Recent First"),
+                            ),
+                            DropdownMenuItem(
+                              value: false,
+                              child: Text("Oldest First"),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              _isRecentFirst = value ?? true;
+                            });
+                          },
+                        ),
                       ),
+                      const SizedBox(width: 10),
                       IconButton(
                         icon: const Icon(Icons.notifications_none),
-                        onPressed: () {
-                          // notification navigation
-                        },
+                        onPressed: () {},
                       ),
                     ],
                   ),
                 ],
               ),
             ),
+
+            /// Filter chips
+            SizedBox(
+              height: 45,
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                scrollDirection: Axis.horizontal,
+                itemCount: filterOptions.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final filter = filterOptions[index];
+                  final isSelected = _selectedFilter == filter;
+                  return ChoiceChip(
+                    label: Text(filter),
+                    selected: isSelected,
+                    selectedColor: const Color(0xFF0CB49D),
+                    backgroundColor: Colors.grey.shade200,
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    onSelected: (_) {
+                      setState(() {
+                        _selectedFilter = filter;
+                      });
+                    },
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: 12),
 
             /// History list
             Expanded(
@@ -70,7 +114,7 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                     .collection('users')
                     .doc(widget.userId)
                     .collection('scanHistory')
-                    .orderBy('timestamp', descending: true)
+                    .orderBy('timestamp', descending: _isRecentFirst)
                     .snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
@@ -104,8 +148,7 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  ScanDetailsScreen(scanData: data),
+                              builder: (context) => ScanDetailsScreen(scanData: data),
                             ),
                           );
                         },

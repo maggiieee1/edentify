@@ -14,6 +14,7 @@ class RecordScreen extends StatefulWidget {
 
 class _RecordScreenState extends State<RecordScreen> {
   late Future<Map<String, List<DateTime>>> _dateMapFuture;
+  String _sortOrder = "desc"; // default: newest first
 
   @override
   void initState() {
@@ -25,25 +26,13 @@ class _RecordScreenState extends State<RecordScreen> {
     final firestore = FirebaseFirestore.instance;
 
     final waterDocs =
-        await firestore
-            .collection('users')
-            .doc(widget.userId)
-            .collection('waterIntake')
-            .get();
+        await firestore.collection('users').doc(widget.userId).collection('waterIntake').get();
 
     final treatmentDocs =
-        await firestore
-            .collection('users')
-            .doc(widget.userId)
-            .collection('treatment_data')
-            .get();
+        await firestore.collection('users').doc(widget.userId).collection('treatment_data').get();
 
     final recordDocs =
-        await firestore
-            .collection('users')
-            .doc(widget.userId)
-            .collection('records')
-            .get();
+        await firestore.collection('users').doc(widget.userId).collection('records').get();
 
     final Set<DateTime> uniqueDates = {};
 
@@ -60,19 +49,25 @@ class _RecordScreenState extends State<RecordScreen> {
       }
     }
 
-    // Sort and group by month-year
-    List<DateTime> sortedDates =
-        uniqueDates.toList()..sort((a, b) => b.compareTo(a));
+    // Sort based on _sortOrder
+    List<DateTime> sortedDates = uniqueDates.toList()
+      ..sort((a, b) => _sortOrder == "desc" ? b.compareTo(a) : a.compareTo(b));
 
+    // Group by month-year
     Map<String, List<DateTime>> grouped = {};
     for (var date in sortedDates) {
-      final monthKey = DateFormat(
-        'yyyy MMMM',
-      ).format(date); // e.g., "2025 March"
+      final monthKey = DateFormat('yyyy MMMM').format(date); // e.g., "2025 March"
       grouped.putIfAbsent(monthKey, () => []).add(date);
     }
 
     return grouped;
+  }
+
+  void _updateSortOrder(String newOrder) {
+    setState(() {
+      _sortOrder = newOrder;
+      _dateMapFuture = _fetchAndGroupDates();
+    });
   }
 
   @override
@@ -100,11 +95,30 @@ class _RecordScreenState extends State<RecordScreen> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                const Text(
-                  "Patient Record",
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+
+                // Title + Sort Dropdown
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Patient Record",
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                    DropdownButton<String>(
+                      value: _sortOrder,
+                      items: const [
+                        DropdownMenuItem(value: "desc", child: Text("Newest First")),
+                        DropdownMenuItem(value: "asc", child: Text("Oldest First")),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) _updateSortOrder(val);
+                      },
+                    ),
+                  ],
                 ),
+
                 const SizedBox(height: 12),
+
                 for (var entry in groupedDates.entries) ...[
                   Text(
                     entry.key,
@@ -121,7 +135,7 @@ class _RecordScreenState extends State<RecordScreen> {
                         icon: const Icon(Icons.calendar_today),
                         label: Text(DateFormat('MMMM d').format(date)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFF056C5B),
+                          backgroundColor: const Color(0xFF056C5B),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
@@ -132,11 +146,10 @@ class _RecordScreenState extends State<RecordScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder:
-                                  (_) => PatientRecordScreen(
-                                    userId: widget.userId,
-                                    selectedDate: date,
-                                  ),
+                              builder: (_) => PatientRecordScreen(
+                                userId: widget.userId,
+                                selectedDate: date,
+                              ),
                             ),
                           );
                         },
