@@ -25,9 +25,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return DateFormat('MM/dd/yyyy').format(dateRaw.toDate());
     }
     try {
-      return DateFormat(
-        'MM/dd/yyyy',
-      ).format(DateTime.parse(dateRaw.toString()));
+      return DateFormat('MM/dd/yyyy').format(DateTime.parse(dateRaw.toString()));
     } catch (_) {
       return dateRaw.toString();
     }
@@ -45,44 +43,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       final bool confirm = await showDialog(
         context: context,
-        builder:
-            (context) => AlertDialog(
-              title: const Text('Set Profile Picture'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Do you want to set this image as your profile picture?',
-                  ),
-                  const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(file, height: 150),
-                  ),
-                ],
+        builder: (context) => AlertDialog(
+          title: const Text('Set Profile Picture'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Do you want to set this image as your profile picture?'),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.file(file, height: 150),
               ),
-              actions: [
-                TextButton(
-                  child: const Text('Cancel'),
-                  onPressed: () => Navigator.of(context).pop(false),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF056C5B),
-                  ),
-                  child: const Text('Set Image'),
-                  onPressed: () => Navigator.of(context).pop(true),
-                ),
-              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(false),
             ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF056C5B),
+              ),
+              child: const Text('Set Image'),
+              onPressed: () => Navigator.of(context).pop(true),
+            ),
+          ],
+        ),
       );
 
       if (confirm == true) {
         setState(() => _isUploading = true);
         try {
-          final storageRef = FirebaseStorage.instance.ref().child(
-            'profile_images/${widget.userId}.jpg',
-          );
+          final storageRef = FirebaseStorage.instance
+              .ref()
+              .child('profile_images/${widget.userId}.jpg');
           await storageRef.putFile(file);
           final imageUrl = await storageRef.getDownloadURL();
 
@@ -92,14 +87,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               .update({'profileImageUrl': imageUrl});
 
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Profile picture updated successfully'),
-            ),
+            const SnackBar(content: Text('Profile picture updated successfully')),
           );
         } catch (e) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Upload failed: $e')),
+          );
         } finally {
           setState(() => _isUploading = false);
         }
@@ -107,43 +100,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  /// 🔥 Combine user + center + doctor data
+  /// 🔥 Just fetch user data directly (doctorName & centerName already in user doc)
   Stream<Map<String, dynamic>> _combinedUserData() async* {
     final userStream =
-        FirebaseFirestore.instance
-            .collection('users')
-            .doc(widget.userId)
-            .snapshots();
+        FirebaseFirestore.instance.collection('users').doc(widget.userId).snapshots();
 
     await for (var userSnap in userStream) {
-      if (!userSnap.exists) continue;
+      if (!userSnap.exists) {
+        yield {};
+        continue;
+      }
 
       final userData = userSnap.data()!;
-      String? centerName, doctorName;
-
-      if (userData['centerId'] != null && userData['centerId'] != '') {
-        final centerDoc =
-            await FirebaseFirestore.instance
-                .collection('centers')
-                .doc(userData['centerId'])
-                .get();
-        centerName = centerDoc.data()?['name'];
-      }
-
-      if (userData['doctorInCharge'] != null &&
-          userData['doctorInCharge'] != '') {
-        final doctorDoc =
-            await FirebaseFirestore.instance
-                .collection('doctor_inCharge')
-                .doc(userData['doctorInCharge'])
-                .get();
-        doctorName = doctorDoc.data()?['name'];
-      }
-
       yield {
         ...userData,
-        'centerName': centerName ?? '-',
-        'doctorName': doctorName ?? '-',
+        'centerName': userData['centerName'] ?? '-',
+        'doctorName': userData['doctorName'] ?? '-',
       };
     }
   }
@@ -169,7 +141,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final dialysisCenter = userData['centerName'] ?? '-';
         final doctor = userData['doctorName'] ?? '-';
         final startDate = formatDate(userData['startDate']);
-        final condition = "${userData['healthCondition'] ?? '-'}";
+
+        // ✅ healthConditions plural, supports both list and string
+        final condition = (userData['healthConditions'] is List)
+            ? (userData['healthConditions'] as List).join(", ")
+            : (userData['healthConditions']?.toString() ?? "-");
+
         final profileImageUrl = userData['profileImageUrl'];
 
         return Scaffold(
@@ -187,27 +164,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.settings, color: Colors.black87),
-                      onPressed:
-                          () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (_) => SettingsScreen(userId: widget.userId),
-                            ),
-                          ),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SettingsScreen(userId: widget.userId),
+                        ),
+                      ),
                     ),
                     IconButton(
-                      icon: const Icon(
-                        Icons.notifications_none,
-                        color: Colors.black87,
+                      icon: const Icon(Icons.notifications_none, color: Colors.black87),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationScreen(),
+                        ),
                       ),
-                      onPressed:
-                          () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const NotificationScreen(),
-                            ),
-                          ),
                     ),
                   ],
                 ),
@@ -237,13 +208,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       backgroundColor: Colors.teal,
                       child: CircleAvatar(
                         radius: 52,
-                        backgroundImage:
-                            profileImageUrl != null
-                                ? NetworkImage(profileImageUrl)
-                                : const AssetImage(
-                                      "assets/images/default_user.png",
-                                    )
-                                    as ImageProvider,
+                        backgroundImage: profileImageUrl != null
+                            ? NetworkImage(profileImageUrl)
+                            : const AssetImage("assets/images/default_user.png")
+                                as ImageProvider,
                       ),
                     ),
                     Positioned(
@@ -254,20 +222,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: CircleAvatar(
                           radius: 18,
                           backgroundColor: Colors.white,
-                          child:
-                              _isUploading
-                                  ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                  : const Icon(
-                                    Icons.camera_alt,
-                                    size: 18,
-                                    color: Colors.teal,
-                                  ),
+                          child: _isUploading
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.camera_alt,
+                                  size: 18, color: Colors.teal),
                         ),
                       ),
                     ),
@@ -297,29 +259,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Center + Doctor pills
+                // ✅ Center + Doctor + Start Date + Condition (all left aligned)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 32),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _pillCard(Icons.local_hospital, dialysisCenter),
                       const SizedBox(height: 10),
                       _pillCard(Icons.person, doctor),
-                    ],
-                  ),
-                ),
+                      const SizedBox(height: 20),
 
-                const SizedBox(height: 20),
-
-                // Start date & Condition
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                  ), // ⬅️ SAME as pillCard
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start, // ⬅️ Left aligned
-                    children: [
                       const Text(
                         "Start of Dialysis Treatment",
                         style: TextStyle(fontWeight: FontWeight.w600),
@@ -333,6 +283,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
+
                       const Text(
                         "Existing Medical Conditions",
                         style: TextStyle(fontWeight: FontWeight.w600),
@@ -358,6 +309,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// ✅ Pill Card Helper
   Widget _pillCard(IconData icon, String label) {
     return Container(
       width: double.infinity,

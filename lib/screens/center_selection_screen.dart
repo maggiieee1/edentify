@@ -156,7 +156,7 @@ class _CenterSelectionScreenState extends State<CenterSelectionScreen> {
                         ),
                         const SizedBox(height: 4),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedDialysisCenter,
+                          value: selectedDialysisCenter,
                           items:
                               dialysisCenters
                                   .map(
@@ -189,7 +189,7 @@ class _CenterSelectionScreenState extends State<CenterSelectionScreen> {
                         ),
                         const SizedBox(height: 4),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedCondition,
+                          value: selectedCondition,
                           items:
                               healthConditions
                                   .map(
