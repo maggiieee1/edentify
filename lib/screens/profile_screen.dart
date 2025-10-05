@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'settings_screen.dart';
-import 'notification_screen.dart';
+import 'notifications_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userId;
@@ -176,7 +176,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onPressed: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const NotificationScreen(),
+                          builder: (_) => const NotificationsScreen(userId: '',),
                         ),
                       ),
                     ),

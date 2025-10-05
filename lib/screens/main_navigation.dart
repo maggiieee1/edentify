@@ -1,6 +1,6 @@
+import 'package:edentify/screens/realtime_notifications.dart';
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
-// import '../features/edema_classifier_screen.dart';
 import 'scan_history_screen.dart';
 import 'records_screen.dart';
 import 'profile_screen.dart';
@@ -16,18 +16,30 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
-
   late final List<Widget> _screens;
+  RealtimeNotifications? _notificationListener; // 👈 keep a reference
 
   @override
   void initState() {
     super.initState();
+
+    // 🟢 Start real-time notification listener
+    _notificationListener = RealtimeNotifications(userId: widget.userId);
+    _notificationListener!.startListening(context);
+
     _screens = [
       HomeScreen(userId: widget.userId),
       ScanHistoryScreen(userId: widget.userId),
       RecordScreen(userId: widget.userId),
       ProfileScreen(userId: widget.userId),
     ];
+  }
+
+  @override
+  void dispose() {
+    // 🔴 Stop the listener when leaving the screen (for safety)
+    _notificationListener?.stopListening();
+    super.dispose();
   }
 
   @override

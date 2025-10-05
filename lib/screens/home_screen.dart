@@ -1,3 +1,4 @@
+import 'package:edentify/screens/notifications_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -46,7 +47,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadUserData() async {
     try {
       final doc =
-          await FirebaseFirestore.instance.collection('users').doc(widget.userId).get();
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.userId)
+              .get();
       if (doc.exists) {
         setState(() {
           _firstName = doc['firstName'] ?? '';
@@ -64,12 +68,13 @@ class _HomeScreenState extends State<HomeScreen> {
       final localDate = DateTime(now.year, now.month, now.day);
       final dateKey = DateFormat('yyyy-MM-dd').format(localDate);
 
-      final docSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.userId)
-          .collection('waterIntake')
-          .doc(dateKey)
-          .get();
+      final docSnapshot =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.userId)
+              .collection('waterIntake')
+              .doc(dateKey)
+              .get();
 
       if (docSnapshot.exists) {
         final data = docSnapshot.data()!;
@@ -89,13 +94,14 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Load the most recent scan
   Future<void> _loadLatestScan() async {
     try {
-      final query = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.userId)
-          .collection('scanHistory')
-          .orderBy('timestamp', descending: true)
-          .limit(1)
-          .get();
+      final query =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.userId)
+              .collection('scanHistory')
+              .orderBy('timestamp', descending: true)
+              .limit(1)
+              .get();
 
       if (query.docs.isNotEmpty) {
         final scanData = query.docs.first.data();
@@ -119,10 +125,11 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Load the nearest upcoming schedule
   Future<Map<String, dynamic>?> _loadUpcomingSchedule() async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collectionGroup('schedules')
-          .where('patientId', isEqualTo: widget.userId)
-          .get();
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collectionGroup('schedules')
+              .where('patientId', isEqualTo: widget.userId)
+              .get();
 
       if (snapshot.docs.isEmpty) return null;
 
@@ -136,7 +143,9 @@ class _HomeScreenState extends State<HomeScreen> {
           for (var d in List.from(sched['days'])) {
             final date = DateTime.tryParse(d);
             if (date != null &&
-                date.isAfter(DateTime.now().subtract(const Duration(days: 1)))) {
+                date.isAfter(
+                  DateTime.now().subtract(const Duration(days: 1)),
+                )) {
               allDays.add(date);
               scheduleMap[date] = sched;
             }
@@ -152,10 +161,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
       String? centerName;
       if (schedData['centerId'] != null) {
-        final centerDoc = await FirebaseFirestore.instance
-            .collection('centers')
-            .doc(schedData['centerId'])
-            .get();
+        final centerDoc =
+            await FirebaseFirestore.instance
+                .collection('centers')
+                .doc(schedData['centerId'])
+                .get();
         if (centerDoc.exists && centerDoc.data()!.containsKey('name')) {
           centerName = centerDoc['name'];
         }
@@ -179,11 +189,16 @@ class _HomeScreenState extends State<HomeScreen> {
     const Color teal = Color(0xFF0CB49D);
 
     final int waterCups = (_waterIntakeMl / mlPerCup).floor();
-    final bool isAlert = _waterIntakeMl >= alertThresholdMl && _waterIntakeMl < 1000;
+    final bool isAlert =
+        _waterIntakeMl >= alertThresholdMl && _waterIntakeMl < 1000;
 
     final hour = DateTime.now().hour;
     final greeting =
-        hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+        hour < 12
+            ? 'Good Morning'
+            : hour < 17
+            ? 'Good Afternoon'
+            : 'Good Evening';
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -198,7 +213,13 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.notifications_none, color: Colors.black),
             onPressed: () {
-              // TODO: Navigate to Notifications Screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (context) => NotificationsScreen(userId: widget.userId),
+                ),
+              );
             },
           ),
         ],
@@ -236,9 +257,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => TreatmentRecordScreen(
-                          patientId: widget.userId,
-                        ),
+                        builder:
+                            (context) =>
+                                TreatmentRecordScreen(patientId: widget.userId),
                       ),
                     ).then((_) => _refreshData());
                   },
@@ -283,8 +304,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.local_drink,
-                                  size: 32, color: Colors.blue),
+                              const Icon(
+                                Icons.local_drink,
+                                size: 32,
+                                color: Colors.blue,
+                              ),
                               const SizedBox(height: 8),
                               Text(
                                 "${_waterIntakeMl.toInt()}/1000 mL",
@@ -299,11 +323,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => UpdateWaterIntakeScreen(
-                                        userId: widget.userId,
-                                        waterIntake: _waterIntakeMl.toInt(),
-                                        onUpdated: _refreshData,
-                                      ),
+                                      builder:
+                                          (context) => UpdateWaterIntakeScreen(
+                                            userId: widget.userId,
+                                            waterIntake: _waterIntakeMl.toInt(),
+                                            onUpdated: _refreshData,
+                                          ),
                                     ),
                                   ).then((_) => _refreshData());
                                 },
@@ -378,9 +403,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => AppointmentDetailsScreen(
-                                      appointmentData: sched,
-                                    ),
+                                    builder:
+                                        (context) => AppointmentDetailsScreen(
+                                          appointmentData: sched,
+                                        ),
                                   ),
                                 ).then((_) => _refreshData());
                               },
@@ -435,82 +461,82 @@ class _HomeScreenState extends State<HomeScreen> {
                 /// Latest Scan Section
                 _latestScanImageUrl == null
                     ? Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        width: double.infinity,
-                        child: const Center(
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 20),
-                            child: Text(
-                              'No Scans Yet',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.black54,
-                              ),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      width: double.infinity,
+                      child: const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 20),
+                          child: Text(
+                            'No Scans Yet',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.black54,
                             ),
                           ),
                         ),
-                      )
-                    : Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade400,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        width: double.infinity,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    "Latest Scan",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    "Edema Classification: $_latestScanResult",
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  if (_latestScanTime != null) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      DateFormat(
-                                        'MMM dd, yyyy – hh:mm a',
-                                      ).format(_latestScanTime!),
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                _latestScanImageUrl!,
-                                width: 80,
-                                height: 80,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
+                    )
+                    : Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade400,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      width: double.infinity,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "Latest Scan",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  "Edema Classification: $_latestScanResult",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                if (_latestScanTime != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    DateFormat(
+                                      'MMM dd, yyyy – hh:mm a',
+                                    ).format(_latestScanTime!),
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              _latestScanImageUrl!,
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
 
                 const SizedBox(height: 20),
 
@@ -522,9 +548,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => ProgressionTab(
-                              userId: widget.userId,
-                            ),
+                            builder:
+                                (context) =>
+                                    ProgressionTab(userId: widget.userId),
                           ),
                         );
                       },
@@ -540,8 +566,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.show_chart,
-                                    color: Colors.teal, size: 40),
+                                Icon(
+                                  Icons.show_chart,
+                                  color: Colors.teal,
+                                  size: 40,
+                                ),
                                 SizedBox(height: 8),
                                 Text(
                                   "View Edema Progression",
@@ -575,7 +604,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const EdemaClassifierScreen(userId: '',),
+                              builder:
+                                  (context) =>
+                                      const EdemaClassifierScreen(userId: ''),
                             ),
                           ).then((_) => _refreshData());
                         },
