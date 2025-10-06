@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'scan_detail_screen.dart';
+import '../screens/notifications_screen.dart';
 
 class ScanHistoryScreen extends StatefulWidget {
   final String userId;
@@ -16,66 +17,106 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
   bool _isRecentFirst = true;
 
   final Map<String, Color> cardColors = {
-    'Normal': Colors.green.shade200,
-    'Mild': Colors.yellow.shade200,
-    'Moderate': Colors.orange.shade200,
-    'Severe': Colors.red.shade300,
+    'Normal': Colors.greenAccent,
+    'Mild': Colors.yellowAccent,
+    'Moderate': Colors.orangeAccent,
+    'Severe': Colors.redAccent,
   };
 
-  final List<String> filterOptions = ['All', 'Normal', 'Mild', 'Moderate', 'Severe'];
+  final List<String> filterOptions = [
+    'All',
+    'Normal',
+    'Mild',
+    'Moderate',
+    'Severe',
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+
+      /// 🟢 AppBar matching home_screen.dart
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leadingWidth: 70, // same width as home_screen
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: Image.asset(
+            'assets/logo.png',
+            height: 40,
+            width: 40,
+          ),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: IconButton(
+              icon: const Icon(
+                Icons.notifications_none,
+                color: Colors.black,
+                size: 32, // same size as home_screen
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => NotificationsScreen(userId: widget.userId),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// Top bar
+            /// 🟢 Page Title + Sort Dropdown (below logo)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
                     "Scan History",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
                   ),
-                  Row(
-                    children: [
-                      DropdownButtonHideUnderline(
-                        child: DropdownButton<bool>(
-                          value: _isRecentFirst,
-                          items: const [
-                            DropdownMenuItem(
-                              value: true,
-                              child: Text("Recent First"),
-                            ),
-                            DropdownMenuItem(
-                              value: false,
-                              child: Text("Oldest First"),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            setState(() {
-                              _isRecentFirst = value ?? true;
-                            });
-                          },
+                  DropdownButtonHideUnderline(
+                    child: DropdownButton<bool>(
+                      value: _isRecentFirst,
+                      items: const [
+                        DropdownMenuItem(
+                          value: true,
+                          child: Text("Recent First"),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      IconButton(
-                        icon: const Icon(Icons.notifications_none),
-                        onPressed: () {},
-                      ),
-                    ],
+                        DropdownMenuItem(
+                          value: false,
+                          child: Text("Oldest First"),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _isRecentFirst = value ?? true;
+                        });
+                      },
+                    ),
                   ),
                 ],
               ),
             ),
 
-            /// Filter chips
+            const SizedBox(height: 12),
+
+            /// 🟢 Filter chips
             SizedBox(
               height: 45,
               child: ListView.separated(
@@ -107,7 +148,7 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
 
             const SizedBox(height: 12),
 
-            /// History list
+            /// 🟢 History list
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
@@ -128,17 +169,21 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                   final scanDocs = snapshot.data!.docs.where((doc) {
                     final result =
                         (doc.data() as Map<String, dynamic>)['result'] ?? '';
-                    return _selectedFilter == 'All' || result == _selectedFilter;
+                    return _selectedFilter == 'All' ||
+                        result == _selectedFilter;
                   }).toList();
 
                   return ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     itemCount: scanDocs.length,
                     itemBuilder: (context, index) {
-                      final data = scanDocs[index].data() as Map<String, dynamic>;
+                      final data =
+                          scanDocs[index].data() as Map<String, dynamic>;
                       final result = data['result'] ?? 'No result';
                       final imageUrl = data['imageURL'] ?? '';
-                      final timestamp = (data['timestamp'] as Timestamp?)?.toDate();
+                      final timestamp =
+                          (data['timestamp'] as Timestamp?)?.toDate();
                       final formattedDate = timestamp != null
                           ? DateFormat('MM/dd/yyyy').format(timestamp)
                           : 'Unknown date';
@@ -148,7 +193,8 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ScanDetailsScreen(scanData: data),
+                              builder: (context) =>
+                                  ScanDetailsScreen(scanData: data),
                             ),
                           );
                         },
@@ -160,7 +206,6 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                           ),
                           child: Row(
                             children: [
-                              /// Left side image
                               if (imageUrl.isNotEmpty)
                                 ClipRRect(
                                   borderRadius: const BorderRadius.only(
@@ -172,8 +217,10 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                                     width: 100,
                                     height: 100,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) =>
-                                        const Icon(Icons.broken_image, size: 50),
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            const Icon(Icons.broken_image,
+                                                size: 50),
                                   ),
                                 )
                               else
@@ -189,13 +236,12 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                                   ),
                                   child: const Icon(Icons.image_not_supported),
                                 ),
-
-                              /// Right side text
                               Expanded(
                                 child: Padding(
                                   padding: const EdgeInsets.all(12),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         "Classification: $result",
@@ -207,7 +253,8 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                                       const SizedBox(height: 6),
                                       Text(
                                         "Date: $formattedDate",
-                                        style: const TextStyle(fontSize: 14),
+                                        style:
+                                            const TextStyle(fontSize: 14),
                                       ),
                                     ],
                                   ),

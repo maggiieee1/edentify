@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'treatment_detail_screen.dart';
+import 'notifications_screen.dart'; // ✅ Added import for NotificationsScreen
 
 class TreatmentRecordScreen extends StatefulWidget {
   final String patientId;
@@ -20,14 +21,38 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
-        leading: const Icon(Icons.account_circle, color: Color(0xFF0CB49D)),
+        leadingWidth: 70, // ✅ Matches home_screen.dart
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: Image.asset(
+            'assets/logo.png',
+            height: 40, // ✅ Same logo height
+            width: 40,  // ✅ Same logo width
+          ),
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.black87),
-            onPressed: () {},
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: IconButton(
+              icon: const Icon(
+                Icons.notifications_none,
+                color: Colors.black,
+                size: 32, // ✅ Same size as in home_screen.dart
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        NotificationsScreen(userId: widget.patientId),
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
+
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -50,9 +75,8 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(30),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                      ),
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 16),
                     ),
                   ),
                 ),
@@ -98,7 +122,7 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
 
             const SizedBox(height: 10),
 
-            // 🔹 Fetch Firestore data
+            // 🔹 Firestore Stream
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance

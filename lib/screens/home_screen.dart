@@ -205,25 +205,38 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        leadingWidth: 70, // ⬅️ Add more space for the bigger logo
         leading: Padding(
-          padding: const EdgeInsets.only(left: 12),
-          child: Image.asset('assets/logo.png', height: 28, width: 28),
+          padding: const EdgeInsets.only(left: 16),
+          child: Image.asset(
+            'assets/logo.png',
+            height: 40, // ⬆️ Increased from 28
+            width: 40, // ⬆️ Increased from 28
+          ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.black),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder:
-                      (context) => NotificationsScreen(userId: widget.userId),
-                ),
-              );
-            },
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: IconButton(
+              icon: const Icon(
+                Icons.notifications_none,
+                color: Colors.black,
+                size: 32, // ⬆️ Increased from default 24
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => NotificationsScreen(userId: widget.userId),
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
+
       body: RefreshIndicator(
         onRefresh: _refreshData,
         child: SafeArea(

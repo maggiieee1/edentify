@@ -100,7 +100,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  /// 🔥 Just fetch user data directly (doctorName & centerName already in user doc)
   Stream<Map<String, dynamic>> _combinedUserData() async* {
     final userStream =
         FirebaseFirestore.instance.collection('users').doc(widget.userId).snapshots();
@@ -142,7 +141,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final doctor = userData['doctorName'] ?? '-';
         final startDate = formatDate(userData['startDate']);
 
-        // ✅ healthConditions plural, supports both list and string
         final condition = (userData['healthConditions'] is List)
             ? (userData['healthConditions'] as List).join(", ")
             : (userData['healthConditions']?.toString() ?? "-");
@@ -154,36 +152,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
           appBar: AppBar(
             backgroundColor: Colors.white,
             elevation: 0,
-            toolbarHeight: 60,
-            automaticallyImplyLeading: false,
-            title: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Image.asset('assets/logo.png', height: 32),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.settings, color: Colors.black87),
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => SettingsScreen(userId: widget.userId),
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.notifications_none, color: Colors.black87),
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const NotificationsScreen(userId: '',),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+            leadingWidth: 70, // ✅ match home screen
+            leading: Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: Image.asset(
+                'assets/logo.png',
+                height: 40, // ✅ match home screen size
+                width: 40,
+              ),
             ),
+            actions: [
+              IconButton(
+                icon: const Icon(
+                  Icons.settings,
+                  color: Colors.black,
+                  size: 28,
+                ),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SettingsScreen(userId: widget.userId),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.notifications_none,
+                    color: Colors.black,
+                    size: 32, // ✅ match home screen
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            NotificationsScreen(userId: widget.userId),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
           body: SingleChildScrollView(
             child: Column(
@@ -259,7 +270,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // ✅ Center + Doctor + Start Date + Condition (all left aligned)
+                // Info section
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 32),
                   child: Column(
@@ -309,7 +320,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  /// ✅ Pill Card Helper
   Widget _pillCard(IconData icon, String label) {
     return Container(
       width: double.infinity,
