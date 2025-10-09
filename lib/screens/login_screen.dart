@@ -17,7 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
-  /// Main login function
+  /// 🔹 Login function
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -30,13 +30,11 @@ class _LoginScreenState extends State<LoginScreen> {
       final email = _emailController.text.trim();
       final password = _passwordController.text.trim();
 
-      // Sign in with Firebase Authentication
       UserCredential userCred = await FirebaseAuth.instance
           .signInWithEmailAndPassword(email: email, password: password);
 
       final uid = userCred.user!.uid;
 
-      // Fetch user details from Firestore
       final userDoc =
           await FirebaseFirestore.instance.collection('users').doc(uid).get();
 
@@ -48,7 +46,6 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       final userData = userDoc.data()!;
-
       if (userData['status'] != 'active') {
         setState(() {
           _errorMessage = "Your account is not active.";
@@ -56,7 +53,6 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      // Navigate to home (or wherever)
       Navigator.pushReplacementNamed(
         context,
         '/home',
@@ -82,6 +78,28 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// 🔹 Forgot password function
+  Future<void> _resetPassword() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter your email first")),
+      );
+      return;
+    }
+
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Password reset link sent to $email")),
+      );
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? "Failed to send reset email")),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -91,7 +109,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Green curved header
+            /// Green curved header
             ClipPath(
               clipper: _CurveClipper(),
               child: Container(
@@ -111,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
 
-            // Form section
+            /// Form section
             Padding(
               padding: EdgeInsets.symmetric(horizontal: size.width * 0.08),
               child: Form(
@@ -121,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     const SizedBox(height: 25),
 
-                    // Email field
+                    /// Email
                     TextFormField(
                       controller: _emailController,
                       decoration: InputDecoration(
@@ -142,7 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Password field
+                    /// Password
                     TextFormField(
                       controller: _passwordController,
                       decoration: InputDecoration(
@@ -161,9 +179,21 @@ class _LoginScreenState extends State<LoginScreen> {
                               ? "Enter password"
                               : null,
                     ),
-                    const SizedBox(height: 25),
 
-                    // Error message
+                    /// 🔹 Forgot password button
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: _resetPassword,
+                        child: const Text(
+                          "Forgot Password?",
+                          style: TextStyle(color: Color(0xFF056C5B)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    /// Error message
                     if (_errorMessage != null)
                       Text(
                         _errorMessage!,
@@ -172,7 +202,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     const SizedBox(height: 15),
 
-                    // Login button
+                    /// Login button
                     _isLoading
                         ? const Center(child: CircularProgressIndicator())
                         : ElevatedButton(

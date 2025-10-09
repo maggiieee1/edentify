@@ -130,8 +130,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         centerName = centerDoc.data()?['name'];
       }
 
-      if (userData['doctorInCharge'] != null &&
-          userData['doctorInCharge'] != '') {
+      if (userData['doctorId'] != null &&
+          userData['doctorId'] != '') {
         final doctorDoc =
             await FirebaseFirestore.instance
                 .collection('doctor_inCharge')

@@ -136,7 +136,9 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
-                    height: 160,
+                    height:
+                        MediaQuery.of(context).size.height *
+                        0.25, // 25% of screen height
                     child:
                         scans.isEmpty
                             ? Container(
@@ -173,6 +175,7 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
                                   ),
                                   child: Row(
                                     children: [
+                                      /// Scan details
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment:
@@ -214,20 +217,31 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
                                           ],
                                         ),
                                       ),
+
                                       const SizedBox(width: 10),
+
+                                      /// Scan image
                                       ClipRRect(
                                         borderRadius: BorderRadius.circular(8),
                                         child:
                                             scan['imageURL'] != null
                                                 ? Image.network(
                                                   scan['imageURL'],
-                                                  width: 90,
-                                                  height: 90,
+                                                  width:
+                                                      MediaQuery.of(
+                                                        context,
+                                                      ).size.width *
+                                                      0.25,
+                                                  height: double.infinity,
                                                   fit: BoxFit.cover,
                                                 )
                                                 : Container(
-                                                  width: 90,
-                                                  height: 90,
+                                                  width:
+                                                      MediaQuery.of(
+                                                        context,
+                                                      ).size.width *
+                                                      0.25,
+                                                  height: double.infinity,
                                                   color: Colors.white24,
                                                   child: const Icon(
                                                     Icons.image,
@@ -241,6 +255,7 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
                               },
                             ),
                   ),
+
                   const SizedBox(height: 30),
 
                   /// WATER INTAKE
@@ -351,7 +366,7 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              "UF Volume in L",
+                              "UF Volume (Liters)",
                               style: TextStyle(fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 8),
