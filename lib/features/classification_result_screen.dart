@@ -1,8 +1,10 @@
+// ClassificationResultScreen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
-import '../firebase_helper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class ClassificationResultScreen extends StatelessWidget {
+class ClassificationResultScreen extends StatefulWidget {
   final String imagePath;
   final String label;
   final String userId;
@@ -13,6 +15,13 @@ class ClassificationResultScreen extends StatelessWidget {
     required this.label,
     required this.userId,
   });
+
+  @override
+  State<ClassificationResultScreen> createState() => _ClassificationResultScreenState();
+}
+
+class _ClassificationResultScreenState extends State<ClassificationResultScreen> {
+  bool _isSaving = false;
 
   Color _getSeverityColor(String severity) {
     switch (severity.toLowerCase()) {
@@ -32,57 +41,92 @@ class ClassificationResultScreen extends StatelessWidget {
   List<String> _getRecommendations(String severity) {
     switch (severity.toLowerCase()) {
       case 'normal':
-        return [
-          'No immediate action required.',
-          'Continue healthy habits.',
-          'Monitor regularly.'
-        ];
+        return ['No immediate action required.', 'Continue healthy habits.', 'Monitor regularly.'];
       case 'mild':
-        return [
-          'Increase water intake.',
-          'Monitor swelling daily.',
-          'Consider consulting your doctor.'
-        ];
+        return ['Increase water intake.', 'Monitor swelling daily.', 'Consider consulting your doctor.'];
       case 'moderate':
-        return [
-          'Schedule a medical check-up.',
-          'Monitor fluid intake carefully.',
-          'Reduce salt intake.'
-        ];
+        return ['Schedule a medical check-up.', 'Monitor fluid intake carefully.', 'Reduce salt intake.'];
       case 'severe':
-        return [
-          'Seek medical attention immediately.',
-          'Follow your doctor’s dialysis plan.',
-          'Monitor weight and swelling closely.'
-        ];
+        return ['Seek medical attention immediately.', 'Follow your doctor’s dialysis plan.', 'Monitor weight and swelling closely.'];
       default:
         return ['No recommendations available.'];
     }
   }
 
-  Future<void> _saveToDatabase(BuildContext context) async {
-    final recommendations = _getRecommendations(label);
+  Future<void> _saveToDatabase() async {
+    if (_isSaving) return; // Prevent multiple presses
+    setState(() => _isSaving = true);
+
+    final firestore = FirebaseFirestore.instance;
+    final timestamp = DateTime.now();
+    final recommendations = _getRecommendations(widget.label);
+
     try {
-      await FirebaseHelper().saveClassificationResult(
-        userId,
-        imagePath,
-        label,
-        recommendations.join('\n'),
-      );
+      // Ensure userId is valid
+      String userId = widget.userId;
+      if (userId.isEmpty) {
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser == null) {
+          throw Exception('User not logged in');
+        }
+        userId = currentUser.uid;
+      }
+
+      // Fetch patient info
+      final userDoc = await firestore.collection('users').doc(userId).get();
+      final patientName = userDoc.data()?['name'] ?? 'Unknown';
+      final doctorId = userDoc.data()?['doctor_id'] ?? 'doctor_001';
+      final centerId = userDoc.data()?['center_id'] ?? 'center_001';
+      final centerName = userDoc.data()?['center_name'] ?? 'Unknown Center';
+
+      // 1️⃣ Save scan history
+      await firestore.collection('users').doc(userId).collection('scanHistory').add({
+        'imageURL': widget.imagePath,
+        'result': widget.label,
+        'timestamp': timestamp,
+      });
+
+      // 2️⃣ Create patient notification (if collection exists, otherwise ignore)
+      try {
+        await firestore.collection('users').doc(userId).collection('notifications').add({
+          'title': 'New Edema Scan Result',
+          'message': 'Your scan has been classified as ${widget.label}.',
+          'timestamp': timestamp,
+          'read': false,
+        });
+      } catch (_) {
+        // notifications collection might have been deleted; ignore
+      }
+
+      // 3️⃣ Add pending approval
+      await firestore.collection('pending_approvals').add({
+        'doctor_id': doctorId,
+        'center_id': centerId,
+        'center_name': centerName,
+        'patient_id': userId,
+        'patient_name': patientName,
+        'result': widget.label,
+        'submitted_date': timestamp,
+        'status': 'pending',
+        'image_path': widget.imagePath,
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saved to Firebase')),
+        const SnackBar(content: Text('Saved successfully')),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving: $e')),
       );
+    } finally {
+      setState(() => _isSaving = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final recommendations = _getRecommendations(label);
-    final severityColor = _getSeverityColor(label);
+    final severityColor = _getSeverityColor(widget.label);
+    final recommendations = _getRecommendations(widget.label);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -104,50 +148,29 @@ class ClassificationResultScreen extends StatelessWidget {
               // Severity label
               Center(
                 child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: severityColor,
-                  ),
+                  widget.label,
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: severityColor),
                 ),
               ),
               const SizedBox(height: 20),
 
-              // Image display (with aspect ratio to prevent cropping)
+              // Image display
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: AspectRatio(
-                  aspectRatio: 3 / 4, // Adjust this based on typical image shape
-                  child: Image.file(
-                    File(imagePath),
-                    fit: BoxFit.contain,
-                    width: double.infinity,
-                  ),
+                  aspectRatio: 3 / 4,
+                  child: Image.file(File(widget.imagePath), fit: BoxFit.contain, width: double.infinity),
                 ),
               ),
               const SizedBox(height: 20),
 
-              // Recommendations title
-              const Text(
-                'Recommendations:',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              // Recommendations
+              const Text('Recommendations:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-
-              // Recommendations list
-              ...recommendations.map((rec) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Text(
-                    '- $rec',
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                );
-              }).toList(),
+              ...recommendations.map((rec) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Text('- $rec', style: const TextStyle(fontSize: 14)),
+                  )),
 
               const SizedBox(height: 30),
 
@@ -156,28 +179,28 @@ class ClassificationResultScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
+                    onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                     child: const Text('Retake'),
                   ),
                   ElevatedButton(
-                    onPressed: () => _saveToDatabase(context),
+                    onPressed: _saveToDatabase,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF34A853),
                       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text('Save'),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          )
+                        : const Text('Save'),
                   ),
                 ],
               ),

@@ -7,7 +7,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'classification_result_screen.dart';
 
 class EdemaClassifierScreen extends StatefulWidget {
-  const EdemaClassifierScreen({Key? key, required String userId}) : super(key: key);
+  final String userId;
+
+  const EdemaClassifierScreen({Key? key, required this.userId}) : super(key: key);
 
   @override
   State<EdemaClassifierScreen> createState() => _EdemaClassifierScreenState();
@@ -18,12 +20,13 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
   bool _isCameraReady = false;
   bool _loading = false;
   File? _image;
+  String? _predictedLabel;
 
   @override
   void initState() {
     super.initState();
     _initCamera();
-    loadModel();
+    _loadModel();
   }
 
   Future<void> _initCamera() async {
@@ -37,7 +40,7 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
     if (mounted) setState(() => _isCameraReady = true);
   }
 
-  Future<void> loadModel() async {
+  Future<void> _loadModel() async {
     await Tflite.loadModel(
       model: "assets/model_edema.tflite",
       labels: "assets/labels_edema.txt",
@@ -51,7 +54,9 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
     try {
       final picture = await _controller!.takePicture();
       final file = File(picture.path);
-      setState(() => _image = file);
+      setState(() {
+        _image = file;
+      });
       await _classifyImage(file);
     } catch (e) {
       debugPrint("Error taking picture: $e");
@@ -61,10 +66,11 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final XFile? picked = await picker.pickImage(source: ImageSource.gallery);
-
     if (picked != null) {
       final file = File(picked.path);
-      setState(() => _image = file);
+      setState(() {
+        _image = file;
+      });
       await _classifyImage(file);
     }
   }
@@ -73,7 +79,7 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
     setState(() => _loading = true);
 
     try {
-      var output = await Tflite.runModelOnImage(
+      final output = await Tflite.runModelOnImage(
         path: imageFile.path,
         numResults: 4,
         threshold: 0.5,
@@ -85,9 +91,11 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
 
       if (output != null && output.isNotEmpty) {
         final label = output[0]["label"].toString().replaceAll(RegExp(r'\d'), '');
-        final user = FirebaseAuth.instance.currentUser;
-        final userId = user?.uid ?? "unknown_user";
+        setState(() {
+          _predictedLabel = label;
+        });
 
+        // ✅ Navigate to ClassificationResultScreen for Save/Retake
         if (!mounted) return;
         Navigator.push(
           context,
@@ -95,7 +103,7 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
             builder: (_) => ClassificationResultScreen(
               imagePath: imageFile.path,
               label: label,
-              userId: userId,
+              userId: widget.userId,
             ),
           ),
         );
@@ -138,7 +146,6 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
               ),
             ),
 
-          // Bottom bar
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
