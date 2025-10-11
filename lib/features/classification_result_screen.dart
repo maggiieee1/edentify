@@ -1,4 +1,3 @@
-// ClassificationResultScreen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -17,10 +16,12 @@ class ClassificationResultScreen extends StatefulWidget {
   });
 
   @override
-  State<ClassificationResultScreen> createState() => _ClassificationResultScreenState();
+  State<ClassificationResultScreen> createState() =>
+      _ClassificationResultScreenState();
 }
 
-class _ClassificationResultScreenState extends State<ClassificationResultScreen> {
+class _ClassificationResultScreenState
+    extends State<ClassificationResultScreen> {
   bool _isSaving = false;
 
   Color _getSeverityColor(String severity) {
@@ -41,13 +42,29 @@ class _ClassificationResultScreenState extends State<ClassificationResultScreen>
   List<String> _getRecommendations(String severity) {
     switch (severity.toLowerCase()) {
       case 'normal':
-        return ['No immediate action required.', 'Continue healthy habits.', 'Monitor regularly.'];
+        return [
+          'No immediate action required.',
+          'Continue healthy habits.',
+          'Monitor regularly.'
+        ];
       case 'mild':
-        return ['Increase water intake.', 'Monitor swelling daily.', 'Consider consulting your doctor.'];
+        return [
+          'Increase water intake.',
+          'Monitor swelling daily.',
+          'Consider consulting your doctor.'
+        ];
       case 'moderate':
-        return ['Schedule a medical check-up.', 'Monitor fluid intake carefully.', 'Reduce salt intake.'];
+        return [
+          'Schedule a medical check-up.',
+          'Monitor fluid intake carefully.',
+          'Reduce salt intake.'
+        ];
       case 'severe':
-        return ['Seek medical attention immediately.', 'Follow your doctor’s dialysis plan.', 'Monitor weight and swelling closely.'];
+        return [
+          'Seek medical attention immediately.',
+          'Follow your doctor’s dialysis plan.',
+          'Monitor weight and swelling closely.'
+        ];
       default:
         return ['No recommendations available.'];
     }
@@ -59,7 +76,6 @@ class _ClassificationResultScreenState extends State<ClassificationResultScreen>
 
     final firestore = FirebaseFirestore.instance;
     final timestamp = DateTime.now();
-    final recommendations = _getRecommendations(widget.label);
 
     try {
       // Ensure userId is valid
@@ -72,44 +88,56 @@ class _ClassificationResultScreenState extends State<ClassificationResultScreen>
         userId = currentUser.uid;
       }
 
-      // Fetch patient info
+      // 🧠 Fetch patient info
       final userDoc = await firestore.collection('users').doc(userId).get();
-      final patientName = userDoc.data()?['name'] ?? 'Unknown';
-      final doctorId = userDoc.data()?['doctor_id'] ?? 'doctor_001';
-      final centerId = userDoc.data()?['center_id'] ?? 'center_001';
-      final centerName = userDoc.data()?['center_name'] ?? 'Unknown Center';
+      final userData = userDoc.data() ?? {};
 
-      // 1️⃣ Save scan history
+      final patientName =
+          '${userData['firstName'] ?? ''} ${userData['middleName'] ?? ''} ${userData['lastName'] ?? ''}'
+              .replaceAll(RegExp(' +'), ' ')
+              .trim()
+              .isEmpty
+          ? 'Unknown'
+          : '${userData['firstName'] ?? ''} ${userData['middleName'] ?? ''} ${userData['lastName'] ?? ''}'
+              .replaceAll(RegExp(' +'), ' ')
+              .trim();
+
+      final doctorId = userData['doctor_id'] ?? 'doctor_001';
+      final centerId = userData['center_id'] ?? 'center_001';
+
+      // 🧩 Fetch center name correctly from 'centers' collection
+      String centerName = 'Unknown Center';
+      if (centerId.isNotEmpty) {
+        final centerDoc =
+            await firestore.collection('centers').doc(centerId).get();
+        if (centerDoc.exists) {
+          final cData = centerDoc.data();
+          if (cData != null) {
+            centerName = cData['center_name'] ?? 'Unknown Center';
+          }
+        }
+      }
+
+      // 1️⃣ Save to scan history
       await firestore.collection('users').doc(userId).collection('scanHistory').add({
         'imageURL': widget.imagePath,
         'result': widget.label,
         'timestamp': timestamp,
+        'doctorId': doctorId,
+        'centerId': centerId,
+        'patientName': patientName,
       });
 
-      // 2️⃣ Create patient notification (if collection exists, otherwise ignore)
-      try {
-        await firestore.collection('users').doc(userId).collection('notifications').add({
-          'title': 'New Edema Scan Result',
-          'message': 'Your scan has been classified as ${widget.label}.',
-          'timestamp': timestamp,
-          'read': false,
-        });
-      } catch (_) {
-        // notifications collection might have been deleted; ignore
-      }
-
-      // 3️⃣ Add pending approval
-      await firestore.collection('pending_approvals').add({
-        'doctor_id': doctorId,
-        'center_id': centerId,
-        'center_name': centerName,
-        'patient_id': userId,
-        'patient_name': patientName,
-        'result': widget.label,
-        'submitted_date': timestamp,
-        'status': 'pending',
-        'image_path': widget.imagePath,
+      // 2️⃣ Create patient notification
+      await firestore.collection('users').doc(userId).collection('notifications').add({
+        'title': 'New Edema Scan Result',
+        'message': 'Your scan has been classified as ${widget.label}.',
+        'timestamp': timestamp,
+        'read': false,
       });
+
+      // ❌ DO NOT add pending approval here anymore
+      // The listener in NotificationsScreen will handle it
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Saved successfully')),
@@ -149,7 +177,10 @@ class _ClassificationResultScreenState extends State<ClassificationResultScreen>
               Center(
                 child: Text(
                   widget.label,
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: severityColor),
+                  style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: severityColor),
                 ),
               ),
               const SizedBox(height: 20),
@@ -159,13 +190,15 @@ class _ClassificationResultScreenState extends State<ClassificationResultScreen>
                 borderRadius: BorderRadius.circular(12),
                 child: AspectRatio(
                   aspectRatio: 3 / 4,
-                  child: Image.file(File(widget.imagePath), fit: BoxFit.contain, width: double.infinity),
+                  child: Image.file(File(widget.imagePath),
+                      fit: BoxFit.contain, width: double.infinity),
                 ),
               ),
               const SizedBox(height: 20),
 
               // Recommendations
-              const Text('Recommendations:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const Text('Recommendations:',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               ...recommendations.map((rec) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
@@ -182,8 +215,10 @@ class _ClassificationResultScreenState extends State<ClassificationResultScreen>
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     child: const Text('Retake'),
                   ),
@@ -191,14 +226,17 @@ class _ClassificationResultScreenState extends State<ClassificationResultScreen>
                     onPressed: _saveToDatabase,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF34A853),
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     child: _isSaving
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2),
                           )
                         : const Text('Save'),
                   ),
