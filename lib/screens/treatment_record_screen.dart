@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'treatment_detail_screen.dart';
+import 'notifications_screen.dart'; // ✅ Added import for NotificationsScreen
 
-class TreatmentRecordScreen extends StatelessWidget {
+class TreatmentRecordScreen extends StatefulWidget {
   final String patientId;
 
   const TreatmentRecordScreen({super.key, required this.patientId});
+
+  @override
+  State<TreatmentRecordScreen> createState() => _TreatmentRecordScreenState();
+}
+
+class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
+  String _sortOrder = "desc"; // default: newest first
 
   @override
   Widget build(BuildContext context) {
@@ -13,14 +21,38 @@ class TreatmentRecordScreen extends StatelessWidget {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
-        leading: const Icon(Icons.account_circle, color: Color(0xFF0CB49D)),
+        leadingWidth: 70, // ✅ Matches home_screen.dart
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: Image.asset(
+            'assets/logo.png',
+            height: 40, // ✅ Same logo height
+            width: 40,  // ✅ Same logo width
+          ),
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.black87),
-            onPressed: () {},
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: IconButton(
+              icon: const Icon(
+                Icons.notifications_none,
+                color: Colors.black,
+                size: 32, // ✅ Same size as in home_screen.dart
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        NotificationsScreen(userId: widget.patientId),
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
+
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -43,9 +75,8 @@ class TreatmentRecordScreen extends StatelessWidget {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(30),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                      ),
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 16),
                     ),
                   ),
                 ),
@@ -63,23 +94,43 @@ class TreatmentRecordScreen extends StatelessWidget {
             ),
 
             const SizedBox(height: 20),
-            const Text(
-              "Recently Added",
-              style: TextStyle(fontWeight: FontWeight.bold),
+
+            // Title + Sort Dropdown
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "Treatment Records",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                DropdownButton<String>(
+                  value: _sortOrder,
+                  items: const [
+                    DropdownMenuItem(value: "desc", child: Text("Newest First")),
+                    DropdownMenuItem(value: "asc", child: Text("Oldest First")),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _sortOrder = val;
+                      });
+                    }
+                  },
+                ),
+              ],
             ),
+
             const SizedBox(height: 10),
 
-            // 🔹 Fetch Firestore data
+            // 🔹 Firestore Stream
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream:
-                    FirebaseFirestore.instance
-                        .collection("users")
-                        .doc(patientId) // ✅ make sure same id used when saving
-                        .collection("records")
-                        .orderBy("createdAt", descending: true)
-                        .snapshots(),
-
+                stream: FirebaseFirestore.instance
+                    .collection("users")
+                    .doc(widget.patientId)
+                    .collection("records")
+                    .orderBy("createdAt", descending: _sortOrder == "desc")
+                    .snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
@@ -120,11 +171,10 @@ class TreatmentRecordScreen extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder:
-                (_) => TreatmentDetailScreen(
-                  patientId: patientId, // ✅ required
-                  date: date, // ✅ required
-                ),
+            builder: (_) => TreatmentDetailScreen(
+              patientId: widget.patientId,
+              date: date,
+            ),
           ),
         );
       },
@@ -135,7 +185,7 @@ class TreatmentRecordScreen extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Text(
-            date, // ✅ Only show the date
+            date,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
         ),
