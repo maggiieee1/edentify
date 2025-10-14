@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 
 class WeightGraph extends StatefulWidget {
   final String userId;
-  const WeightGraph({super.key, required this.userId});
+  final String range;
+  const WeightGraph({super.key, required this.userId, required this.range});
 
   @override
   State<WeightGraph> createState() => _WeightGraphState();
@@ -16,28 +17,44 @@ class _WeightGraphState extends State<WeightGraph> {
   List<double> postWeights = [];
 
   @override
+  void didUpdateWidget(covariant WeightGraph oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.range != widget.range) {
+      _fetchWeights();
+    }
+  }
+
+  @override
   void initState() {
     super.initState();
     _fetchWeights();
   }
 
   Future<void> _fetchWeights() async {
+    final now = DateTime.now();
+    final startDate = widget.range == "Weekly"
+        ? now.subtract(const Duration(days: 7))
+        : now.subtract(const Duration(days: 30));
+
     final snapshot = await FirebaseFirestore.instance
         .collection('users')
         .doc(widget.userId)
         .collection('records')
-        .orderBy('date')
+        .orderBy('date', descending: false)
         .get();
 
-    final List<DateTime> tempDates = [];
-    final List<double> tempPre = [];
-    final List<double> tempPost = [];
+    final tempDates = <DateTime>[];
+    final tempPre = <double>[];
+    final tempPost = <double>[];
 
     for (var doc in snapshot.docs) {
       final data = doc.data();
-      tempDates.add(DateTime.parse(data['date']));
-      tempPre.add((data['preWeight'] ?? 0).toDouble());
-      tempPost.add((data['postWeight'] ?? 0).toDouble());
+      final date = DateTime.parse(data['date']);
+      if (date.isAfter(startDate)) {
+        tempDates.add(date);
+        tempPre.add((data['preWeight'] ?? 0).toDouble());
+        tempPost.add((data['postWeight'] ?? 0).toDouble());
+      }
     }
 
     setState(() {
@@ -50,39 +67,49 @@ class _WeightGraphState extends State<WeightGraph> {
   @override
   Widget build(BuildContext context) {
     if (dates.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: Padding(
+        padding: EdgeInsets.all(24.0),
+        child: CircularProgressIndicator(),
+      ));
     }
 
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
+        ],
+      ),
       child: Column(
         children: [
           SizedBox(
             height: 250,
             child: LineChart(
               LineChartData(
-                gridData: FlGridData(show: true),
+                gridData: FlGridData(show: true, drawVerticalLine: true),
                 titlesData: FlTitlesData(
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 40,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          value.toStringAsFixed(1),
-                          style: const TextStyle(fontSize: 10),
-                        );
-                      },
+                      getTitlesWidget: (value, meta) => Text(
+                        value.toStringAsFixed(1),
+                        style: const TextStyle(fontSize: 10),
+                      ),
                     ),
                   ),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
+                      interval: 1,
                       getTitlesWidget: (value, meta) {
-                        if (value.toInt() < 0 || value.toInt() >= dates.length) {
+                        final index = value.toInt();
+                        if (index < 0 || index >= dates.length) {
                           return const SizedBox.shrink();
                         }
-                        final date = dates[value.toInt()];
+                        final date = dates[index];
                         return Text(
                           "${date.month}/${date.day}",
                           style: const TextStyle(fontSize: 10),
@@ -90,22 +117,19 @@ class _WeightGraphState extends State<WeightGraph> {
                       },
                     ),
                   ),
-                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 ),
+                borderData: FlBorderData(show: false),
                 lineBarsData: [
-                  // Post Weight Line (Blue)
                   LineChartBarData(
-                    spots: List.generate(postWeights.length, 
+                    spots: List.generate(postWeights.length,
                         (i) => FlSpot(i.toDouble(), postWeights[i])),
                     isCurved: true,
                     color: Colors.blue,
                     barWidth: 3,
                     dotData: FlDotData(show: true),
                   ),
-                  // Pre Weight Line (Green)
                   LineChartBarData(
-                    spots: List.generate(preWeights.length, 
+                    spots: List.generate(preWeights.length,
                         (i) => FlSpot(i.toDouble(), preWeights[i])),
                     isCurved: true,
                     color: Colors.green,
@@ -117,7 +141,6 @@ class _WeightGraphState extends State<WeightGraph> {
             ),
           ),
           const SizedBox(height: 12),
-          // Legend
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: const [
