@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'weight_graph.dart';
 import 'uf_graph.dart';
+import 'vital_signs_graph.dart';
 
 class ProgressionTab extends StatefulWidget {
   final String userId;
@@ -113,6 +114,15 @@ class _ProgressionTabState extends State<ProgressionTab> {
               ),
               const SizedBox(height: 8),
               UfGraph(userId: widget.userId, range: _selectedRange),
+
+              const SizedBox(height: 24),
+              const Text(
+                "Vital Signs Monitoring",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              VitalSignsGraph(userId: widget.userId, range: 'week'),
+
             ],
           ),
         ),
