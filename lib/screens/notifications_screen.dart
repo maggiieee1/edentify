@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import '../screens/treatment_detail_screen.dart'; // ✅ navigate here directly
 
 class NotificationsScreen extends StatelessWidget {
   final String userId;
@@ -25,7 +26,7 @@ class NotificationsScreen extends StatelessWidget {
             .collection('users')
             .doc(userId)
             .collection('notifications')
-            .orderBy('createdAt', descending: true) // ✅ fixed field name
+            .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -52,7 +53,12 @@ class NotificationsScreen extends StatelessWidget {
               final title = data['title'] ?? 'Notification';
               final message = data['message'] ?? '';
               final timestamp = (data['createdAt'] as Timestamp?)?.toDate();
-              final isRead = data['read'] ?? false; // ✅ fixed field name
+              final localTime = timestamp?.toLocal();
+              final isRead = data['read'] ?? false;
+
+              // 🆕 New fields
+              final type = data['type'];
+              final recordDate = data['recordDate'];
 
               return Card(
                 color: isRead ? Colors.white : Colors.teal.shade50,
@@ -62,10 +68,10 @@ class NotificationsScreen extends StatelessWidget {
                 elevation: 2,
                 margin: const EdgeInsets.only(bottom: 12),
                 child: ListTile(
-                  leading: CircleAvatar(
+                  leading: const CircleAvatar(
                     backgroundColor: Colors.teal,
                     child: Icon(
-                      Icons.notifications, // ✅ simpler icon
+                      Icons.notifications,
                       color: Colors.white,
                     ),
                   ),
@@ -78,20 +84,47 @@ class NotificationsScreen extends StatelessWidget {
                     children: [
                       const SizedBox(height: 4),
                       Text(message),
-                      if (timestamp != null)
+                      if (localTime != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
-                            DateFormat('MMM dd, yyyy • hh:mm a').format(timestamp),
+                            DateFormat('MMM dd, yyyy • hh:mm a')
+                                .format(localTime),
                             style: const TextStyle(
-                                fontSize: 12, color: Colors.grey),
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
                           ),
                         ),
                     ],
                   ),
                   onTap: () async {
+                    // ✅ Mark as read
                     if (!isRead) {
-                      await doc.reference.update({'read': true}); // ✅ fixed field name
+                      await doc.reference.update({'read': true});
+                    }
+
+                    // ✅ Handle navigation
+                    if (type == 'treatment_record' && recordDate != null) {
+                      try {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => TreatmentDetailScreen(
+                              patientId: userId,
+                              date: recordDate, // direct to that date’s detail
+                            ),
+                          ),
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              "Invalid record date format in notification.",
+                            ),
+                          ),
+                        );
+                      }
                     }
                   },
                 ),
