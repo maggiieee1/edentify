@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img; // ✅ Add this package in pubspec.yaml
 import 'package:tflite_v2/tflite_v2.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -82,13 +83,15 @@ class _ImagePickerClassifyState extends State<ImagePickerClassify> {
     );
   }
 
+  // 🔹 Pick and classify the image, auto-converting HEIF/HEIC to JPG
   Future<void> _pickAndClassifyImage() async {
     final picker = ImagePicker();
     XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
     if (image == null) return;
 
-    File imageFile = File(image.path);
+    // ✅ Step 1: Convert .heif/.heic to .jpg if needed
+    File imageFile = await _convertToJpgIfNeeded(File(image.path));
 
     setState(() {
       _loading = true;
@@ -137,6 +140,31 @@ class _ImagePickerClassifyState extends State<ImagePickerClassify> {
         _loading = false;
       });
     }
+  }
+
+  // ✅ Converts HEIF/HEIC files to JPG before classification
+  Future<File> _convertToJpgIfNeeded(File file) async {
+    final ext = file.path.split('.').last.toLowerCase();
+    if (ext == 'heic' || ext == 'heif') {
+      try {
+        final bytes = await file.readAsBytes();
+        final decoded = img.decodeImage(bytes);
+        if (decoded != null) {
+          final jpgPath = file.path.replaceAll(RegExp(r'\.heic|\.heif', caseSensitive: false), '.jpg');
+          final jpgFile = File(jpgPath)
+            ..writeAsBytesSync(img.encodeJpg(decoded, quality: 95));
+          print('✅ Converted HEIF to JPG: ${jpgFile.path}');
+          return jpgFile;
+        } else {
+          print('⚠️ Failed to decode HEIF, using original');
+          return file;
+        }
+      } catch (e) {
+        print('Error converting HEIF to JPG: $e');
+        return file;
+      }
+    }
+    return file;
   }
 
   Future<void> loadModel() async {

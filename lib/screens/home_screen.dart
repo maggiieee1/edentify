@@ -2,12 +2,14 @@ import 'package:edentify/screens/notifications_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'dart:io';
+
 
 import '../features/water_intake.dart';
 import '../features/edema_classifier_screen.dart';
 import '../screens/treatment_record_screen.dart';
 import '../screens/appointment_details_screen.dart';
-import '../screens/progression_tab.dart';
+import 'home_progression/progression_tab.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userId; // Firestore doc.id passed from login
@@ -183,6 +185,58 @@ class _HomeScreenState extends State<HomeScreen> {
       return null;
     }
   }
+
+  Widget _buildScanImage(String? imageUrl) {
+  if (imageUrl == null || imageUrl.isEmpty) {
+    return Container(
+      width: 80,
+      height: 80,
+      color: Colors.grey.shade200,
+      child: const Icon(Icons.image_not_supported, color: Colors.grey),
+    );
+  }
+
+  try {
+    if (imageUrl.startsWith('http')) {
+      // 🔹 Firebase Storage or any online image
+      return Image.network(
+        imageUrl,
+        width: 80,
+        height: 80,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          width: 80,
+          height: 80,
+          color: Colors.grey.shade200,
+          child: const Icon(Icons.broken_image, color: Colors.grey),
+        ),
+      );
+    } else {
+      // 🔹 Local file (e.g., saved from device camera)
+      return Image.file(
+        File(imageUrl),
+        width: 80,
+        height: 80,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          width: 80,
+          height: 80,
+          color: Colors.grey.shade200,
+          child: const Icon(Icons.broken_image, color: Colors.grey),
+        ),
+      );
+    }
+  } catch (e) {
+    debugPrint("Error loading image: $e");
+    return Container(
+      width: 80,
+      height: 80,
+      color: Colors.grey.shade200,
+      child: const Icon(Icons.error_outline, color: Colors.red),
+    );
+  }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -540,12 +594,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              _latestScanImageUrl!,
-                              width: 80,
-                              height: 80,
-                              fit: BoxFit.cover,
-                            ),
+                            child: _buildScanImage(_latestScanImageUrl),
                           ),
                         ],
                       ),

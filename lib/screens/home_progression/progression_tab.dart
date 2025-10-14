@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'weight_graph.dart';
+import 'uf_graph.dart';
 
 class ProgressionTab extends StatefulWidget {
   final String userId;
@@ -35,20 +36,21 @@ class _ProgressionTabState extends State<ProgressionTab> {
                     onPressed: () {
                       showDialog(
                         context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text("About Progression Graphs"),
-                          content: const Text(
-                            "These graphs help you monitor your weight and fluid status "
-                            "over time. Stable pre-weight and steady post-weight suggest "
-                            "good fluid management between dialysis sessions.",
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text("Got it"),
+                        builder:
+                            (context) => AlertDialog(
+                              title: const Text("About Progression Graphs"),
+                              content: const Text(
+                                "These graphs help you monitor your weight and fluid status "
+                                "over time. Stable pre-weight and steady post-weight suggest "
+                                "good fluid management between dialysis sessions.",
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text("Got it"),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
                       );
                     },
                   ),
@@ -70,8 +72,14 @@ class _ProgressionTabState extends State<ProgressionTab> {
                       child: DropdownButton<String>(
                         value: _selectedRange,
                         items: const [
-                          DropdownMenuItem(value: "Weekly", child: Text("Last 7 Days")),
-                          DropdownMenuItem(value: "Monthly", child: Text("Last 30 Days")),
+                          DropdownMenuItem(
+                            value: "Weekly",
+                            child: Text("Last 7 Days"),
+                          ),
+                          DropdownMenuItem(
+                            value: "Monthly",
+                            child: Text("Last 30 Days"),
+                          ),
                         ],
                         onChanged: (value) {
                           if (value != null) {
@@ -96,10 +104,15 @@ class _ProgressionTabState extends State<ProgressionTab> {
               const SizedBox(height: 12),
 
               // ✅ Pass selected range to WeightGraph
-              WeightGraph(
-                userId: widget.userId,
-                range: _selectedRange,
+              WeightGraph(userId: widget.userId, range: _selectedRange),
+
+              const SizedBox(height: 24),
+              const Text(
+                "Ultrafiltration Progression",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
+              const SizedBox(height: 8),
+              UfGraph(userId: widget.userId, range: _selectedRange),
             ],
           ),
         ),
