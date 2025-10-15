@@ -17,6 +17,13 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   /// 🔹 Login function
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
@@ -27,6 +34,10 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
+      // Retrieve the centerId passed from the previous screen.
+      final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+      final String selectedCenterId = args['centerId'];
+
       final email = _emailController.text.trim();
       final password = _passwordController.text.trim();
 
@@ -39,14 +50,26 @@ class _LoginScreenState extends State<LoginScreen> {
           await FirebaseFirestore.instance.collection('users').doc(uid).get();
 
       if (!userDoc.exists) {
+        await FirebaseAuth.instance.signOut();
         setState(() {
-          _errorMessage = "User data not found in database.";
+          _errorMessage = "User data not found. Please contact support.";
         });
         return;
       }
 
       final userData = userDoc.data()!;
+
+      // Check if the user's centerId matches the selected center.
+      if (userData['centerId'] != selectedCenterId) {
+        await FirebaseAuth.instance.signOut(); // Log out the user.
+        setState(() {
+          _errorMessage = "Your account is not registered with this center.";
+        });
+        return;
+      }
+
       if (userData['status'] != 'active') {
+        await FirebaseAuth.instance.signOut();
         setState(() {
           _errorMessage = "Your account is not active.";
         });
