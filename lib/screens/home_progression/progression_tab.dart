@@ -1,3 +1,4 @@
+import 'package:edentify/screens/home_progression/edema_severity_chart.dart';
 import 'package:flutter/material.dart';
 import 'weight_graph.dart';
 import 'uf_graph.dart';
@@ -123,6 +124,13 @@ class _ProgressionTabState extends State<ProgressionTab> {
               const SizedBox(height: 8),
               VitalSignsGraph(userId: widget.userId, range: 'week'),
 
+              const SizedBox(height: 24),
+              const Text(
+                "Edema Severity Chart",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              const EdemaSeverityChart(),
             ],
           ),
         ),
