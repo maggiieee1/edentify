@@ -1,276 +1,229 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
-
-import 'doctor_selection_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CenterSelectionScreen extends StatefulWidget {
-  final String userId;
-
-  const CenterSelectionScreen({super.key, required this.userId});
+  const CenterSelectionScreen({super.key, required String userId});
 
   @override
   State<CenterSelectionScreen> createState() => _CenterSelectionScreenState();
 }
 
 class _CenterSelectionScreenState extends State<CenterSelectionScreen> {
-  final _formKey = GlobalKey<FormState>();
-
+  List<Map<String, dynamic>> centers = [];
   String? selectedDialysisCenter;
-  String? selectedCondition;
-  DateTime? startDate;
+  String? selectedCenterId;
+  bool _isLoading = true;
 
-  final List<String> dialysisCenters = [
-    'R&B Dialysis Center',
-    'RSI Dialysis Center',
-    'Hartman Dialysis Center',
-  ];
-
-  final List<String> healthConditions = [
-    'Diabetes',
-    'Hypertension',
-    'Heart Disease',
-    'Other',
-  ];
-
-  void _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: startDate ?? DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
-    );
-
-    if (picked != null) {
-      setState(() {
-        startDate = picked;
-      });
-    }
+  @override
+  void initState() {
+    super.initState();
+    _checkPersistentLogin();
+    fetchCenters();
   }
 
-  Future<void> _saveData() async {
-    if (_formKey.currentState!.validate() &&
-        selectedDialysisCenter != null &&
-        selectedCondition != null &&
-        startDate != null) {
-      try {
-        // 🔍 Find centerId based on selectedDialysisCenter name
-        final centerSnapshot =
-            await FirebaseFirestore.instance
-                .collection('centers')
-                .where('name', isEqualTo: selectedDialysisCenter)
-                .limit(1)
-                .get();
-
-        if (centerSnapshot.docs.isEmpty) {
-          throw Exception('Selected center not found in Firestore.');
-        }
-
-        final centerId = centerSnapshot.docs.first.id;
-
-        // ✏️ Update the existing user document
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(widget.userId)
-            .update({
-              'centerId': centerId,
-              'healthCondition': selectedCondition,
-              'startDate': Timestamp.fromDate(startDate!),
-            });
-
-        // ➡️ Navigate to next screen with both userId and centerId
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder:
-                (context) => DoctorSelectionScreen(
-                  userId: widget.userId,
-                  centerId: centerId,
-                ),
-          ),
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error saving data: $e')));
-      }
-    } else {
+  Future<void> fetchCenters() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance.collection('centers').get();
+      setState(() {
+        centers = snapshot.docs.map((doc) {
+          final data = doc.data();
+          return {
+            'centerName': data['name'],
+            'centerId': doc.id,
+          };
+        }).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please complete all fields.')),
+        SnackBar(content: Text('Failed to fetch centers: $e')),
       );
     }
   }
 
+  // Check persistent login
+  Future<void> _checkPersistentLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    final centerId = prefs.getString('centerId');
+    final centerName = prefs.getString('centerName');
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (centerId != null && centerName != null && user != null) {
+      // User is logged in and center selected → navigate to home
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacementNamed(
+          context,
+          '/home',
+          arguments: {'centerId': centerId, 'centerName': centerName},
+        );
+      });
+    }
+  }
+
+  Future<void> _saveSelectedCenter() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('centerId', selectedCenterId!);
+    await prefs.setString('centerName', selectedDialysisCenter!);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final tealColor = const Color(0xFF17A38B);
+    final size = MediaQuery.of(context).size;
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 32),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      'Welcome to Edentify,',
-                      style: TextStyle(fontSize: 20, color: Colors.black),
+      body: Stack(
+        children: [
+          // Background container with a rounded bottom border
+          ClipPath(
+            clipper: _CurveClipper(),
+            child: Container(
+              height: size.height * 0.35,
+              width: double.infinity,
+              color: const Color(0xFF056C5B),
+              child: const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(height: 40),
+                  Text(
+                    "Welcome to Edentify",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Let\'s get started!',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF17A38B),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          // Main content on top
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: size.height - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 50),
+                    // Moved text here, above the dropdown
+                    const Text(
+                      "Please select your dialysis center to continue.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 13, color: Colors.black),
+                    ),
+                    const SizedBox(height: 20),
+                    Container(
+                      width: size.width * 0.8,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.2),
+                            spreadRadius: 2,
+                            blurRadius: 5,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          isExpanded: true,
+                          value: selectedDialysisCenter,
+                          hint: const Text("Select Dialysis Center"),
+                          items: centers.map<DropdownMenuItem<String>>((center) {
+                            return DropdownMenuItem<String>(
+                              value: center['centerName'] as String,
+                              child: Text(center['centerName'] as String),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              selectedDialysisCenter = value;
+                              selectedCenterId = centers
+                                  .firstWhere((c) => c['centerName'] == value)['centerId'] as String;
+                            });
+                          },
+                        ),
                       ),
                     ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: size.width * 0.8,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF056C5B),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                        onPressed: (selectedDialysisCenter == null || selectedCenterId == null)
+                            ? null
+                            : () async {
+                                await _saveSelectedCenter();
+                                Navigator.pushNamed(
+                                  context,
+                                  '/login',
+                                  arguments: {
+                                    'centerName': selectedDialysisCenter,
+                                    'centerId': selectedCenterId,
+                                  },
+                                );
+                              },
+                        child: const Text(
+                          "Continue",
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 50),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 40),
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: tealColor,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(120),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Form(
-                    key: _formKey,
-                    child: ListView(
-                      children: [
-                        const Text(
-                          'Dialysis Center',
-                          style: TextStyle(color: Colors.white, fontSize: 14),
-                        ),
-                        const SizedBox(height: 4),
-                        DropdownButtonFormField<String>(
-                          initialValue: selectedDialysisCenter,
-                          items:
-                              dialysisCenters
-                                  .map(
-                                    (center) => DropdownMenuItem(
-                                      value: center,
-                                      child: Text(center),
-                                    ),
-                                  )
-                                  .toList(),
-                          decoration: const InputDecoration(
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(),
-                          ),
-                          onChanged: (value) {
-                            setState(() {
-                              selectedDialysisCenter = value;
-                            });
-                          },
-                          validator:
-                              (value) =>
-                                  value == null
-                                      ? 'Please select a center'
-                                      : null,
-                        ),
-                        const SizedBox(height: 20),
-                        const Text(
-                          'Existing Health Condition',
-                          style: TextStyle(color: Colors.white, fontSize: 14),
-                        ),
-                        const SizedBox(height: 4),
-                        DropdownButtonFormField<String>(
-                          initialValue: selectedCondition,
-                          items:
-                              healthConditions
-                                  .map(
-                                    (condition) => DropdownMenuItem(
-                                      value: condition,
-                                      child: Text(condition),
-                                    ),
-                                  )
-                                  .toList(),
-                          decoration: const InputDecoration(
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(),
-                          ),
-                          onChanged: (value) {
-                            setState(() {
-                              selectedCondition = value;
-                            });
-                          },
-                          validator:
-                              (value) =>
-                                  value == null
-                                      ? 'Please select a condition'
-                                      : null,
-                        ),
-                        const SizedBox(height: 20),
-                        const Text(
-                          'Start of Treatment Date',
-                          style: TextStyle(color: Colors.white, fontSize: 14),
-                        ),
-                        const SizedBox(height: 4),
-                        GestureDetector(
-                          onTap: () => _selectDate(context),
-                          child: AbsorbPointer(
-                            child: TextFormField(
-                              controller: TextEditingController(
-                                text:
-                                    startDate == null
-                                        ? ''
-                                        : DateFormat.yMMMd().format(startDate!),
-                              ),
-                              decoration: const InputDecoration(
-                                filled: true,
-                                fillColor: Colors.white,
-                                border: OutlineInputBorder(),
-                                hintText: 'MM/DD/YYYY',
-                                prefixIcon: Icon(Icons.calendar_today),
-                              ),
-                              validator:
-                                  (value) =>
-                                      startDate == null
-                                          ? 'Please select a date'
-                                          : null,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 40),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: tealColor,
-                            ),
-                            onPressed: _saveData,
-                            child: const Text(
-                              'Next',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+          ),
+          
+          if (_isLoading)
+            Container(
+              color: Colors.black.withOpacity(0.5),
+              child: const Center(child: CircularProgressIndicator(color: Colors.white)),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
+}
+
+/// Custom curve for top container
+class _CurveClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.lineTo(0, size.height - 50);
+    path.quadraticBezierTo(
+      size.width / 2,
+      size.height,
+      size.width,
+      size.height - 50,
+    );
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }

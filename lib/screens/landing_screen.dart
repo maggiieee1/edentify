@@ -87,7 +87,7 @@ class LandingScreen extends StatelessWidget {
                         ),
                       ),
                       onPressed: () {
-                        Navigator.pushNamed(context, '/login');
+                        Navigator.pushNamed(context, '/centerSelection');
                       },
                       child: Text(
                         'Sign in via Center',

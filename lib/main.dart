@@ -12,6 +12,7 @@ import '/features/classifyCamera.dart';
 import '/features/edema_classifier_screen.dart';
 import 'screens/main_navigation.dart';
 import 'otp/otp_verification_screen.dart';
+import 'screens/center_selection_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,6 +43,7 @@ class EdentifyApp extends StatelessWidget {
         '/classifyCamera': (context) => const ClassifyCamera(),
         '/imagePickerClassify': (context) => const ImagePickerClassify(),
         '/otpVerification': (context) => const OtpVerificationScreen(),
+        '/centerSelection': (context) => const CenterSelectionScreen(userId: '',),
         '/home': (context) {
           final args =
               ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
