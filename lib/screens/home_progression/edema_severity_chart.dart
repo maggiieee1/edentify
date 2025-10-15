@@ -12,6 +12,11 @@ class EdemaSeverityChart extends StatefulWidget {
 }
 
 class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
+  static const List<String> _gradeLabels = ['Normal', 'Mild', 'Moderate', 'Severe'];
+  
+  // Define colors for each grade
+  static const List<Color> _gradeColors = [Colors.green, Colors.yellow, Colors.orange, Colors.red];
+
   List<Map<String, dynamic>> edemaData = [];
   bool isLoading = true;
 
@@ -24,7 +29,12 @@ class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
   Future<void> _fetchEdemaData() async {
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) return;
+      if (uid == null) {
+        if (mounted) {
+          setState(() => isLoading = false);
+        }
+        return;
+      }
 
       final snapshot = await FirebaseFirestore.instance
           .collection('users')
@@ -44,29 +54,23 @@ class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
         return {'date': date, 'grade': grade};
       }).toList();
 
-      setState(() {
-        edemaData = fetchedData;
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          edemaData = fetchedData;
+          isLoading = false;
+        });
+      }
     } catch (e) {
       debugPrint('Error fetching edema data: $e');
-      setState(() => isLoading = false);
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
   int _getGradeFromResult(String result) {
-    switch (result.toLowerCase()) {
-      case 'normal':
-        return 0;
-      case 'mild':
-        return 1;
-      case 'moderate':
-        return 2;
-      case 'severe':
-        return 3;
-      default:
-        return 0;
-    }
+    final index = _gradeLabels.map((e) => e.toLowerCase()).toList().indexOf(result.toLowerCase());
+    return index >= 0 ? index : 0;
   }
 
   @override
@@ -89,17 +93,9 @@ class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
           : edemaData.isEmpty
               ? const Center(child: Text('No edema data available'))
               : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center, // Center the content horizontally
                   children: [
-                    const Text(
-                      "Edema Severity Chart (RVSS-based)",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.teal,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
+              
                     AspectRatio(
                       aspectRatio: 1.6,
                       child: LineChart(
@@ -109,14 +105,17 @@ class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
                             bottomTitles: AxisTitles(
                               sideTitles: SideTitles(
                                 showTitles: true,
+                                reservedSize: 45,
                                 getTitlesWidget: (value, meta) {
-                                  if (value.toInt() < edemaData.length) {
-                                    return Padding(
-                                      padding: const EdgeInsets.only(top: 8),
-                                      child: Text(
-                                        edemaData[value.toInt()]['date']
-                                            .toString(),
-                                        style: const TextStyle(fontSize: 10),
+                                  if (value.toInt() < edemaData.length && value.toInt() % 2 == 0) {
+                                    return Transform.rotate(
+                                      angle: -45 * (3.14159 / 180),
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(top: 8),
+                                        child: Text(
+                                          edemaData[value.toInt()]['date'].toString(),
+                                          style: const TextStyle(fontSize: 10, color: Colors.black),
+                                        ),
                                       ),
                                     );
                                   }
@@ -127,20 +126,15 @@ class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
                             leftTitles: AxisTitles(
                               sideTitles: SideTitles(
                                 showTitles: true,
-                                reservedSize: 40,
+                                reservedSize: 80,
                                 getTitlesWidget: (value, meta) {
-                                  switch (value.toInt()) {
-                                    case 0:
-                                      return const Text('Normal');
-                                    case 1:
-                                      return const Text('Mild');
-                                    case 2:
-                                      return const Text('Moderate');
-                                    case 3:
-                                      return const Text('Severe');
-                                    default:
-                                      return const SizedBox.shrink();
+                                  if (value.toInt() >= 0 && value.toInt() < _gradeLabels.length) {
+                                    return Text(
+                                      _gradeLabels[value.toInt()],
+                                      style: const TextStyle(fontSize: 10, color: Colors.black),
+                                    );
                                   }
+                                  return const SizedBox.shrink();
                                 },
                               ),
                             ),
@@ -154,7 +148,18 @@ class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
                             LineChartBarData(
                               isCurved: true,
                               color: Colors.teal,
-                              dotData: FlDotData(show: true),
+                              dotData: FlDotData(
+                                show: true,
+                                getDotPainter: (spot, percent, barData, index) {
+                                  final grade = edemaData[index]['grade'];
+                                  return FlDotCirclePainter(
+                                    radius: 4,
+                                    color: _gradeColors[grade],
+                                    strokeColor: Colors.black,
+                                    strokeWidth: 1,
+                                  );
+                                },
+                              ),
                               barWidth: 3,
                               spots: List.generate(edemaData.length, (index) {
                                 return FlSpot(
@@ -168,22 +173,58 @@ class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // ✅ Wrapped Row in SingleChildScrollView to fix overflow
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: const [
-                          _LegendItem(color: Colors.teal, label: 'Edema Grade'),
-                          SizedBox(width: 16),
-                          _LegendItem(color: Colors.grey, label: 'Normal = 0'),
-                          SizedBox(width: 8),
-                          _LegendItem(color: Colors.grey, label: 'Mild = 1'),
-                          SizedBox(width: 8),
-                          _LegendItem(color: Colors.grey, label: 'Moderate = 2'),
-                          SizedBox(width: 8),
-                          _LegendItem(color: Colors.grey, label: 'Severe = 3'),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center, // Center the legend items
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const _LegendItem(color: Colors.teal, label: 'Edema Grade'),
+                              const SizedBox(width: 16),
+                              ..._gradeLabels.getRange(0, 2).toList().asMap().entries.map((entry) {
+                                final int index = entry.key;
+                                final String label = entry.value;
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 8.0),
+                                  child: _LegendItem(
+                                    color: _gradeColors[index],
+                                    label: '$label = $index',
+                                  ),
+                                );
+                              }).toList(),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              ..._gradeLabels.getRange(2, 4).toList().asMap().entries.map((entry) {
+                                final int index = entry.key + 2;
+                                final String label = entry.value;
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 8.0),
+                                  child: _LegendItem(
+                                    color: _gradeColors[index],
+                                    label: '$label = $index',
+                                  ),
+                                );
+                              }).toList(),
+                            ],
+                          ),
                         ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Center(
+                      child: Text(
+                        "This chart tracks your swelling grade. Lower values mean your swelling is improving.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
                       ),
                     ),
                   ],
