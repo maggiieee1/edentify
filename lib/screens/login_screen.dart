@@ -1,18 +1,9 @@
-// lib/screens/login_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends StatefulWidget {
-  final String centerId; // Add this field
-  final String centerName; // Add this field
-
-  const LoginScreen({
-    super.key,
-    required this.centerId,
-    required this.centerName,
-  });
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -44,10 +35,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final uid = userCred.user!.uid;
 
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final userDoc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
 
       if (!userDoc.exists) {
-        await FirebaseAuth.instance.signOut(); // Log out the user immediately
         setState(() {
           _errorMessage = "User data not found in database.";
         });
@@ -55,19 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       final userData = userDoc.data()!;
-      final userCenterId = userData['centerId'];
-      
-      // ✅ Check if the user's center ID matches the selected center ID
-      if (userCenterId != widget.centerId) {
-        await FirebaseAuth.instance.signOut(); // Log out the user
-        setState(() {
-          _errorMessage = "Your account is not registered with this center. Please select the correct center.";
-        });
-        return;
-      }
-      
       if (userData['status'] != 'active') {
-        await FirebaseAuth.instance.signOut(); // Log out the user
         setState(() {
           _errorMessage = "Your account is not active.";
         });
@@ -124,7 +103,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final topTextHeight = size.height * 0.35;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -135,7 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ClipPath(
               clipper: _CurveClipper(),
               child: Container(
-                height: topTextHeight,
+                height: size.height * 0.35,
                 width: double.infinity,
                 color: const Color(0xFF056C5B),
                 child: const Center(
@@ -159,8 +137,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    SizedBox(height: topTextHeight * 0.2), // Dynamic spacing
-                    
+                    const SizedBox(height: 25),
+
                     /// Email
                     TextFormField(
                       controller: _emailController,
