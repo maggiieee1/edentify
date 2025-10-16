@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-// No longer need to import home_screen.dart as we are navigating back to it
-
 class ClassificationResultScreen extends StatefulWidget {
   final String imagePath;
   final String label;
@@ -76,7 +74,6 @@ class _ClassificationResultScreenState
     if (_isSaving) return;
     setState(() => _isSaving = true);
 
-    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -99,7 +96,7 @@ class _ClassificationResultScreenState
 
     try {
       final firestore = FirebaseFirestore.instance;
-      final timestamp = DateTime.now();
+      // We use server timestamp now, so client-side 'timestamp' is not needed here
       String userId = widget.userId;
 
       if (userId.isEmpty) {
@@ -113,31 +110,34 @@ class _ClassificationResultScreenState
       final patientName =
           '${userData['firstName'] ?? ''} ${userData['middleName'] ?? ''} ${userData['lastName'] ?? ''}'
               .trim();
-      final doctorId = userData['doctor_id'] ?? 'doctor_001';
-      final centerId = userData['center_id'] ?? 'center_001';
+      final doctorId = userData['doctorId']; 
 
-      // Save to scan history
+      // 1. Save to patient's scan history (use server timestamp here too for consistency)
       await firestore.collection('users').doc(userId).collection('scanHistory').add({
         'imageURL': widget.imagePath,
         'result': widget.label,
-        'timestamp': timestamp,
-        'doctorId': doctorId,
-        'centerId': centerId,
+        'timestamp': FieldValue.serverTimestamp(),
+        'doctorId': doctorId ?? 'unassigned',
+        'centerId': userData['centerId'] ?? 'unassigned',
         'patientName': patientName,
       });
 
-      // Create patient notification
-      await firestore.collection('users').doc(userId).collection('notifications').add({
-        'title': 'New Edema Scan Result',
-        'message': 'Your scan has been classified as ${widget.label}.',
-        'timestamp': timestamp,
-        'read': false,
-      });
+     
 
-      // Hide loading dialog
+      // 3. Create notification for the doctor
+      if (doctorId != null && doctorId.isNotEmpty) {
+        await firestore.collection('users').doc(doctorId).collection('notifications').add({
+          'title': 'New Edema Scan for Review',
+          'message': 'Patient $patientName has submitted a new scan result (${widget.label}) for review.',
+          'patientId': userId,
+          'createdAt': FieldValue.serverTimestamp(),
+          'read': false,
+          'type': 'scan_review',
+        });
+      }
+
       if (mounted) Navigator.of(context).pop();
 
-      // Show success dialog
       await showDialog(
         context: context,
         barrierDismissible: false,
@@ -149,8 +149,6 @@ class _ClassificationResultScreenState
               TextButton(
                 child: const Text('OK'),
                 onPressed: () {
-                  // This pops all overlaying screens until it gets back to the
-                  // first screen in the stack (your home screen with the navbar).
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 },
               ),
@@ -159,8 +157,7 @@ class _ClassificationResultScreenState
         },
       );
     } catch (e) {
-      if (mounted) Navigator.of(context).pop(); // Hide loading dialog
-      // Show error dialog
+      if (mounted) Navigator.of(context).pop();
       await showDialog(
         context: context,
         builder: (BuildContext context) {
