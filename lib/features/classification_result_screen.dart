@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+// No longer need to import home_screen.dart as we are navigating back to it
+
 class ClassificationResultScreen extends StatefulWidget {
   final String imagePath;
   final String label;
@@ -71,54 +73,50 @@ class _ClassificationResultScreenState
   }
 
   Future<void> _saveToDatabase() async {
-    if (_isSaving) return; // Prevent multiple presses
+    if (_isSaving) return;
     setState(() => _isSaving = true);
 
-    final firestore = FirebaseFirestore.instance;
-    final timestamp = DateTime.now();
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Dialog(
+          child: Padding(
+            padding: EdgeInsets.all(20.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 20),
+                Text("Saving..."),
+              ],
+            ),
+          ),
+        );
+      },
+    );
 
     try {
-      // Ensure userId is valid
+      final firestore = FirebaseFirestore.instance;
+      final timestamp = DateTime.now();
       String userId = widget.userId;
+
       if (userId.isEmpty) {
         final currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser == null) {
-          throw Exception('User not logged in');
-        }
+        if (currentUser == null) throw Exception('User not logged in');
         userId = currentUser.uid;
       }
 
-      // 🧠 Fetch patient info
       final userDoc = await firestore.collection('users').doc(userId).get();
       final userData = userDoc.data() ?? {};
-
       final patientName =
           '${userData['firstName'] ?? ''} ${userData['middleName'] ?? ''} ${userData['lastName'] ?? ''}'
-              .replaceAll(RegExp(' +'), ' ')
-              .trim()
-              .isEmpty
-          ? 'Unknown'
-          : '${userData['firstName'] ?? ''} ${userData['middleName'] ?? ''} ${userData['lastName'] ?? ''}'
-              .replaceAll(RegExp(' +'), ' ')
               .trim();
-
       final doctorId = userData['doctor_id'] ?? 'doctor_001';
       final centerId = userData['center_id'] ?? 'center_001';
 
-      // 🧩 Fetch center name correctly from 'centers' collection
-      String centerName = 'Unknown Center';
-      if (centerId.isNotEmpty) {
-        final centerDoc =
-            await firestore.collection('centers').doc(centerId).get();
-        if (centerDoc.exists) {
-          final cData = centerDoc.data();
-          if (cData != null) {
-            centerName = cData['center_name'] ?? 'Unknown Center';
-          }
-        }
-      }
-
-      // 1️⃣ Save to scan history
+      // Save to scan history
       await firestore.collection('users').doc(userId).collection('scanHistory').add({
         'imageURL': widget.imagePath,
         'result': widget.label,
@@ -128,7 +126,7 @@ class _ClassificationResultScreenState
         'patientName': patientName,
       });
 
-      // 2️⃣ Create patient notification
+      // Create patient notification
       await firestore.collection('users').doc(userId).collection('notifications').add({
         'title': 'New Edema Scan Result',
         'message': 'Your scan has been classified as ${widget.label}.',
@@ -136,18 +134,52 @@ class _ClassificationResultScreenState
         'read': false,
       });
 
-      // ❌ DO NOT add pending approval here anymore
-      // The listener in NotificationsScreen will handle it
+      // Hide loading dialog
+      if (mounted) Navigator.of(context).pop();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saved successfully')),
+      // Show success dialog
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Success'),
+            content: const Text('Your scan has been saved successfully.'),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('OK'),
+                onPressed: () {
+                  // This pops all overlaying screens until it gets back to the
+                  // first screen in the stack (your home screen with the navbar).
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                },
+              ),
+            ],
+          );
+        },
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving: $e')),
+      if (mounted) Navigator.of(context).pop(); // Hide loading dialog
+      // Show error dialog
+      await showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Error'),
+            content: Text('An error occurred while saving: $e'),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('OK'),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          );
+        },
       );
     } finally {
-      setState(() => _isSaving = false);
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
 
@@ -164,16 +196,8 @@ class _ClassificationResultScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Image.asset('assets/logo.png', width: 40, height: 40),
-                ],
-              ),
+              Image.asset('assets/logo.png', width: 40, height: 40),
               const SizedBox(height: 20),
-
-              // Severity label
               Center(
                 child: Text(
                   widget.label,
@@ -184,8 +208,6 @@ class _ClassificationResultScreenState
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Image display
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: AspectRatio(
@@ -195,8 +217,6 @@ class _ClassificationResultScreenState
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Recommendations
               const Text('Recommendations:',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
@@ -204,10 +224,7 @@ class _ClassificationResultScreenState
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Text('- $rec', style: const TextStyle(fontSize: 14)),
                   )),
-
               const SizedBox(height: 30),
-
-              // Buttons
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -215,30 +232,21 @@ class _ClassificationResultScreenState
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8)),
                     ),
                     child: const Text('Retake'),
                   ),
                   ElevatedButton(
-                    onPressed: _saveToDatabase,
+                    onPressed: _isSaving ? null : _saveToDatabase,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF34A853),
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2),
-                          )
-                        : const Text('Save'),
+                    child: const Text('Save'),
                   ),
                 ],
               ),
