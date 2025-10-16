@@ -43,7 +43,7 @@ class EdentifyApp extends StatelessWidget {
         '/classifyCamera': (context) => const ClassifyCamera(),
         '/imagePickerClassify': (context) => const ImagePickerClassify(),
         '/otpVerification': (context) => const OtpVerificationScreen(),
-        '/centerSelection': (context) => const CenterSelectionScreen(userId: '',),
+        '/centerSelection': (context) => const CenterSelectionScreen(),
         '/home': (context) {
           final args =
               ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;

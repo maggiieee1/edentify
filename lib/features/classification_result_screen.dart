@@ -122,7 +122,13 @@ class _ClassificationResultScreenState
         'patientName': patientName,
       });
 
-     
+      // 2. Create notification for the patient
+      await firestore.collection('users').doc(userId).collection('notifications').add({
+        'title': 'New Edema Scan Result',
+        'message': 'Your scan has been classified as ${widget.label}.',
+        'createdAt': FieldValue.serverTimestamp(),
+        'read': false,
+      });
 
       // 3. Create notification for the doctor
       if (doctorId != null && doctorId.isNotEmpty) {

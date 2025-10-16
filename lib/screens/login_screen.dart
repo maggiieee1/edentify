@@ -26,6 +26,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   /// 🔹 Login function
   Future<void> _login() async {
+    // 1. Validate the form first
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -33,11 +34,29 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
-    try {
-      // Retrieve the centerId passed from the previous screen.
-      final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-      final String selectedCenterId = args['centerId'];
+    // ✅ SOLUTION: Safely handle arguments
+    final Object? routerArgs = ModalRoute.of(context)?.settings.arguments;
+    
+    // 2. Guard Clause: Check if arguments are missing or not the right type
+    if (routerArgs == null || routerArgs is! Map<String, dynamic>) {
+       setState(() {
+        _errorMessage = "Center not selected. Please go back and select a center.";
+        _isLoading = false;
+      });
+      return; // Stop the function
+    }
+    
+    // 3. Guard Clause: Check if centerId is missing from the arguments
+    final String? selectedCenterId = routerArgs['centerId'];
+    if (selectedCenterId == null) {
+      setState(() {
+        _errorMessage = "Center ID is missing. Please select a center again.";
+        _isLoading = false;
+      });
+      return; // Stop the function
+    }
 
+    try {
       final email = _emailController.text.trim();
       final password = _passwordController.text.trim();
 
@@ -75,6 +94,9 @@ class _LoginScreenState extends State<LoginScreen> {
         });
         return;
       }
+      
+      // Use 'mounted' check before navigating
+      if (!mounted) return;
 
       Navigator.pushReplacementNamed(
         context,
@@ -94,10 +116,13 @@ class _LoginScreenState extends State<LoginScreen> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = "Error: $e";
+        _errorMessage = "An unexpected error occurred: $e";
       });
     } finally {
-      setState(() => _isLoading = false);
+      // Use 'mounted' check before setting state in async gaps
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -113,13 +138,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Password reset link sent to $email")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Password reset link sent to $email")),
+        );
+      }
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? "Failed to send reset email")),
-      );
+       if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? "Failed to send reset email")),
+        );
+      }
     }
   }
 
@@ -177,8 +206,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) =>
-                          value == null || value.isEmpty
-                              ? "Enter your email"
+                          value == null || !value.contains('@')
+                              ? "Enter a valid email"
                               : null,
                     ),
                     const SizedBox(height: 20),
@@ -207,7 +236,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: _resetPassword,
+                        onPressed: _isLoading ? null : _resetPassword, // Disable when loading
                         child: const Text(
                           "Forgot Password?",
                           style: TextStyle(color: Color(0xFF056C5B)),
@@ -218,12 +247,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     /// Error message
                     if (_errorMessage != null)
-                      Text(
-                        _errorMessage!,
-                        style: const TextStyle(color: Colors.red),
-                        textAlign: TextAlign.center,
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 15.0),
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(color: Colors.red, fontSize: 14),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
-                    const SizedBox(height: 15),
 
                     /// Login button
                     _isLoading

@@ -93,7 +93,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
         _showSnackBar('Phone number verified!');
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => CenterSelectionScreen(userId: userId)),
+          MaterialPageRoute(builder: (_) => CenterSelectionScreen()),
         );
       }
     } on FirebaseAuthException catch (e) {

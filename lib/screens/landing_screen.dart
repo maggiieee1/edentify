@@ -1,18 +1,21 @@
+// FILE: lib/screens/landing_screen.dart
+
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // ✅ 1. Add this import
 
 class LandingScreen extends StatelessWidget {
   const LandingScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size; // 🔥 Get screen size
+    final size = MediaQuery.of(context).size;
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
-            // Top welcome section
+            // Top welcome section (no changes here)
             Expanded(
               flex: 2,
               child: Padding(
@@ -49,7 +52,7 @@ class LandingScreen extends StatelessWidget {
               ),
             ),
 
-            // Bottom action section
+            // Bottom action section (changes are here)
             Expanded(
               flex: 1,
               child: Container(
@@ -75,8 +78,6 @@ class LandingScreen extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: size.height * 0.03),
-
-                    // 👉 Only Login button retained
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         foregroundColor: const Color(0xFF056C5B),
@@ -86,8 +87,15 @@ class LandingScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      onPressed: () {
-                        Navigator.pushNamed(context, '/centerSelection');
+                      // ✅ 2. Make the function async
+                      onPressed: () async {
+                        // ✅ 3. Sign out the current user first
+                        await FirebaseAuth.instance.signOut();
+
+                        // Now, navigate to the center selection screen
+                        if (context.mounted) {
+                           Navigator.pushNamed(context, '/centerSelection');
+                        }
                       },
                       child: Text(
                         'Sign in via Center',

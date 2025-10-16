@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
 
-
 import '../features/water_intake.dart';
 import '../features/edema_classifier_screen.dart';
 import '../screens/treatment_record_screen.dart';
@@ -12,16 +11,20 @@ import '../screens/appointment_details_screen.dart';
 import 'home_progression/progression_tab.dart';
 
 class HomeScreen extends StatefulWidget {
-  final String userId; // Firestore doc.id passed from login
+  // This makes the userId optional, allowing the screen to be created in two ways.
+  final String? userId;
 
-  const HomeScreen({super.key, required this.userId});
+  const HomeScreen({super.key, this.userId});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String _firstName = '';
+  String? _userId;
+  bool _isInitialized = false;
+
+  String _firstName = 'User';
   double _waterIntakeMl = 0;
   final int mlPerCup = 125;
   final int alertThresholdMl = 800;
@@ -31,13 +34,34 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime? _latestScanTime;
 
   @override
-  void initState() {
-    super.initState();
-    _refreshData();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isInitialized) {
+      // This logic makes the screen flexible.
+      // Priority 1: Check if userId was passed directly (from MainNavigation).
+      if (widget.userId != null) {
+        _userId = widget.userId;
+      } else {
+        // Priority 2: If not, get it from route arguments (from LoginScreen).
+        final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+        if (args != null && args.containsKey('uid')) {
+          _userId = args['uid'];
+        }
+      }
+
+      // If we found a userId, load the data.
+      if (_userId != null) {
+        _isInitialized = true;
+        _refreshData();
+      } else {
+        debugPrint("CRITICAL: HomeScreen loaded without a userId!");
+      }
+    }
   }
 
   /// Refresh all the data
   Future<void> _refreshData() async {
+    if (_userId == null) return;
     await Future.wait([
       _loadUserData(),
       _loadTodayWaterIntake(),
@@ -45,17 +69,13 @@ class _HomeScreenState extends State<HomeScreen> {
     ]);
   }
 
-  /// Load user's first name
+  /// Load user's first name safely
   Future<void> _loadUserData() async {
     try {
-      final doc =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(widget.userId)
-              .get();
-      if (doc.exists) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(_userId).get();
+      if (doc.exists && mounted) {
         setState(() {
-          _firstName = doc['firstName'] ?? '';
+          _firstName = doc['firstName'] ?? 'User'; // Default value
         });
       }
     } catch (e) {
@@ -63,29 +83,27 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// Load water intake for today's date
+  /// Load water intake safely
   Future<void> _loadTodayWaterIntake() async {
     try {
       final now = DateTime.now();
-      final localDate = DateTime(now.year, now.month, now.day);
-      final dateKey = DateFormat('yyyy-MM-dd').format(localDate);
+      final dateKey = DateFormat('yyyy-MM-dd').format(now);
 
-      final docSnapshot =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(widget.userId)
-              .collection('waterIntake')
-              .doc(dateKey)
-              .get();
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_userId)
+          .collection('waterIntake')
+          .doc(dateKey)
+          .get();
 
+      double intake = 0;
       if (docSnapshot.exists) {
-        final data = docSnapshot.data()!;
+        intake = (docSnapshot.data()?['totalAmount'] ?? 0).toDouble(); // Default value
+      }
+
+      if (mounted) {
         setState(() {
-          _waterIntakeMl = (data['totalAmount'] ?? 0).toDouble();
-        });
-      } else {
-        setState(() {
-          _waterIntakeMl = 0;
+          _waterIntakeMl = intake;
         });
       }
     } catch (e) {
@@ -93,26 +111,25 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// Load the most recent scan
+  /// Load the most recent scan safely
   Future<void> _loadLatestScan() async {
     try {
-      final query =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(widget.userId)
-              .collection('scanHistory')
-              .orderBy('timestamp', descending: true)
-              .limit(1)
-              .get();
+      final query = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_userId)
+          .collection('scanHistory')
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
 
-      if (query.docs.isNotEmpty) {
+      if (query.docs.isNotEmpty && mounted) {
         final scanData = query.docs.first.data();
         setState(() {
           _latestScanImageUrl = scanData['imageURL'];
-          _latestScanResult = scanData['result'];
+          _latestScanResult = scanData['result'] ?? 'No Result'; // Default value
           _latestScanTime = (scanData['timestamp'] as Timestamp?)?.toDate();
         });
-      } else {
+      } else if (mounted) {
         setState(() {
           _latestScanImageUrl = null;
           _latestScanResult = '';
@@ -124,19 +141,18 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// Load the nearest upcoming schedule
+  /// Load the nearest upcoming schedule safely
   Future<Map<String, dynamic>?> _loadUpcomingSchedule() async {
+    if (_userId == null) return null;
     try {
-      final snapshot =
-          await FirebaseFirestore.instance
-              .collectionGroup('schedules')
-              .where('patientId', isEqualTo: widget.userId)
-              .get();
+      final snapshot = await FirebaseFirestore.instance
+          .collectionGroup('schedules')
+          .where('patientId', isEqualTo: _userId)
+          .get();
 
       if (snapshot.docs.isEmpty) return null;
 
       final schedules = snapshot.docs.map((doc) => doc.data()).toList();
-
       List<DateTime> allDays = [];
       Map<DateTime, Map<String, dynamic>> scheduleMap = {};
 
@@ -144,10 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
         if (sched['days'] != null) {
           for (var d in List.from(sched['days'])) {
             final date = DateTime.tryParse(d);
-            if (date != null &&
-                date.isAfter(
-                  DateTime.now().subtract(const Duration(days: 1)),
-                )) {
+            if (date != null && date.isAfter(DateTime.now().subtract(const Duration(days: 1)))) {
               allDays.add(date);
               scheduleMap[date] = sched;
             }
@@ -156,29 +169,25 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       if (allDays.isEmpty) return null;
-      allDays.sort();
+      allDays.sort((a, b) => a.compareTo(b));
 
       final nextDate = allDays.first;
       final schedData = scheduleMap[nextDate]!;
+      String centerName = "Dialysis Center";
 
-      String? centerName;
       if (schedData['centerId'] != null) {
-        final centerDoc =
-            await FirebaseFirestore.instance
-                .collection('centers')
-                .doc(schedData['centerId'])
-                .get();
-        if (centerDoc.exists && centerDoc.data()!.containsKey('name')) {
-          centerName = centerDoc['name'];
+        final centerDoc = await FirebaseFirestore.instance.collection('centers').doc(schedData['centerId']).get();
+        if (centerDoc.exists) {
+          centerName = centerDoc.data()?['name'] ?? "Dialysis Center"; // Default value
         }
       }
 
       return {
         "date": nextDate,
         "centerId": schedData['centerId'],
-        "centerName": centerName ?? "Dialysis Center",
-        "shift": schedData['shift'],
-        "patientName": schedData['patientName'],
+        "centerName": centerName,
+        "shift": schedData['shift'] ?? 'N/A', // Default value
+        "patientName": schedData['patientName'] ?? 'N/A', // Default value
       };
     } catch (e) {
       debugPrint("Error loading schedule: $e");
@@ -187,501 +196,363 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildScanImage(String? imageUrl) {
-  if (imageUrl == null || imageUrl.isEmpty) {
-    return Container(
-      width: 80,
-      height: 80,
-      color: Colors.grey.shade200,
-      child: const Icon(Icons.image_not_supported, color: Colors.grey),
-    );
-  }
-
-  try {
-    if (imageUrl.startsWith('http')) {
-      // 🔹 Firebase Storage or any online image
-      return Image.network(
-        imageUrl,
-        width: 80,
-        height: 80,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Container(
-          width: 80,
-          height: 80,
-          color: Colors.grey.shade200,
-          child: const Icon(Icons.broken_image, color: Colors.grey),
-        ),
-      );
-    } else {
-      // 🔹 Local file (e.g., saved from device camera)
-      return Image.file(
-        File(imageUrl),
-        width: 80,
-        height: 80,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Container(
-          width: 80,
-          height: 80,
-          color: Colors.grey.shade200,
-          child: const Icon(Icons.broken_image, color: Colors.grey),
-        ),
-      );
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return _imageErrorWidget();
     }
-  } catch (e) {
-    debugPrint("Error loading image: $e");
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: imageUrl.startsWith('http')
+          ? Image.network(
+              imageUrl,
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => _imageErrorWidget(),
+            )
+          : Image.file(
+              File(imageUrl),
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => _imageErrorWidget(),
+            ),
+    );
+  }
+
+  Widget _imageErrorWidget() {
     return Container(
       width: 80,
       height: 80,
-      color: Colors.grey.shade200,
-      child: const Icon(Icons.error_outline, color: Colors.red),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Icon(Icons.broken_image, color: Colors.grey),
     );
   }
-}
 
+  bool _hasScannedInCurrentTimeFrame() {
+    if (_latestScanTime == null) return false;
+
+    final now = DateTime.now();
+    final currentHour = now.hour;
+    final lastScan = _latestScanTime!;
+
+    DateTime startTime, endTime;
+
+    if (currentHour >= 4 && currentHour < 12) {
+      startTime = DateTime(now.year, now.month, now.day, 4);
+      endTime = DateTime(now.year, now.month, now.day, 12);
+    } else if (currentHour >= 12 && currentHour < 17) {
+      startTime = DateTime(now.year, now.month, now.day, 12);
+      endTime = DateTime(now.year, now.month, now.day, 17);
+    } else {
+      startTime = (currentHour >= 17)
+          ? DateTime(now.year, now.month, now.day, 17)
+          : DateTime(now.year, now.month, now.day - 1, 17);
+      endTime = (currentHour >= 17)
+          ? DateTime(now.year, now.month, now.day + 1, 4)
+          : DateTime(now.year, now.month, now.day, 4);
+    }
+    return lastScan.isAfter(startTime) && lastScan.isBefore(endTime);
+  }
+
+  Widget _buildDynamicScanCard() {
+    if (_hasScannedInCurrentTimeFrame()) {
+      return const SizedBox.shrink();
+    }
+
+    final currentHour = DateTime.now().hour;
+    String title, subtitle;
+    Color cardColor;
+    IconData icon;
+
+    if (currentHour >= 4 && currentHour < 12) {
+      title = "Morning Check!";
+      subtitle = "Scan legs before getting out of bed";
+      cardColor = const Color(0xFFFEF9C3);
+      icon = Icons.priority_high_rounded;
+    } else if (currentHour >= 12 && currentHour < 17) {
+      title = "Mid-Day Check!";
+      subtitle = "Quick scan to track fluid changes";
+      cardColor = const Color(0xFFE0F2FE);
+      icon = Icons.access_time;
+    } else {
+      title = "Scan of the day!";
+      subtitle = "Scan legs to record the day’s peak swelling";
+      cardColor = const Color(0xFFF3E8FF);
+      icon = Icons.shield_moon_outlined;
+    }
+
+    return InkWell(
+      onTap: () {
+        if (_userId == null) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => EdemaClassifierScreen(userId: _userId!)),
+        ).then((_) => _refreshData());
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(12)),
+        child: Row(
+          children: [
+            Icon(icon, size: 28, color: Colors.black87),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
+                  const SizedBox(height: 2),
+                  Text(subtitle, style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (!_isInitialized) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     const Color teal = Color(0xFF0CB49D);
-
-    final int waterCups = (_waterIntakeMl / mlPerCup).floor();
-    final bool isAlert =
-        _waterIntakeMl >= alertThresholdMl && _waterIntakeMl < 1000;
-
     final hour = DateTime.now().hour;
-    final greeting =
-        hour < 12
-            ? 'Good Morning'
-            : hour < 17
-            ? 'Good Afternoon'
-            : 'Good Evening';
+    final greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leadingWidth: 70, // ⬅️ Add more space for the bigger logo
+        leadingWidth: 70,
         leading: Padding(
           padding: const EdgeInsets.only(left: 16),
-          child: Image.asset(
-            'assets/logo.png',
-            height: 40, // ⬆️ Increased from 28
-            width: 40, // ⬆️ Increased from 28
-          ),
+          child: Image.asset('assets/logo.png', height: 40, width: 40),
         ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: IconButton(
-              icon: const Icon(
-                Icons.notifications_none,
-                color: Colors.black,
-                size: 32, // ⬆️ Increased from default 24
-              ),
+              icon: const Icon(Icons.notifications_none, color: Colors.black, size: 32),
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder:
-                        (context) => NotificationsScreen(userId: widget.userId),
-                  ),
-                );
+                if (_userId == null) return;
+                Navigator.push(context, MaterialPageRoute(builder: (context) => NotificationsScreen(userId: _userId!)));
               },
             ),
           ),
         ],
       ),
-
       body: RefreshIndicator(
         onRefresh: _refreshData,
-        child: SafeArea(
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                /// Greeting
-                Text(
-                  '$greeting, $_firstName.',
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('$greeting, $_firstName.', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black)),
+              const SizedBox(height: 16),
+              _buildDynamicScanCard(),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: () {
+                  if (_userId == null) return;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => TreatmentRecordScreen(patientId: _userId!)),
+                  ).then((_) => _refreshData());
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(color: const Color(0xFFCCFBF1), borderRadius: BorderRadius.circular(12)),
+                  child: Row(
+                    children: const [
+                      Icon(Icons.article_outlined, size: 32, color: Color(0xFF115E59)),
+                      SizedBox(width: 12),
+                      Text("Dialysis Treatment Record", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF115E59))),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 12),
-
-                /// Upcoming Appointments
-                const Text(
-                  "Upcoming Appointments",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 16),
-
-                /// Treatment Record
-                InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (context) =>
-                                TreatmentRecordScreen(patientId: widget.userId),
-                      ),
-                    ).then((_) => _refreshData());
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.teal.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: const [
-                        Icon(Icons.article, size: 32, color: Colors.teal),
-                        SizedBox(width: 12),
-                        Text(
-                          "Dialysis Treatment Record",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                /// Water Intake + Dialysis Session
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    /// Water Intake Card
-                    Expanded(
-                      child: AspectRatio(
-                        aspectRatio: 1,
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade100,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.local_drink,
-                                size: 32,
-                                color: Colors.blue,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                "${_waterIntakeMl.toInt()}/1000 mL",
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              ElevatedButton(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder:
-                                          (context) => UpdateWaterIntakeScreen(
-                                            userId: widget.userId,
-                                            waterIntake: _waterIntakeMl.toInt(),
-                                            onUpdated: _refreshData,
-                                          ),
-                                    ),
-                                  ).then((_) => _refreshData());
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue,
-                                  minimumSize: const Size(80, 32),
-                                  padding: EdgeInsets.zero,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                ),
-                                child: const Text(
-                                  "Update",
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-
-                    /// Upcoming Appointment Card
-                    Expanded(
-                      child: AspectRatio(
-                        aspectRatio: 1,
-                        child: FutureBuilder<Map<String, dynamic>?>(
-                          future: _loadUpcomingSchedule(),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.green.shade200,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Center(
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              );
-                            }
-
-                            if (!snapshot.hasData || snapshot.data == null) {
-                              return Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade400,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Center(
-                                  child: Text(
-                                    "No Upcoming\nAppointments",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              );
-                            }
-
-                            final sched = snapshot.data!;
-                            final DateTime date = sched["date"];
-                            final dayNumber = DateFormat('dd').format(date);
-                            final weekday = DateFormat('E').format(date);
-
-                            return InkWell(
-                              onTap: () {
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: Colors.blue.shade100, borderRadius: BorderRadius.circular(12)),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.local_drink, size: 32, color: Colors.blue),
+                            const SizedBox(height: 8),
+                            Text("${_waterIntakeMl.toInt()}/1000 mL", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 6),
+                            ElevatedButton(
+                              onPressed: () {
+                                if (_userId == null) return;
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder:
-                                        (context) => AppointmentDetailsScreen(
-                                          appointmentData: sched,
-                                        ),
+                                    builder: (context) => UpdateWaterIntakeScreen(
+                                      userId: _userId!,
+                                      waterIntake: _waterIntakeMl.toInt(),
+                                      onUpdated: _refreshData,
+                                    ),
                                   ),
                                 ).then((_) => _refreshData());
                               },
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Colors.green.shade700,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      dayNumber,
-                                      style: const TextStyle(
-                                        fontSize: 28,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      weekday,
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      sched["centerName"] ?? "Dialysis Center",
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.white70,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ],
-                                ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                minimumSize: const Size(80, 32),
+                                padding: EdgeInsets.zero,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                               ),
-                            );
-                          },
+                              child: const Text("Update", style: TextStyle(color: Colors.white)),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                /// Latest Scan Section
-                _latestScanImageUrl == null
-                    ? Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(12),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: FutureBuilder<Map<String, dynamic>?>(
+                        future: _loadUpcomingSchedule(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return Container(
+                              decoration: BoxDecoration(color: Colors.green.shade200, borderRadius: BorderRadius.circular(12)),
+                              child: const Center(child: CircularProgressIndicator(color: Colors.white)),
+                            );
+                          }
+                          if (!snapshot.hasData || snapshot.data == null) {
+                            return Container(
+                              decoration: BoxDecoration(color: Colors.grey.shade400, borderRadius: BorderRadius.circular(12)),
+                              child: const Center(
+                                child: Text("No Upcoming\nAppointments", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600), textAlign: TextAlign.center),
+                              ),
+                            );
+                          }
+                          final sched = snapshot.data!;
+                          final DateTime date = sched["date"];
+                          return InkWell(
+                            onTap: () {
+                              Navigator.push(context, MaterialPageRoute(builder: (context) => AppointmentDetailsScreen(appointmentData: sched)));
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(color: Colors.green.shade700, borderRadius: BorderRadius.circular(12)),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(DateFormat('dd').format(date), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+                                  const SizedBox(height: 4),
+                                  Text(DateFormat('E').format(date), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+                                  const SizedBox(height: 6),
+                                  Text(sched["centerName"], style: const TextStyle(fontSize: 12, color: Colors.white70), textAlign: TextAlign.center),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
                       ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              _latestScanImageUrl == null
+                  ? Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(12)),
                       width: double.infinity,
                       child: const Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 20),
-                          child: Text(
-                            'No Scans Yet',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.black54,
-                            ),
-                          ),
-                        ),
+                        child: Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Text('No Scans Yet', style: TextStyle(fontSize: 18, color: Colors.black54))),
                       ),
                     )
-                    : Container(
+                  : Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade400,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      decoration: BoxDecoration(color: Colors.red.shade400, borderRadius: BorderRadius.circular(12)),
                       width: double.infinity,
                       child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  "Latest Scan",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                                const Text("Latest Scan", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                                 const SizedBox(height: 6),
-                                Text(
-                                  "Edema Classification: $_latestScanResult",
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
+                                Text("Edema Classification: $_latestScanResult", style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
                                 if (_latestScanTime != null) ...[
                                   const SizedBox(height: 4),
-                                  Text(
-                                    DateFormat(
-                                      'MMM dd, yyyy – hh:mm a',
-                                    ).format(_latestScanTime!),
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
+                                  Text(DateFormat('MMM dd, yyyy – hh:mm a').format(_latestScanTime!), style: const TextStyle(color: Colors.white70, fontSize: 12)),
                                 ],
                               ],
                             ),
                           ),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: _buildScanImage(_latestScanImageUrl),
-                          ),
+                          _buildScanImage(_latestScanImageUrl),
                         ],
                       ),
                     ),
-
-                const SizedBox(height: 20),
-
-                /// Edema Progression Section
-                Stack(
-                  children: [
-                    GestureDetector(
-                      onTap: () {
+              const SizedBox(height: 20),
+              Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      if (_userId == null) return;
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => ProgressionTab(userId: _userId!)));
+                    },
+                    child: Card(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 3,
+                      child: SizedBox(
+                        height: 200,
+                        width: double.infinity,
+                        child: const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.show_chart, color: Colors.teal, size: 40),
+                            SizedBox(height: 8),
+                            Text("View Edema Progression", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                            SizedBox(height: 4),
+                            Text("Tap to see detailed graphs", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: FloatingActionButton(
+                      backgroundColor: teal,
+                      onPressed: () {
+                        if (_userId == null) return;
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) =>
-                                    ProgressionTab(userId: widget.userId),
-                          ),
-                        );
+                          MaterialPageRoute(builder: (context) => EdemaClassifierScreen(userId: _userId!)),
+                        ).then((_) => _refreshData());
                       },
-                      child: Card(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 3,
-                        child: Container(
-                          height: 200,
-                          padding: const EdgeInsets.all(12),
-                          child: const Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.show_chart,
-                                  color: Colors.teal,
-                                  size: 40,
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  "View Edema Progression",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  "Tap to see detailed graphs",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
+                      child: const Icon(Icons.camera_alt, color: Colors.white),
                     ),
-
-                    /// Floating Scan Button
-                    Positioned(
-                      bottom: 16,
-                      right: 16,
-                      child: FloatingActionButton(
-                        backgroundColor: teal,
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (context) =>
-                                      const EdemaClassifierScreen(userId: ''),
-                            ),
-                          ).then((_) => _refreshData());
-                        },
-                        child: const Icon(
-                          Icons.camera_alt,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

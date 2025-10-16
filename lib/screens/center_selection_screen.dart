@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class CenterSelectionScreen extends StatefulWidget {
-  const CenterSelectionScreen({super.key, required String userId});
+  // ✅ FIX: The 'required String userId' parameter has been removed.
+  const CenterSelectionScreen({super.key});
 
   @override
   State<CenterSelectionScreen> createState() => _CenterSelectionScreenState();
@@ -19,54 +19,65 @@ class _CenterSelectionScreenState extends State<CenterSelectionScreen> {
   @override
   void initState() {
     super.initState();
+    // ✅ FIX: The logic is now cleaner. It checks for a user first.
+    // If no user is found, it proceeds to fetch the centers.
     _checkPersistentLogin();
-    fetchCenters();
   }
 
-  Future<void> fetchCenters() async {
-    try {
-      final snapshot = await FirebaseFirestore.instance.collection('centers').get();
-      setState(() {
-        centers = snapshot.docs.map((doc) {
-          final data = doc.data();
-          return {
-            'centerName': data['name'],
-            'centerId': doc.id,
-          };
-        }).toList();
-        _isLoading = false;
+  // ✅ FIX: This function now correctly sends the user's 'uid'.
+  Future<void> _checkPersistentLogin() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    // If a user is already logged in, go straight to the home screen.
+    if (user != null) {
+      // Use addPostFrameCallback to ensure the widget is built before navigating.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.pushReplacementNamed(
+            context,
+            '/home',
+            arguments: {
+              'uid': user.uid, // This sends the user's actual ID.
+            },
+          );
+        }
       });
-    } catch (e) {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to fetch centers: $e')),
-      );
+    } else {
+      // If no user is logged in, then we load the centers for selection.
+      fetchCenters();
     }
   }
 
-  // Check persistent login
-  Future<void> _checkPersistentLogin() async {
-    final prefs = await SharedPreferences.getInstance();
-    final centerId = prefs.getString('centerId');
-    final centerName = prefs.getString('centerName');
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (centerId != null && centerName != null && user != null) {
-      // User is logged in and center selected → navigate to home
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushReplacementNamed(
-          context,
-          '/home',
-          arguments: {'centerId': centerId, 'centerName': centerName},
+  Future<void> fetchCenters() async {
+    setState(() { _isLoading = true; });
+    try {
+      final snapshot = await FirebaseFirestore.instance.collection('centers').get();
+      if (mounted) {
+        setState(() {
+          centers = snapshot.docs.map((doc) {
+            final data = doc.data();
+            return {
+              // ✅ FIX: Provides a default name to prevent null crashes.
+              'centerName': data['name'] ?? 'Unnamed Center',
+              'centerId': doc.id,
+            };
+          }).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to fetch centers: $e')),
         );
-      });
+      }
     }
   }
 
   Future<void> _saveSelectedCenter() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('centerId', selectedCenterId!);
-    await prefs.setString('centerName', selectedDialysisCenter!);
+    // This function doesn't need SharedPreferences, as the selection is temporary
+    // until a successful login, which then saves the user's state.
   }
 
   @override
@@ -77,7 +88,6 @@ class _CenterSelectionScreenState extends State<CenterSelectionScreen> {
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Background container with a rounded bottom border
           ClipPath(
             clipper: _CurveClipper(),
             child: Container(
@@ -101,21 +111,20 @@ class _CenterSelectionScreenState extends State<CenterSelectionScreen> {
               ),
             ),
           ),
-          
-          // Main content on top
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  minHeight: size.height - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom,
+                  minHeight: size.height -
+                      MediaQuery.of(context).padding.top -
+                      MediaQuery.of(context).padding.bottom,
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const SizedBox(height: 50),
-                    // Moved text here, above the dropdown
                     const Text(
                       "Please select your dialysis center to continue.",
                       textAlign: TextAlign.center,
@@ -149,10 +158,11 @@ class _CenterSelectionScreenState extends State<CenterSelectionScreen> {
                             );
                           }).toList(),
                           onChanged: (value) {
+                            if (value == null) return;
                             setState(() {
                               selectedDialysisCenter = value;
-                              selectedCenterId = centers
-                                  .firstWhere((c) => c['centerName'] == value)['centerId'] as String;
+                              selectedCenterId = centers.firstWhere(
+                                  (c) => c['centerName'] == value)['centerId'] as String;
                             });
                           },
                         ),
@@ -172,16 +182,19 @@ class _CenterSelectionScreenState extends State<CenterSelectionScreen> {
                         ),
                         onPressed: (selectedDialysisCenter == null || selectedCenterId == null)
                             ? null
-                            : () async {
-                                await _saveSelectedCenter();
-                                Navigator.pushNamed(
-                                  context,
-                                  '/login',
-                                  arguments: {
-                                    'centerName': selectedDialysisCenter,
-                                    'centerId': selectedCenterId,
-                                  },
-                                );
+                            : () {
+                                // We don't need to save to SharedPreferences here anymore.
+                                // We just pass the selection to the login screen.
+                                if (mounted) {
+                                  Navigator.pushNamed(
+                                    context,
+                                    '/login',
+                                    arguments: {
+                                      'centerName': selectedDialysisCenter,
+                                      'centerId': selectedCenterId,
+                                    },
+                                  );
+                                }
                               },
                         child: const Text(
                           "Continue",
@@ -195,7 +208,6 @@ class _CenterSelectionScreenState extends State<CenterSelectionScreen> {
               ),
             ),
           ),
-          
           if (_isLoading)
             Container(
               color: Colors.black.withOpacity(0.5),
@@ -207,7 +219,6 @@ class _CenterSelectionScreenState extends State<CenterSelectionScreen> {
   }
 }
 
-/// Custom curve for top container
 class _CurveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {

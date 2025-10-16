@@ -125,7 +125,7 @@ class _SignInScreenState extends State<SignInScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => CenterSelectionScreen(userId: credential.user!.uid),
+        builder: (_) => const CenterSelectionScreen(),
         ),
       );
     } on FirebaseAuthException catch (e) {
