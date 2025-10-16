@@ -20,7 +20,7 @@ class AccountSettingsScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
         ),
         title: Text(
-          "Edit $field",
+          "Edit ${_formatFieldName(field)}",
           style: const TextStyle(
             fontWeight: FontWeight.bold,
             color: Color(0xFF056C5B),
@@ -28,30 +28,44 @@ class AccountSettingsScreen extends StatelessWidget {
         ),
         content: TextField(
           controller: controller,
+          autofocus: true,
           decoration: InputDecoration(
-            labelText: field,
+            labelText: _formatFieldName(field),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
             ),
           ),
         ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        actionsAlignment: MainAxisAlignment.end,
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             style: TextButton.styleFrom(
               foregroundColor: Colors.grey[700],
             ),
-            child: const Text("Cancel"),
+            child: const Text(
+              "Cancel",
+              style: TextStyle(fontSize: 16),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF056C5B),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
             onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text("Save"),
+            child: const Text(
+              "Save",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
           ),
         ],
       ),
@@ -65,17 +79,46 @@ class AccountSettingsScreen extends StatelessWidget {
     }
   }
 
+  String _formatFieldName(String field) {
+    switch (field) {
+      case 'firstName':
+        return 'First Name';
+      case 'middleName':
+        return 'Middle Name';
+      case 'lastName':
+        return 'Last Name';
+      case 'email':
+        return 'Email';
+      case 'birthday':
+        return 'Birthday';
+      default:
+        return field;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
-          "Account Settings",
-          style: TextStyle(fontWeight: FontWeight.w600),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: Image.asset(
+            'assets/logo.png', // ✅ same logo as Settings screen
+            height: 40,
+            width: 40,
+          ),
         ),
-        backgroundColor: const Color(0xFF056C5B),
+        backgroundColor: Colors.white,
         elevation: 0,
+        title: const Text(
+          'Account Settings', // ✅ same position and style as Settings screen
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
       ),
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance

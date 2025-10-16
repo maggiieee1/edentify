@@ -12,21 +12,40 @@ class SettingsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 12),
-          child: Image.asset(
-            'assets/logo.png', // replace with your actual logo path
-            height: 24,
-            width: 24,
-          ),
-        ),
         backgroundColor: Colors.white,
         elevation: 0,
+        leadingWidth: 70, // ✅ match HomeScreen and ProfileScreen
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: Image.asset(
+            'assets/logo.png',
+            height: 40, // ✅ same logo size
+            width: 40,
+          ),
+        ),
         title: const Text(
           'Settings',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: IconButton(
+              icon: const Icon(
+                Icons.notifications_none,
+                color: Colors.black,
+                size: 32, // ✅ same as HomeScreen
+              ),
+              onPressed: () {
+                // TODO: Add navigation to notifications screen if applicable
+              },
+            ),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -115,7 +134,7 @@ class SettingsScreen extends StatelessWidget {
     return Column(
       children: [
         ListTile(
-          leading: Icon(icon, color: Color(0xFF056C5B)),
+          leading: Icon(icon, color: const Color(0xFF056C5B)),
           title: Text(
             text,
             style: const TextStyle(fontWeight: FontWeight.w500),

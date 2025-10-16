@@ -1,14 +1,11 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:edentify/screens/settings_screen.dart';
+import 'package:edentify/screens/notifications_screen.dart'; // ✅ added import
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-
-
-// Assuming you have these screens, you can uncomment them.
-// import 'settings_screen.dart';
-// import 'notifications_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userId;
@@ -65,9 +62,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (confirm == true) {
       setState(() => _isUploading = true);
       try {
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('profile_images/${widget.userId}.jpg');
+        final storageRef = FirebaseStorage.instance.ref().child(
+          'profile_images/${widget.userId}.jpg',
+        );
         await storageRef.putFile(file);
         final imageUrl = await storageRef.getDownloadURL();
 
@@ -83,9 +80,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Upload failed: $e')),
-          );
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Upload failed: $e')));
         }
       } finally {
         if (mounted) {
@@ -102,37 +98,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        leadingWidth: 70, // same spacing as HomeScreen
         leading: Padding(
-          padding: const EdgeInsets.only(left: 16.0),
-          // Make sure you have a logo in your assets folder
-          child: Image.asset('assets/logo.png'),
+          padding: const EdgeInsets.only(left: 16),
+          child: Image.asset(
+            'assets/logo.png',
+            height: 40, // same size as HomeScreen logo
+            width: 40,
+          ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, color: Colors.black, size: 28),
-            onPressed: () {
-              // TODO: Navigate to Settings Screen
-              // Navigator.push(context, MaterialPageRoute(builder: (_) => SettingsScreen(userId: widget.userId)));
-            },
+          // ✅ Notification icon
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: IconButton(
+              icon: const Icon(
+                Icons.notifications_none,
+                color: Colors.black,
+                size: 32, // same as HomeScreen
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        NotificationsScreen(userId: widget.userId),
+                  ),
+                );
+              },
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.black, size: 28),
-            onPressed: () {
-               // TODO: Navigate to Notifications Screen
-               // Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationsScreen(userId: widget.userId)));
-            },
+
+          // ✅ Settings icon (kept intact)
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: IconButton(
+              icon: const Icon(
+                Icons.settings_outlined,
+                color: Colors.black,
+                size: 30, // slightly smaller to balance with notification icon
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SettingsScreen(userId: widget.userId),
+                  ),
+                );
+              },
+            ),
           ),
-          const SizedBox(width: 8),
         ],
       ),
+
       body: Column(
         children: [
           const Text(
             "Profile",
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
           Expanded(
@@ -151,8 +174,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 final userData = snapshot.data!.data() ?? {};
 
-                // This helper function handles data that might be a String or a List.
-                List<String> getItemsSafely(dynamic data, List<String> defaultItems) {
+                List<String> getItemsSafely(
+                    dynamic data, List<String> defaultItems) {
                   if (data is List) {
                     return List<String>.from(data);
                   }
@@ -185,7 +208,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 24),
                       _buildContactInfo(userData),
-                       const SizedBox(height: 24), // Add padding at the bottom
+                      const SizedBox(height: 24),
                     ],
                   ),
                 );
@@ -205,9 +228,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Card(
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       color: const Color(0xFFEBF5F4),
       elevation: 0,
       child: Padding(
@@ -288,8 +309,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildInfoSection(
-      {required String title, required List<String> items}) {
+  Widget _buildInfoSection({
+    required String title,
+    required List<String> items,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -305,17 +328,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
             spacing: 8.0,
             runSpacing: 4.0,
             children: items
-                .map((item) => Chip(
-                      label: Text(item),
-                      backgroundColor: const Color(0xFF00796B),
-                      labelStyle: const TextStyle(color: Colors.white),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        side: BorderSide.none,
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                    ))
+                .map(
+                  (item) => Chip(
+                    label: Text(item),
+                    backgroundColor: const Color(0xFF00796B),
+                    labelStyle: const TextStyle(color: Colors.white),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide.none,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                  ),
+                )
                 .toList(),
           ),
       ],
@@ -364,10 +391,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         Text(
           title,
-          style: TextStyle(
-            color: Colors.grey.shade600,
-            fontSize: 14,
-          ),
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
         ),
         const SizedBox(height: 4),
         Text(
