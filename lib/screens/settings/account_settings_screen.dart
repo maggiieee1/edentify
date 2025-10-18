@@ -230,59 +230,60 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
         Center(
           child: Stack(
             children: [
-              GestureDetector(
-                onTap: () => _changeProfileImage(context),
-                child: CircleAvatar(
-                  radius: 60,
-                  backgroundColor: const Color(0xFF056C5B),
-                  backgroundImage: data['profileImageUrl'] != null
-                      ? NetworkImage(data['profileImageUrl'])
-                      : null,
-                  child: data['profileImageUrl'] == null
-                      ? Text(
-                          (data['firstName'] ?? 'U')
-                              .toString()
-                              .substring(0, 1)
-                              .toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 40,
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        )
-                      : null,
-                ),
+              CircleAvatar(
+                radius: 60,
+                backgroundColor: const Color(0xFF056C5B),
+                backgroundImage: data['profileImageUrl'] != null
+                    ? NetworkImage(data['profileImageUrl'])
+                    : null,
+                child: data['profileImageUrl'] == null
+                    ? Text(
+                        (data['firstName'] ?? 'U')
+                            .toString()
+                            .substring(0, 1)
+                            .toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 40,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                    : null,
               ),
               Positioned(
                 bottom: 0,
                 right: 4,
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 3,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: _isUploading
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
+                child: InkWell(
+                  onTap: () => _changeProfileImage(context),
+                  borderRadius: BorderRadius.circular(30),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 3,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: _isUploading
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFF056C5B),
+                            ),
+                          )
+                        : const Icon(
+                            Icons.camera_alt,
+                            size: 20,
                             color: Color(0xFF056C5B),
                           ),
-                        )
-                      : const Icon(
-                          Icons.camera_alt,
-                          size: 20,
-                          color: Color(0xFF056C5B),
-                        ),
+                  ),
                 ),
               ),
             ],

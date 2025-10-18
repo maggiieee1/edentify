@@ -32,21 +32,6 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
         centerTitle: true,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: IconButton(
-              icon: const Icon(
-                Icons.notifications_none,
-                color: Colors.black,
-                size: 32, // ✅ same as HomeScreen
-              ),
-              onPressed: () {
-                // TODO: Add navigation to notifications screen if applicable
-              },
-            ),
-          ),
-        ],
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 10),

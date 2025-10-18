@@ -20,6 +20,7 @@ class _ClassifyCameraState extends State<ClassifyCamera> {
   late CameraDescription _camera;
   bool _loading = false;
   bool _firebaseInitialized = false;
+  bool _isFlashOn = false; // NEW: flash toggle
   File? _image;
 
   @override
@@ -56,11 +57,30 @@ class _ClassifyCameraState extends State<ClassifyCamera> {
   }
 
   void _initializeCamera() {
-    _cameraController = CameraController(_camera, ResolutionPreset.medium);
+    _cameraController = CameraController(
+      _camera,
+      ResolutionPreset.medium,
+      enableAudio: false,
+    );
     _cameraController.initialize().then((_) {
       if (!mounted) return;
       setState(() {});
     });
+  }
+
+  /// 🔦 Toggle Flash
+  void _toggleFlash() async {
+    if (!_cameraController.value.isInitialized) return;
+
+    try {
+      _isFlashOn = !_isFlashOn;
+      await _cameraController.setFlashMode(
+        _isFlashOn ? FlashMode.torch : FlashMode.off,
+      );
+      setState(() {});
+    } catch (e) {
+      print("Error toggling flash: $e");
+    }
   }
 
   @override
@@ -71,32 +91,58 @@ class _ClassifyCameraState extends State<ClassifyCamera> {
         return true;
       },
       child: Scaffold(
+        backgroundColor: Colors.black,
         appBar: AppBar(
-          backgroundColor: Colors.green[700],
+          backgroundColor: const Color(0xFF008080), // Teal color
           centerTitle: true,
           title: Text(
             "Edentify",
             style: GoogleFonts.roboto(
-              color: Colors.black,
-              fontSize: 25.0,
+              color: Colors.white,
+              fontSize: 22.0,
               fontWeight: FontWeight.bold,
             ),
           ),
+          actions: [
+            IconButton(
+              onPressed: _toggleFlash,
+              icon: Icon(
+                _isFlashOn ? Icons.flash_on : Icons.flash_off,
+                color: _isFlashOn ? Colors.yellow : Colors.white,
+              ),
+              tooltip: _isFlashOn ? 'Flash On' : 'Flash Off',
+            ),
+          ],
         ),
         body: _loading
             ? const Center(child: CircularProgressIndicator())
             : Stack(
+                alignment: Alignment.center,
                 children: [
                   _cameraController.value.isInitialized
                       ? CameraPreview(_cameraController)
-                      : Container(),
+                      : const Center(child: CircularProgressIndicator()),
                   Positioned(
-                    bottom: 20,
-                    left: 20,
-                    right: 20,
-                    child: ElevatedButton(
-                      onPressed: _captureAndClassifyImage,
-                      child: const Text("Capture and Classify"),
+                    bottom: 30,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: ElevatedButton.icon(
+                        onPressed: _captureAndClassifyImage,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF008080),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        icon: const Icon(Icons.camera_alt, color: Colors.white),
+                        label: const Text(
+                          "Capture and Classify",
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -128,7 +174,8 @@ class _ClassifyCameraState extends State<ClassifyCamera> {
       });
 
       if (output != null && output.isNotEmpty) {
-        final label = output[0]["label"].toString().replaceAll(RegExp(r'\d'), '');
+        final label =
+            output[0]["label"].toString().replaceAll(RegExp(r'\d'), '').trim();
         final user = FirebaseAuth.instance.currentUser;
         final userId = user?.uid ?? 'unknown_user';
 
