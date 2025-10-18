@@ -95,74 +95,90 @@ class _ClassificationResultScreenState
     );
 
     try {
-      final firestore = FirebaseFirestore.instance;
-      // We use server timestamp now, so client-side 'timestamp' is not needed here
-      String userId = widget.userId;
+  final firestore = FirebaseFirestore.instance;
+  String userId = widget.userId;
 
-      if (userId.isEmpty) {
-        final currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser == null) throw Exception('User not logged in');
-        userId = currentUser.uid;
-      }
+  if (userId.isEmpty) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) throw Exception('User not logged in');
+    userId = currentUser.uid;
+  }
 
-      final userDoc = await firestore.collection('users').doc(userId).get();
-      final userData = userDoc.data() ?? {};
-      final patientName =
-          '${userData['firstName'] ?? ''} ${userData['middleName'] ?? ''} ${userData['lastName'] ?? ''}'
-              .trim();
-      final doctorId = userData['doctorId']; 
+  final userDoc = await firestore.collection('users').doc(userId).get();
+  final userData = userDoc.data() ?? {};
+  final patientName =
+      '${userData['firstName'] ?? ''} ${userData['middleName'] ?? ''} ${userData['lastName'] ?? ''}'
+          .trim();
+  final doctorId = userData['doctorId'];
 
-      // 1. Save to patient's scan history (use server timestamp here too for consistency)
-      await firestore.collection('users').doc(userId).collection('scanHistory').add({
-        'imageURL': widget.imagePath,
-        'result': widget.label,
-        'timestamp': FieldValue.serverTimestamp(),
-        'doctorId': doctorId ?? 'unassigned',
-        'centerId': userData['centerId'] ?? 'unassigned',
-        'patientName': patientName,
-      });
+  // ✅ 1. Save to pending_approvals and capture its ID
+  final pendingRef = await firestore.collection('pending_approvals').add({
+    'patient_id': userId,
+    'patient_name': patientName,
+    'doctor_id': doctorId ?? 'unassigned',
+    'center_id': userData['centerId'] ?? 'unassigned',
+    'imageURL': widget.imagePath,
+    'result': widget.label,
+    'submitted_date': FieldValue.serverTimestamp(),
+    'status': 'pending',
+  });
 
-      // 2. Create notification for the patient
-      await firestore.collection('users').doc(userId).collection('notifications').add({
-        'title': 'New Edema Scan Result',
-        'message': 'Your scan has been classified as ${widget.label}.',
-        'createdAt': FieldValue.serverTimestamp(),
-        'read': false,
-      });
+  final pendingDocId = pendingRef.id;
 
-      // 3. Create notification for the doctor
-      if (doctorId != null && doctorId.isNotEmpty) {
-        await firestore.collection('users').doc(doctorId).collection('notifications').add({
-          'title': 'New Edema Scan for Review',
-          'message': 'Patient $patientName has submitted a new scan result (${widget.label}) for review.',
-          'patientId': userId,
-          'createdAt': FieldValue.serverTimestamp(),
-          'read': false,
-          'type': 'scan_review',
-        });
-      }
+  // ✅ 2. Save to patient’s scan history
+  await firestore.collection('users').doc(userId).collection('scanHistory').add({
+    'imageURL': widget.imagePath,
+    'result': widget.label,
+    'timestamp': FieldValue.serverTimestamp(),
+    'doctorId': doctorId ?? 'unassigned',
+    'centerId': userData['centerId'] ?? 'unassigned',
+    'patientName': patientName,
+  });
 
-      if (mounted) Navigator.of(context).pop();
+  // ✅ 3. Notify patient
+  await firestore.collection('users').doc(userId).collection('notifications').add({
+    'title': 'New Edema Scan Result',
+    'message': 'Your scan has been classified as ${widget.label}.',
+    'createdAt': FieldValue.serverTimestamp(),
+    'read': false,
+  });
 
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Success'),
-            content: const Text('Your scan has been saved successfully.'),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('OK'),
-                onPressed: () {
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                },
-              ),
-            ],
-          );
-        },
+  // ✅ 4. Notify doctor — now including pendingDocId
+  if (doctorId != null && doctorId.isNotEmpty) {
+    await firestore.collection('users').doc(doctorId).collection('notifications').add({
+      'title': 'New Edema Scan for Review',
+      'message':
+          'Patient $patientName has submitted a new scan result (${widget.label}) for review.',
+      'patient_id': userId,
+      'pending_doc_id': pendingDocId, // ✅ Added field
+      'createdAt': FieldValue.serverTimestamp(),
+      'read': false,
+      'type': 'scan_review',
+      'center_id': userData['centerId'] ?? 'unassigned',
+    });
+  }
+
+  if (mounted) Navigator.of(context).pop();
+
+  await showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text('Success'),
+        content: const Text('Your scan has been saved successfully.'),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('OK'),
+            onPressed: () {
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            },
+          ),
+        ],
       );
-    } catch (e) {
+    },
+  );
+} catch (e) {
       if (mounted) Navigator.of(context).pop();
       await showDialog(
         context: context,
