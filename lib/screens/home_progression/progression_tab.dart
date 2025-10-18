@@ -100,6 +100,15 @@ class _ProgressionTabState extends State<ProgressionTab> {
 
               // === GRAPHS SECTION ===
               const Text(
+                "Edema Severity Chart (RVSS-based)",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              const EdemaSeverityChart(),
+              
+              const SizedBox(height: 24),
+
+              const Text(
                 "Weight Progression",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
@@ -123,14 +132,6 @@ class _ProgressionTabState extends State<ProgressionTab> {
               VitalSignsGraph(userId: widget.userId, range: 'week'),
               const SizedBox(height: 24),
 
-              const Text(
-                "Edema Severity Chart (RVSS-based)",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              const EdemaSeverityChart(),
-              
-              const SizedBox(height: 24),
               
               // === PROGRESS SCORECARD SECTION ===
               const Text(
@@ -248,6 +249,12 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
       child: Column(
         children: [
           _buildSummaryItem(
+            'Edema Grade',
+            '$edemaGrade (Grade ${_getGradeFromLabel(edemaGrade)})',
+            Icons.swap_vert,
+            Colors.orange,
+          ),
+          _buildSummaryItem(
             'Pre-Post Weight Difference',
             '${weightDifference.toStringAsFixed(1)} kg removed',
             Icons.scale,
@@ -268,12 +275,6 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
             Colors.red,
           ),
           _buildDivider(),
-          _buildSummaryItem(
-            'Edema Grade',
-            '$edemaGrade (Grade ${_getGradeFromLabel(edemaGrade)})',
-            Icons.swap_vert,
-            Colors.orange,
-          ),
           const SizedBox(height: 16),
           _buildStatusIndicator(overallStatus),
         ],

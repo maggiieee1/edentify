@@ -240,19 +240,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Color _getColorForClassification(String? classification) {
-  switch (classification?.toLowerCase()) {
-    case 'normal':
-      return Colors.green.shade400;
-    case 'mild':
-      return Colors.yellow.shade700;
-    case 'moderate':
-      return Colors.orange.shade400;
-    case 'severe':
-      return Colors.red.shade400;
-    default:
-      return Colors.grey.shade400;
+    switch (classification?.toLowerCase()) {
+      case 'normal':
+        return Colors.green.shade400;
+      case 'mild':
+        return Colors.yellow.shade700;
+      case 'moderate':
+        return Colors.orange.shade400;
+      case 'severe':
+        return Colors.red.shade400;
+      default:
+        return Colors.grey.shade400;
+    }
   }
-}
 
   bool _hasScannedInCurrentTimeFrame() {
     if (_latestScanTime == null) return false;
@@ -403,6 +403,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+
       body: RefreshIndicator(
         onRefresh: _refreshData,
         child: SingleChildScrollView(
@@ -420,8 +421,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+
               _buildDynamicScanCard(),
               const SizedBox(height: 12),
+
               InkWell(
                 onTap: () {
                   if (_userId == null) return;
@@ -689,82 +692,68 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ),
+              const SizedBox(height: 20),
 
-              Stack(
-                alignment: Alignment.bottomRight,
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      if (_userId == null) return;
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (context) => ProgressionTab(userId: _userId!),
-                        ),
-                      );
-                    },
-                    child: Card(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 3,
-                      child: SizedBox(
-                        height: 200,
-                        width: double.infinity,
-                        child: const Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.show_chart,
-                              color: Colors.teal,
-                              size: 40,
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              "View Edema Progression",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              "Tap to see detailed graphs",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+              GestureDetector(
+                onTap: () {
+                  if (_userId == null) return;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ProgressionTab(userId: _userId!),
                     ),
+                  );
+                },
+                child: Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: FloatingActionButton(
-                      backgroundColor: teal,
-                      onPressed: () {
-                        if (_userId == null) return;
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) =>
-                                    EdemaClassifierScreen(userId: _userId!),
+                  elevation: 3,
+                  child: const SizedBox(
+                    height: 120,
+                    width: double.infinity,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.show_chart, color: Colors.teal, size: 40),
+                        SizedBox(height: 8),
+                        Text(
+                          "View Edema Progression",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                           ),
-                        ).then((_) => _refreshData());
-                      },
-                      child: const Icon(Icons.camera_alt, color: Colors.white),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          "Tap to see detailed graphs",
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
+              const SizedBox(height: 80),
             ],
           ),
         ),
       ),
+
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: const Color(0xFF0CB49D),
+        onPressed: () {
+          if (_userId == null) return;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EdemaClassifierScreen(userId: _userId!),
+            ),
+          ).then((_) => _refreshData());
+        },
+        child: const Icon(Icons.camera_alt, color: Colors.white),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
