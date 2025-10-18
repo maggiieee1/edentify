@@ -72,140 +72,152 @@ class _ClassificationResultScreenState
   }
 
   Future<void> _saveToDatabase() async {
-    if (_isSaving) return;
-    setState(() => _isSaving = true);
+  if (_isSaving) return;
+  setState(() => _isSaving = true);
 
-    // Show saving progress dialog
-    showDialog(
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return const Dialog(
+        child: Padding(
+          padding: EdgeInsets.all(20.0),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Text("Uploading and Saving..."),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+
+  try {
+    final firestore = FirebaseFirestore.instance;
+
+    // --- Upload image to Firebase Storage ---
+    final File imageFile = File(widget.imagePath);
+    final String fileName =
+        'scans/${widget.userId}/${DateTime.now().millisecondsSinceEpoch}.png';
+    final storageRef = FirebaseStorage.instance.ref().child(fileName);
+
+    await storageRef.putFile(imageFile);
+    final String imageUrl = await storageRef.getDownloadURL();
+
+    // --- Get patient info ---
+    String userId = widget.userId;
+    if (userId.isEmpty) {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) throw Exception('User not logged in');
+      userId = currentUser.uid;
+    }
+
+    final userDoc = await firestore.collection('users').doc(userId).get();
+    final userData = userDoc.data() ?? {};
+    final patientName =
+        '${userData['firstName'] ?? ''} ${userData['middleName'] ?? ''} ${userData['lastName'] ?? ''}'
+            .trim();
+    final doctorId = userData['doctorId'];
+    final centerId = userData['centerId'] ?? 'unassigned';
+
+    // --- 1️⃣ Save to patient's scan history ---
+    await firestore.collection('users').doc(userId).collection('scanHistory').add({
+      'imageURL': imageUrl,
+      'result': widget.label,
+      'timestamp': FieldValue.serverTimestamp(),
+      'doctorId': doctorId ?? 'unassigned',
+      'centerId': centerId,
+      'patientName': patientName,
+    });
+
+    // --- 2️⃣ Create a pending_approvals document for the doctor to review ---
+    String pendingDocId = ''; // 👈 define the variable properly
+    final pendingDocRef = firestore.collection('pending_approvals').doc();
+    pendingDocId = pendingDocRef.id; // assign ID before saving
+    await pendingDocRef.set({
+      'imageURL': imageUrl,
+      'result': widget.label,
+      'submitted_date': FieldValue.serverTimestamp(),
+      'status': 'pending',
+      'patient_id': userId,
+      'patient_name': patientName,
+      'doctor_id': doctorId ?? 'unassigned',
+      'center_id': centerId,
+    });
+
+    // --- 3️⃣ Notify patient ---
+    await firestore.collection('users').doc(userId).collection('notifications').add({
+      'title': 'New Edema Scan Result',
+      'message': 'Your scan has been classified as ${widget.label}.',
+      'createdAt': FieldValue.serverTimestamp(),
+      'read': false,
+    });
+
+    // --- 4️⃣ Notify doctor (with pendingDocId now correctly defined) ---
+    if (doctorId != null && doctorId.isNotEmpty) {
+      await firestore.collection('users').doc(doctorId).collection('notifications').add({
+        'title': 'New Edema Scan for Review',
+        'message':
+            'Patient $patientName has submitted a new scan result (${widget.label}) for review.',
+        'patient_id': userId,
+        'patient_name': patientName,
+        'pending_doc_id': pendingDocId, // ✅ now defined and correct
+        'createdAt': FieldValue.serverTimestamp(),
+        'read': false,
+        'type': 'scan_review',
+        'center_id': centerId,
+      });
+    }
+
+    if (mounted) Navigator.of(context).pop(); // dismiss progress dialog
+    if (mounted) Navigator.of(context).pop(); // go back to previous screen
+
+    // --- Success dialog ---
+    await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return const Dialog(
-          child: Padding(
-            padding: EdgeInsets.all(20.0),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(width: 20),
-                Text("Uploading and Saving..."),
-              ],
+        return AlertDialog(
+          title: const Text('Success'),
+          content: const Text('Your scan has been uploaded and saved successfully.'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
             ),
-          ),
+          ],
         );
       },
     );
-
-    String imageUrl = ''; // Initialize the final URL
-
-    try {
-      // --- START: FIREBASE STORAGE UPLOAD ---
-      final File imageFile = File(widget.imagePath);
-      final String fileName =
-          'scans/${widget.userId}/${DateTime.now().millisecondsSinceEpoch}.png';
-      final storageRef = FirebaseStorage.instance.ref().child(fileName);
-
-      // Upload the file
-      await storageRef.putFile(imageFile);
-
-      // Get the downloadable URL (the HTTP/HTTPS link)
-      imageUrl = await storageRef.getDownloadURL();
-      // --- END: FIREBASE STORAGE UPLOAD ---
-
-      final firestore = FirebaseFirestore.instance;
-      String userId = widget.userId;
-
-  if (userId.isEmpty) {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) throw Exception('User not logged in');
-    userId = currentUser.uid;
-  }
-
-  final userDoc = await firestore.collection('users').doc(userId).get();
-  final userData = userDoc.data() ?? {};
-  final patientName =
-      '${userData['firstName'] ?? ''} ${userData['middleName'] ?? ''} ${userData['lastName'] ?? ''}'
-          .trim();
-  final doctorId = userData['doctorId'];
-
-      // 1. Save to patient's scan history (use server timestamp here too for consistency)
-      await firestore.collection('users').doc(userId).collection('scanHistory').add({
-        'imageURL': imageUrl,
-        'result': widget.label,
-        'timestamp': FieldValue.serverTimestamp(),
-        'doctorId': doctorId ?? 'unassigned',
-        'centerId': userData['centerId'] ?? 'unassigned',
-        'patientName': patientName,
-      });
-
-  // ✅ 3. Notify patient
-  await firestore.collection('users').doc(userId).collection('notifications').add({
-    'title': 'New Edema Scan Result',
-    'message': 'Your scan has been classified as ${widget.label}.',
-    'createdAt': FieldValue.serverTimestamp(),
-    'read': false,
-  });
-
-  // ✅ 4. Notify doctor — now including pendingDocId
-  if (doctorId != null && doctorId.isNotEmpty) {
-    await firestore.collection('users').doc(doctorId).collection('notifications').add({
-      'title': 'New Edema Scan for Review',
-      'message':
-          'Patient $patientName has submitted a new scan result (${widget.label}) for review.',
-      'patient_id': userId,
-      'pending_doc_id': pendingDocId, // ✅ Added field
-      'createdAt': FieldValue.serverTimestamp(),
-      'read': false,
-      'type': 'scan_review',
-      'center_id': userData['centerId'] ?? 'unassigned',
-    });
-  }
-
-      if (mounted) Navigator.of(context).pop(); // Dismiss progress dialog
-  if (mounted) Navigator.of(context).pop();
-
-      // Show success dialog
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Success'),
-            content: const Text('Your scan has been uploaded and saved successfully.'),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('OK'),
-                onPressed: () {
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                },
-              ),
-            ],
-          );
-        },
-      );
-    } catch (e) {
-      if (mounted) Navigator.of(context).pop(); // Dismiss progress dialog
-      await showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Error'),
-            content: Text('An error occurred while uploading and saving: $e'),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('OK'),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
-          );
-        },
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
+  } catch (e) {
+    if (mounted) Navigator.of(context).pop(); // close loading dialog
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Error'),
+          content: Text('An error occurred while uploading and saving: $e'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        );
+      },
+    );
+  } finally {
+    if (mounted) {
+      setState(() => _isSaving = false);
     }
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
