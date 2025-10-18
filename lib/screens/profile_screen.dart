@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:edentify/screens/settings_screen.dart';
-import 'package:edentify/screens/notifications_screen.dart'; // ✅ added import
+import 'package:edentify/screens/notifications_screen.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -30,63 +30,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return date != null ? DateFormat('MM/dd/yyyy').format(date) : 'N/A';
   }
 
+  /// Automatically picks and uploads new profile image when tapped
   Future<void> _pickAndUploadImage() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 75,
-    );
+    final pickedFile =
+        await picker.pickImage(source: ImageSource.gallery, imageQuality: 75);
 
-    if (pickedFile == null) return;
+    if (pickedFile == null) return; // canceled
 
-    final file = File(pickedFile.path);
+    setState(() => _isUploading = true);
 
-    final bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm Upload'),
-        content: const Text('Set this image as your profile picture?'),
-        actions: [
-          TextButton(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.of(context).pop(false),
-          ),
-          ElevatedButton(
-            child: const Text('Confirm'),
-            onPressed: () => Navigator.of(context).pop(true),
-          ),
-        ],
-      ),
-    );
+    try {
+      final file = File(pickedFile.path);
+      final storageRef =
+          FirebaseStorage.instance.ref().child('profile_images/${widget.userId}.jpg');
+      await storageRef.putFile(file);
+      final imageUrl = await storageRef.getDownloadURL();
 
-    if (confirm == true) {
-      setState(() => _isUploading = true);
-      try {
-        final storageRef = FirebaseStorage.instance.ref().child(
-          'profile_images/${widget.userId}.jpg',
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .update({'profileImageUrl': imageUrl});
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile image updated successfully.')),
         );
-        await storageRef.putFile(file);
-        final imageUrl = await storageRef.getDownloadURL();
-
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(widget.userId)
-            .update({'profileImageUrl': imageUrl});
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile picture updated.')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('Upload failed: $e')));
-        }
-      } finally {
-        if (mounted) {
-          setState(() => _isUploading = false);
-        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploading = false);
       }
     }
   }
@@ -98,25 +76,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leadingWidth: 70, // same spacing as HomeScreen
+        leadingWidth: 70,
         leading: Padding(
           padding: const EdgeInsets.only(left: 16),
           child: Image.asset(
             'assets/logo.png',
-            height: 40, // same size as HomeScreen logo
+            height: 40,
             width: 40,
           ),
         ),
         actions: [
-          // ✅ Notification icon
           Padding(
             padding: const EdgeInsets.only(right: 4),
             child: IconButton(
-              icon: const Icon(
-                Icons.notifications_none,
-                color: Colors.black,
-                size: 32, // same as HomeScreen
-              ),
+              icon: const Icon(Icons.notifications_none,
+                  color: Colors.black, size: 32),
               onPressed: () {
                 Navigator.push(
                   context,
@@ -128,16 +102,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               },
             ),
           ),
-
-          // ✅ Settings icon (kept intact)
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: IconButton(
-              icon: const Icon(
-                Icons.settings_outlined,
-                color: Colors.black,
-                size: 30, // slightly smaller to balance with notification icon
-              ),
+              icon: const Icon(Icons.settings_outlined,
+                  color: Colors.black, size: 30),
               onPressed: () {
                 Navigator.push(
                   context,
@@ -242,11 +211,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   CircleAvatar(
                     radius: 40,
-                    backgroundColor: Colors.grey.shade300,
+                    backgroundColor: const Color(0xFF056C5B),
                     backgroundImage: profileImageUrl != null
                         ? NetworkImage(profileImageUrl)
-                        : const AssetImage("assets/default_user.png")
-                            as ImageProvider,
+                        : null,
+                    child: profileImageUrl == null
+                        ? Text(
+                            (userData['firstName'] ?? 'U')
+                                .toString()
+                                .substring(0, 1)
+                                .toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 30,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        : null,
                   ),
                   if (_isUploading)
                     const CircularProgressIndicator(
@@ -316,10 +297,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
+        Text(title,
+            style:
+                const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         if (items.isEmpty)
           const Text("No data available.", style: TextStyle(color: Colors.grey))
@@ -335,11 +315,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     labelStyle: const TextStyle(color: Colors.white),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
-                      side: BorderSide.none,
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
                     ),
                   ),
                 )
@@ -377,7 +352,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(height: 16),
         _buildTitledInfo(
-          "Home Addresss",
+          "Home Address",
           userData['address'] ??
               'Insert address Insert address Insert address Insert address',
         ),
@@ -389,19 +364,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-        ),
+        Text(title,
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
         const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.black87,
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
+        Text(value,
+            style: const TextStyle(
+              color: Colors.black87,
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+            )),
       ],
     );
   }

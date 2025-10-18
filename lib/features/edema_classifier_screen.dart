@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:tflite_v2/tflite_v2.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'classification_result_screen.dart';
 
 class EdemaClassifierScreen extends StatefulWidget {

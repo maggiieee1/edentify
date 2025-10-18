@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'settings/terms_and_agreement.dart';
-import 'account_settings_screen.dart';
+import 'settings/account_settings_screen.dart';
+import 'settings/about_edentify.dart';
 
 class SettingsScreen extends StatelessWidget {
   final String userId; // ✅ Pass userId into this screen
@@ -31,21 +32,6 @@ class SettingsScreen extends StatelessWidget {
           ),
         ),
         centerTitle: true,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: IconButton(
-              icon: const Icon(
-                Icons.notifications_none,
-                color: Colors.black,
-                size: 32, // ✅ same as HomeScreen
-              ),
-              onPressed: () {
-                // TODO: Add navigation to notifications screen if applicable
-              },
-            ),
-          ),
-        ],
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -81,6 +67,12 @@ class SettingsScreen extends StatelessWidget {
             icon: Icons.local_hospital_rounded,
             text: "About Edentify",
             onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AboutEdentifyScreen(),
+                ),
+              );
               // TODO: Navigate to About Screen
             },
           ),

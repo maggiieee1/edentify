@@ -2,9 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart'; // 👈 NEW IMPORT
 
 class ClassificationResultScreen extends StatefulWidget {
-  final String imagePath;
+  final String imagePath; // This is the local path: /data/user/...
   final String label;
   final String userId;
 
@@ -74,6 +75,7 @@ class _ClassificationResultScreenState
     if (_isSaving) return;
     setState(() => _isSaving = true);
 
+    // Show saving progress dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -86,7 +88,7 @@ class _ClassificationResultScreenState
               children: [
                 CircularProgressIndicator(),
                 SizedBox(width: 20),
-                Text("Saving..."),
+                Text("Uploading and Saving..."),
               ],
             ),
           ),
@@ -94,9 +96,24 @@ class _ClassificationResultScreenState
       },
     );
 
+    String imageUrl = ''; // Initialize the final URL
+
     try {
-  final firestore = FirebaseFirestore.instance;
-  String userId = widget.userId;
+      // --- START: FIREBASE STORAGE UPLOAD ---
+      final File imageFile = File(widget.imagePath);
+      final String fileName =
+          'scans/${widget.userId}/${DateTime.now().millisecondsSinceEpoch}.png';
+      final storageRef = FirebaseStorage.instance.ref().child(fileName);
+
+      // Upload the file
+      await storageRef.putFile(imageFile);
+
+      // Get the downloadable URL (the HTTP/HTTPS link)
+      imageUrl = await storageRef.getDownloadURL();
+      // --- END: FIREBASE STORAGE UPLOAD ---
+
+      final firestore = FirebaseFirestore.instance;
+      String userId = widget.userId;
 
   if (userId.isEmpty) {
     final currentUser = FirebaseAuth.instance.currentUser;
@@ -111,29 +128,15 @@ class _ClassificationResultScreenState
           .trim();
   final doctorId = userData['doctorId'];
 
-  // ✅ 1. Save to pending_approvals and capture its ID
-  final pendingRef = await firestore.collection('pending_approvals').add({
-    'patient_id': userId,
-    'patient_name': patientName,
-    'doctor_id': doctorId ?? 'unassigned',
-    'center_id': userData['centerId'] ?? 'unassigned',
-    'imageURL': widget.imagePath,
-    'result': widget.label,
-    'submitted_date': FieldValue.serverTimestamp(),
-    'status': 'pending',
-  });
-
-  final pendingDocId = pendingRef.id;
-
-  // ✅ 2. Save to patient’s scan history
-  await firestore.collection('users').doc(userId).collection('scanHistory').add({
-    'imageURL': widget.imagePath,
-    'result': widget.label,
-    'timestamp': FieldValue.serverTimestamp(),
-    'doctorId': doctorId ?? 'unassigned',
-    'centerId': userData['centerId'] ?? 'unassigned',
-    'patientName': patientName,
-  });
+      // 1. Save to patient's scan history (use server timestamp here too for consistency)
+      await firestore.collection('users').doc(userId).collection('scanHistory').add({
+        'imageURL': imageUrl,
+        'result': widget.label,
+        'timestamp': FieldValue.serverTimestamp(),
+        'doctorId': doctorId ?? 'unassigned',
+        'centerId': userData['centerId'] ?? 'unassigned',
+        'patientName': patientName,
+      });
 
   // ✅ 3. Notify patient
   await firestore.collection('users').doc(userId).collection('notifications').add({
@@ -158,34 +161,36 @@ class _ClassificationResultScreenState
     });
   }
 
+      if (mounted) Navigator.of(context).pop(); // Dismiss progress dialog
   if (mounted) Navigator.of(context).pop();
 
-  await showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text('Success'),
-        content: const Text('Your scan has been saved successfully.'),
-        actions: <Widget>[
-          TextButton(
-            child: const Text('OK'),
-            onPressed: () {
-              Navigator.of(context).popUntil((route) => route.isFirst);
-            },
-          ),
-        ],
+      // Show success dialog
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Success'),
+            content: const Text('Your scan has been uploaded and saved successfully.'),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('OK'),
+                onPressed: () {
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                },
+              ),
+            ],
+          );
+        },
       );
-    },
-  );
-} catch (e) {
-      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) Navigator.of(context).pop(); // Dismiss progress dialog
       await showDialog(
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
             title: const Text('Error'),
-            content: Text('An error occurred while saving: $e'),
+            content: Text('An error occurred while uploading and saving: $e'),
             actions: <Widget>[
               TextButton(
                 child: const Text('OK'),
@@ -231,6 +236,7 @@ class _ClassificationResultScreenState
                 borderRadius: BorderRadius.circular(12),
                 child: AspectRatio(
                   aspectRatio: 3 / 4,
+                  // This still uses the local path for immediate display
                   child: Image.file(File(widget.imagePath),
                       fit: BoxFit.contain, width: double.infinity),
                 ),

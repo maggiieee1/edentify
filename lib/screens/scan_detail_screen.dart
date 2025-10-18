@@ -7,6 +7,36 @@ class ScanDetailsScreen extends StatelessWidget {
 
   const ScanDetailsScreen({super.key, required this.scanData});
 
+  Color _getResultColor(String result) {
+    switch (result.toLowerCase()) {
+      case 'normal':
+        return Colors.teal.shade400;
+      case 'mild':
+        return Colors.yellow.shade700;
+      case 'moderate':
+        return Colors.orange.shade600;
+      case 'severe':
+        return Colors.red.shade600;
+      default:
+        return Colors.grey.shade500;
+    }
+  }
+
+  Color _getCardColor(String result) {
+    switch (result.toLowerCase()) {
+      case 'normal':
+        return Colors.teal.shade100;
+      case 'mild':
+        return Colors.yellow.shade100;
+      case 'moderate':
+        return Colors.orange.shade100;
+      case 'severe':
+        return Colors.red.shade100;
+      default:
+        return Colors.grey.shade300;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final result = scanData['result'] ?? 'No result';
@@ -27,10 +57,18 @@ class ScanDetailsScreen extends StatelessWidget {
     else
       Text('Pending doctor approval', style: TextStyle(color: Colors.red));
 
+    final resultColor = _getResultColor(result);
+    final cardColor = _getCardColor(result);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scan Details'),
-        backgroundColor: Color(0xFF056C5B),
+        title: const Text(
+          'Scan Details',
+          style: TextStyle(color: Colors.white),
+        ),
+        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: const Color(0xFF056C5B),
+        elevation: 3,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -52,9 +90,14 @@ class ScanDetailsScreen extends StatelessWidget {
             const SizedBox(height: 20),
             Text(
               'Result: $result',
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: resultColor,
+              ),
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 12),
+
             Text(
               'Recommendations:\n$recommendations',
               style: const TextStyle(fontSize: 16),
@@ -66,28 +109,33 @@ class ScanDetailsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Card(
+              color: cardColor,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(18),
               ),
-              elevation: 3,
+              elevation: 5,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 30,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
                       'Doctor Classification',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
+                        color: Colors.black87,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     Text(
                       doctorClassification,
-                      style: const TextStyle(fontSize: 16),
+                      style: const TextStyle(fontSize: 17),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                     const Text(
                       'Doctor Notes',
                       style: TextStyle(

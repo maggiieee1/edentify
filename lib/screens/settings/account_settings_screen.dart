@@ -1,10 +1,20 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
-class AccountSettingsScreen extends StatelessWidget {
+class AccountSettingsScreen extends StatefulWidget {
   final String userId;
 
   const AccountSettingsScreen({super.key, required this.userId});
+
+  @override
+  State<AccountSettingsScreen> createState() => _AccountSettingsScreenState();
+}
+
+class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
+  bool _isUploading = false;
 
   Future<void> _editField(
     BuildContext context,
@@ -74,7 +84,7 @@ class AccountSettingsScreen extends StatelessWidget {
     if (newValue != null && newValue.isNotEmpty && newValue != currentValue) {
       await FirebaseFirestore.instance
           .collection("users")
-          .doc(userId)
+          .doc(widget.userId)
           .update({field: newValue});
     }
   }
@@ -96,6 +106,44 @@ class AccountSettingsScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _changeProfileImage(BuildContext context) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 75,
+    );
+
+    if (pickedFile == null) return;
+    setState(() => _isUploading = true);
+
+    try {
+      final file = File(pickedFile.path);
+      final storageRef =
+          FirebaseStorage.instance.ref().child('profile_images/${widget.userId}.jpg');
+      await storageRef.putFile(file);
+      final imageUrl = await storageRef.getDownloadURL();
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .update({'profileImageUrl': imageUrl});
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile picture updated.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Upload failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -104,7 +152,7 @@ class AccountSettingsScreen extends StatelessWidget {
         leading: Padding(
           padding: const EdgeInsets.only(left: 12),
           child: Image.asset(
-            'assets/logo.png', // ✅ same logo as Settings screen
+            'assets/logo.png',
             height: 40,
             width: 40,
           ),
@@ -112,7 +160,7 @@ class AccountSettingsScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         title: const Text(
-          'Account Settings', // ✅ same position and style as Settings screen
+          'Account Settings',
           style: TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.bold,
@@ -123,7 +171,7 @@ class AccountSettingsScreen extends StatelessWidget {
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
             .collection("users")
-            .doc(userId)
+            .doc(widget.userId)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -178,6 +226,72 @@ class AccountSettingsScreen extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        // ✅ Profile Image Section
+        Center(
+          child: Stack(
+            children: [
+              CircleAvatar(
+                radius: 60,
+                backgroundColor: const Color(0xFF056C5B),
+                backgroundImage: data['profileImageUrl'] != null
+                    ? NetworkImage(data['profileImageUrl'])
+                    : null,
+                child: data['profileImageUrl'] == null
+                    ? Text(
+                        (data['firstName'] ?? 'U')
+                            .toString()
+                            .substring(0, 1)
+                            .toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 40,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                    : null,
+              ),
+              Positioned(
+                bottom: 0,
+                right: 4,
+                child: InkWell(
+                  onTap: () => _changeProfileImage(context),
+                  borderRadius: BorderRadius.circular(30),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 3,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: _isUploading
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFF056C5B),
+                            ),
+                          )
+                        : const Icon(
+                            Icons.camera_alt,
+                            size: 20,
+                            color: Color(0xFF056C5B),
+                          ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
         const Text(
           "Personal Information",
           style: TextStyle(
@@ -196,10 +310,8 @@ class AccountSettingsScreen extends StatelessWidget {
             elevation: 2,
             margin: const EdgeInsets.symmetric(vertical: 8),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
-              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               leading: CircleAvatar(
                 backgroundColor: const Color(0xFF056C5B).withOpacity(0.1),
                 child: Icon(item["icon"] as IconData,

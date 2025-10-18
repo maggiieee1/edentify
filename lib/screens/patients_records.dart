@@ -279,18 +279,14 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Water Intake: ${water['intakeAmount'] ?? 0} mL"
-                                "${water['intakeAmount'] != null ? ' (${(water['intakeAmount'] / 240).round()} cup/s)' : ''}",
+                                "Water Intake: ${water['totalAmount'] ?? 0} mL"
+                                "${water['totalAmount'] != null ? ' (${(water['totalAmount'] / 240).round()} cup/s)' : ''}",
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              Text(
-                                "Cause of Water Loss: ${water['waterLossCauses'] ?? 'N/A'}",
-                                style: const TextStyle(fontSize: 16),
-                              ),
                             ],
                           ),
                         ),
@@ -383,28 +379,6 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
                     ],
                   ),
                   const SizedBox(height: 30),
-
-                  /// NOTES
-                  const Text(
-                    "Doctor's Notes:",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade400),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text("______________________________"),
-                        Text("______________________________"),
-                        Text("______________________________"),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             );
