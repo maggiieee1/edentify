@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'settings/terms_and_agreement.dart';
-import 'account_settings_screen.dart';
+import 'settings/account_settings_screen.dart';
+import 'settings/about_edentify.dart';
 
 class SettingsScreen extends StatelessWidget {
   final String userId; // ✅ Pass userId into this screen
@@ -81,6 +82,12 @@ class SettingsScreen extends StatelessWidget {
             icon: Icons.local_hospital_rounded,
             text: "About Edentify",
             onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AboutEdentifyScreen(),
+                ),
+              );
               // TODO: Navigate to About Screen
             },
           ),

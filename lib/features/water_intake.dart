@@ -28,15 +28,6 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
     '5 cups (1200ml)',
   ];
 
-  final List<String> waterLossCauses = [
-    "Fever",
-    "Sweating",
-    "Vomiting",
-    "Diarrhea",
-    "Dialysis",
-  ];
-  List<String> selectedCauses = [];
-
   int get cups => (totalMl / mlPerCup).floor().clamp(0, 5);
 
   @override
@@ -60,7 +51,6 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
       final data = doc.data()!;
       setState(() {
         totalMl = (data['totalAmount'] ?? 0).toDouble();
-        selectedCauses = List<String>.from(data['waterLossCauses'] ?? []);
       });
     }
   }
@@ -103,7 +93,6 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
       'date': dateKey,
       'intakeAmount': input,
       'totalAmount': totalMl,
-      'waterLossCauses': selectedCauses,
       'timestamp': FieldValue.serverTimestamp(),
     };
 
@@ -251,40 +240,6 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
                 },
                 items: cupSuggestions.map((option) {
                   return DropdownMenuItem(value: option, child: Text(option));
-                }).toList(),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                "Water loss:",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const Text("Possible cause"),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                isExpanded: true,
-                initialValue: null,
-                hint: const Text("Select all that applies"),
-                onChanged: (value) {
-                  if (value != null && !selectedCauses.contains(value)) {
-                    setState(() => selectedCauses.add(value));
-                  }
-                },
-                items: waterLossCauses.map((cause) {
-                  return DropdownMenuItem(value: cause, child: Text(cause));
-                }).toList(),
-              ),
-              Wrap(
-                children: selectedCauses.map((cause) {
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8, right: 6),
-                    child: Chip(
-                      label: Text(cause),
-                      deleteIcon: const Icon(Icons.close),
-                      onDeleted: () {
-                        setState(() => selectedCauses.remove(cause));
-                      },
-                    ),
-                  );
                 }).toList(),
               ),
               const SizedBox(height: 24),
