@@ -126,7 +126,7 @@ class _DoctorSelectionScreenState extends State<DoctorSelectionScreen> {
                     vertical: 12,
                   ),
                 ),
-                value: selectedDoctor,
+                initialValue: selectedDoctor,
                 items: doctors
                     .map(
                       (doctor) => DropdownMenuItem<String>(
