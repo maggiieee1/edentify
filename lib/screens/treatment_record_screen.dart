@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'treatment_detail_screen.dart';
-import 'notifications_screen.dart'; // ✅ Added import for NotificationsScreen
+import 'notifications_screen.dart';
 import 'package:intl/intl.dart';
 
 class TreatmentRecordScreen extends StatefulWidget {
@@ -22,13 +22,13 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
-        leadingWidth: 70, // ✅ Matches home_screen.dart
+        leadingWidth: 70,
         leading: Padding(
           padding: const EdgeInsets.only(left: 16),
           child: Image.asset(
             'assets/logo.png',
-            height: 40, // ✅ Same logo height
-            width: 40,  // ✅ Same logo width
+            height: 40,
+            width: 40,
           ),
         ),
         actions: [
@@ -38,7 +38,7 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
               icon: const Icon(
                 Icons.notifications_none,
                 color: Colors.black,
-                size: 32, // ✅ Same size as in home_screen.dart
+                size: 32,
               ),
               onPressed: () {
                 Navigator.push(
@@ -53,7 +53,6 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
           ),
         ],
       ),
-
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -64,8 +63,6 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-
-            // 🔍 Search + Add button
             Row(
               children: [
                 Expanded(
@@ -93,10 +90,7 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
                 ),
               ],
             ),
-
             const SizedBox(height: 20),
-
-            // Title + Sort Dropdown
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -120,10 +114,7 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
                 ),
               ],
             ),
-
             const SizedBox(height: 10),
-
-            // 🔹 Firestore Stream
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
@@ -141,15 +132,12 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
                       child: Text("No treatment records found"),
                     );
                   }
-
                   final docs = snapshot.data!.docs;
-
                   return ListView.builder(
                     itemCount: docs.length,
                     itemBuilder: (context, index) {
                       final data = docs[index].data() as Map<String, dynamic>;
                       final date = docs[index].id; // document ID = yyyy-MM-dd
-
                       return _recordCard(context, date, data);
                     },
                   );
@@ -162,13 +150,11 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
     );
   }
 
-  // ✅ Improved readable title formatter
   String _formatRecordTitle(String date, Map<String, dynamic> data) {
     try {
       final sessionType = data['sessionType'] ?? 'unknown';
       final formattedDate = DateFormat('MMMM dd, yyyy')
           .format(DateFormat('yyyy-MM-dd').parse(date));
-
       String sessionLabel = '';
       if (sessionType == 'pre') {
         sessionLabel = 'Pre-Dialysis Session';
@@ -177,7 +163,6 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
       } else {
         sessionLabel = 'Dialysis Session';
       }
-
       return "$formattedDate – $sessionLabel";
     } catch (e) {
       return date; // fallback
@@ -191,15 +176,27 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
   ) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => TreatmentDetailScreen(
-              patientId: widget.patientId,
-              date: date,
+        try {
+          // =======================================================
+          // ✅ FIX: Convert the date string into a DateTime object
+          // =======================================================
+          final DateTime dateToNavigate = DateTime.parse(date);
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => TreatmentDetailScreen(
+                patientId: widget.patientId,
+                date: dateToNavigate, // Pass the DateTime object
+              ),
             ),
-          ),
-        );
+          );
+        } catch (e) {
+          // Handle potential errors if the date string is ever in a wrong format
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Could not open record: Invalid date format.")),
+          );
+        }
       },
       child: Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import '../screens/treatment_detail_screen.dart'; // ✅ navigate here directly
+import '../screens/treatment_detail_screen.dart'; // Make sure this path is correct for your project
 
 class NotificationsScreen extends StatelessWidget {
   final String userId;
@@ -57,12 +57,10 @@ class NotificationsScreen extends StatelessWidget {
               final localTime = timestamp?.toLocal();
               final isRead = data['read'] ?? false;
 
-              // 🆕 New fields
               final type = data['type'];
               final recordDate = data['recordDate'];
-              final sessionType = data['sessionType']; // 🆕 added
+              final sessionType = data['sessionType'];
 
-              // 🆕 Format session label
               String sessionLabel = '';
               if (sessionType == 'pre') {
                 sessionLabel = 'Pre-Dialysis Session';
@@ -81,7 +79,7 @@ class NotificationsScreen extends StatelessWidget {
                   leading: CircleAvatar(
                     backgroundColor: sessionType == 'post'
                         ? Colors.red.shade600
-                        : Colors.teal, // 🆕 visually differentiate
+                        : Colors.teal,
                     child: Icon(
                       sessionType == 'post'
                           ? Icons.water_drop
@@ -113,20 +111,24 @@ class NotificationsScreen extends StatelessWidget {
                     ],
                   ),
                   onTap: () async {
-                    // ✅ Mark as read
+                    // Mark as read
                     if (!isRead) {
                       await doc.reference.update({'read': true});
                     }
 
-                    // ✅ Navigate to record detail
+                    // Navigate to record detail
                     if (type == 'treatment_record' && recordDate != null) {
                       try {
+                        // ✅ FIX: Convert the date String into a DateTime object.
+                        // This matches what TreatmentDetailScreen now expects.
+                        final DateTime dateToNavigate = DateTime.parse(recordDate as String);
+
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => TreatmentDetailScreen(
                               patientId: userId,
-                              date: recordDate,
+                              date: dateToNavigate, // Pass the correct DateTime object
                             ),
                           ),
                         );
@@ -134,7 +136,7 @@ class NotificationsScreen extends StatelessWidget {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
-                              "Invalid record date format in notification.",
+                              "Could not open record. Invalid date format.",
                             ),
                           ),
                         );

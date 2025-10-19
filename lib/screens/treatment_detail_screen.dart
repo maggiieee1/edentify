@@ -1,160 +1,213 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
-class TreatmentDetailScreen extends StatelessWidget {
+class TreatmentDetailScreen extends StatefulWidget {
   final String patientId;
-  final String date;
+  final DateTime date;
 
   const TreatmentDetailScreen({
-    super.key,
+    Key? key,
     required this.patientId,
     required this.date,
-  });
+  }) : super(key: key);
 
-  String _displayValue(dynamic value, {String unit = ""}) {
-    if (value == null) return "--";
+  @override
+  _TreatmentDetailScreenState createState() => _TreatmentDetailScreenState();
+}
 
-    if (value is String) {
-      return value.trim().isEmpty ? "--" : "$value$unit";
-    }
+class _TreatmentDetailScreenState extends State<TreatmentDetailScreen> {
+  DateTime get startOfDayUtc =>
+      DateTime.utc(widget.date.year, widget.date.month, widget.date.day);
 
-    if (value is num) {
-      return "$value$unit";
-    }
+  DateTime get endOfDayUtc => startOfDayUtc.add(const Duration(days: 1));
 
-    return value.toString() + unit;
-  }
+  String get dateKey => DateFormat('yyyy-MM-dd').format(widget.date);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        title: Text(
+          'Record for ${DateFormat('MMMM dd, yyyy').format(widget.date)}',
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+        ),
         backgroundColor: Colors.white,
         elevation: 1,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "Dialysis Treatment Record",
-          style: TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
+        iconTheme: const IconThemeData(color: Colors.black87),
       ),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream:
-            FirebaseFirestore.instance
-                .collection("users")
-                .doc(patientId)
-                .collection("records")
-                .doc(date)
-                .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text("Record not found"));
-          }
-
-          final record = snapshot.data!.data() as Map<String, dynamic>;
-          print("DEBUG record: $record");
-
-          return Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              elevation: 3,
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _infoRow("Date", date),
-                    _infoRow(
-                      "Pre Weight",
-                      "${_displayValue(record['preWeight'])} kg",
-                    ),
-                    _infoRow(
-                      "Post Weight",
-                      "${_displayValue(record['postWeight'])} kg",
-                    ),
-                    _infoRow(
-                      "UF Goal",
-                      "${_displayValue(record['ufGoal'])} ml",
-                    ),
-                    _infoRow(
-                      "UF Removed",
-                      "${_displayValue(record['ufRemoved'])} ml",
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      "Vital Signs",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 12,
-                        horizontal: 16,
-                      ),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.teal, width: 2),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        "HR: ${_displayValue(record['pulseRate'])}   "
-                        "BP: ${_displayValue(record['bloodPressure'])}   "
-                        "RR: ${_displayValue(record['respiration'])}   "
-                        "SpO₂: ${_displayValue(record['oxygenSaturation'])}   "
-                        "TEMP: ${_displayValue(record['temperature'], unit: ' °C')}",
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
+      backgroundColor: Colors.grey.shade100,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildScanHistorySection(),
+            const SizedBox(height: 16),
+            _buildVitalsSection(),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _infoRow(String label, String value) {
+  /// This widget fetches and displays the scan and doctor's note.
+  Widget _buildScanHistorySection() {
+    return FutureBuilder<QuerySnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.patientId)
+          .collection('scanHistory')
+          .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDayUtc))
+          .where('timestamp', isLessThan: Timestamp.fromDate(endOfDayUtc))
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return _buildInfoCard("No Edema Scan Found", "An edema assessment was not recorded for this date.");
+        }
+
+        final data = snapshot.data!.docs.first.data() as Map<String, dynamic>;
+
+        // ✅ FIX: Changed 'doctor_note' to 'doctorNote' to match the Firestore key
+        final note = data['doctorNote'] ?? 'No notes from the doctor.';
+
+        final result = data['result'] ?? 'N/A';
+        final status = (data['status'] as String?)?.capitalize() ?? 'Unknown';
+        final photoUrl = data['imageURL'] as String?;
+
+        return _buildInfoCard(
+          "Edema Assessment",
+          "",
+          children: [
+            if (photoUrl != null && photoUrl.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      photoUrl,
+                      height: 250,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Icon(Icons.broken_image, size: 100, color: Colors.grey),
+                    ),
+                  ),
+                ),
+              ),
+            _buildDetailRow("Classification:", result, isBold: true),
+            _buildDetailRow("Status:", status),
+            const SizedBox(height: 12),
+            const Text(
+              "Doctor's Note:",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.teal),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                note.isEmpty ? "No notes from the doctor." : note,
+                style: const TextStyle(fontSize: 15, fontStyle: FontStyle.italic),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// This widget fetches and displays the vital signs.
+  Widget _buildVitalsSection() {
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.patientId)
+          .collection('records')
+          .doc(dateKey)
+          .get(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return _buildInfoCard("No Vital Signs Found", "Vital signs were not recorded for this date.");
+        }
+
+        final data = snapshot.data!.data() as Map<String, dynamic>;
+
+        return _buildInfoCard(
+          "Vitals & Weight",
+          "",
+          children: [
+            _buildDetailRow("Blood Pressure:", data['bloodPressure'] ?? 'N/A'),
+            _buildDetailRow("Pulse Rate:", "${data['pulseRate'] ?? 'N/A'} bpm"),
+            _buildDetailRow("Respiration:", "${data['respiration'] ?? 'N/A'} /min"),
+            const SizedBox(height: 10),
+            _buildDetailRow("Pre-Weight:", "${data['preWeight'] ?? 'N/A'} kg"),
+            _buildDetailRow("Post-Weight:", "${data['postWeight'] ?? 'N/A'} kg"),
+             _buildDetailRow("UF Goal:", "${data['ufGoal'] ?? 'N/A'} ml"),
+             _buildDetailRow("UF Removed:", "${data['ufRemoved'] ?? 'N/A'} ml"),
+          ],
+        );
+      },
+    );
+  }
+
+  // A helper card for displaying sections
+  Widget _buildInfoCard(String title, String message, {List<Widget> children = const []}) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const Divider(height: 20),
+            if (message.isNotEmpty)
+              Text(message, style: const TextStyle(fontSize: 16, color: Colors.black54)),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  // A helper widget for displaying a row of information
+  Widget _buildDetailRow(String label, String value, {bool isBold = false}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Container(
-            width: 5,
-            height: 20,
-            margin: const EdgeInsets.only(right: 10),
-            decoration: BoxDecoration(
-              color: Colors.teal,
-              borderRadius: BorderRadius.circular(3),
+          Text(label, style: const TextStyle(fontSize: 16, color: Colors.black54)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
             ),
           ),
-          Text(
-            label,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-          ),
-          const SizedBox(width: 12),
-          Text(value, style: const TextStyle(fontSize: 16)),
         ],
       ),
     );
+  }
+}
+
+extension StringExtension on String {
+  String capitalize() {
+    if (isEmpty) return "";
+    return "${this[0].toUpperCase()}${substring(1).toLowerCase()}";
   }
 }
