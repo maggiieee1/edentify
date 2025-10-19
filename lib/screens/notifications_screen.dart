@@ -1,12 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import '../screens/treatment_detail_screen.dart'; // Make sure this path is correct for your project
+import '../screens/treatment_detail_screen.dart';
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   final String userId;
 
   const NotificationsScreen({super.key, required this.userId});
+
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    markAllAsRead(widget.userId);
+  }
+
+  // ✅ Automatically mark all unread notifications as read
+  void markAllAsRead(String userId) async {
+    final unread =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .collection('notifications')
+            .where('read', isEqualTo: false)
+            .get();
+
+    for (var doc in unread.docs) {
+      await doc.reference.update({'read': true});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,12 +48,13 @@ class NotificationsScreen extends StatelessWidget {
       ),
       backgroundColor: Colors.grey.shade100,
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(userId)
-            .collection('notifications')
-            .orderBy('createdAt', descending: true)
-            .snapshots(),
+        stream:
+            FirebaseFirestore.instance
+                .collection('users')
+                .doc(widget.userId)
+                .collection('notifications')
+                .orderBy('createdAt', descending: true)
+                .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -61,47 +88,84 @@ class NotificationsScreen extends StatelessWidget {
               final recordDate = data['recordDate'];
               final sessionType = data['sessionType'];
 
+              // 🎨 Define label and card colors
               String sessionLabel = '';
+              Color cardColor = Colors.white;
+
               if (sessionType == 'pre') {
                 sessionLabel = 'Pre-Dialysis Session';
+                cardColor = Colors.teal.shade50;
               } else if (sessionType == 'post') {
                 sessionLabel = 'Post-Dialysis Session';
+                cardColor = Colors.green.shade50;
               }
 
               return Card(
-                color: isRead ? Colors.white : Colors.teal.shade50,
+                color: isRead ? cardColor : cardColor.withOpacity(0.8),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color:
+                        sessionType == 'post'
+                            ? Colors.green.shade600
+                            : Colors.teal.shade600,
+                    width: 1.2,
+                  ),
                 ),
                 elevation: 2,
                 margin: const EdgeInsets.only(bottom: 12),
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: sessionType == 'post'
-                        ? Colors.red.shade600
-                        : Colors.teal,
+                    radius: 25,
+                    backgroundColor:
+                        sessionType == 'post'
+                            ? Colors.green.shade600
+                            : Colors.teal.shade600,
                     child: Icon(
                       sessionType == 'post'
                           ? Icons.water_drop
                           : Icons.monitor_heart,
                       color: Colors.white,
+                      size: 22,
                     ),
                   ),
                   title: Text(
-                    sessionLabel.isNotEmpty ? '$title • $sessionLabel' : title,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (sessionLabel.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            sessionLabel,
+                            style: TextStyle(
+                              color:
+                                  sessionType == 'post'
+                                      ? Colors.green.shade800
+                                      : Colors.teal.shade800,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
                       const SizedBox(height: 4),
-                      Text(message),
+                      Text(
+                        message,
+                        style: const TextStyle(color: Colors.black87),
+                      ),
                       if (localTime != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
-                            DateFormat('MMM dd, yyyy • hh:mm a')
-                                .format(localTime),
+                            DateFormat(
+                              'MMM dd, yyyy • hh:mm a',
+                            ).format(localTime),
                             style: const TextStyle(
                               fontSize: 12,
                               color: Colors.grey,
@@ -111,25 +175,24 @@ class NotificationsScreen extends StatelessWidget {
                     ],
                   ),
                   onTap: () async {
-                    // Mark as read
                     if (!isRead) {
                       await doc.reference.update({'read': true});
                     }
 
-                    // Navigate to record detail
                     if (type == 'treatment_record' && recordDate != null) {
                       try {
-                        // ✅ FIX: Convert the date String into a DateTime object.
-                        // This matches what TreatmentDetailScreen now expects.
-                        final DateTime dateToNavigate = DateTime.parse(recordDate as String);
+                        final DateTime dateToNavigate = DateTime.parse(
+                          recordDate as String,
+                        );
 
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => TreatmentDetailScreen(
-                              patientId: userId,
-                              date: dateToNavigate, // Pass the correct DateTime object
-                            ),
+                            builder:
+                                (_) => TreatmentDetailScreen(
+                                  patientId: widget.userId,
+                                  date: dateToNavigate,
+                                ),
                           ),
                         );
                       } catch (e) {

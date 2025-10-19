@@ -40,7 +40,7 @@ class RealtimeNotifications {
             sessionColor = Colors.teal;
           } else if (sessionType == 'post') {
             sessionLabel = 'Post-Dialysis Session';
-            sessionColor = Colors.red.shade700;
+            sessionColor = Colors.green.shade600;
           }
 
           // 🎯 Show Snackbar when a *new unread* notification arrives
@@ -79,7 +79,9 @@ class RealtimeNotifications {
           );
 
           // ✅ Mark notification as read after showing
-          await change.doc.reference.update({'read': true});
+          //await change.doc.reference.update({'read': true}); // ❌ Don't mark as read automatically here.
+// We'll mark it as read only when the user opens the Notifications screen.
+
         }
       }
     });
