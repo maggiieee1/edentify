@@ -46,7 +46,8 @@ class EdentifyApp extends StatelessWidget {
         '/centerSelection': (context) => const CenterSelectionScreen(),
         '/home': (context) {
           final args =
-              ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+              ModalRoute.of(context)!.settings.arguments
+                  as Map<String, dynamic>;
           return MainNavigation(userId: args['uid']);
         },
       },
@@ -54,13 +55,11 @@ class EdentifyApp extends StatelessWidget {
   }
 }
 
-
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
   Future<void> _setupUserNotifications(String userId) async {
-    final userRef =
-        FirebaseFirestore.instance.collection('users').doc(userId);
+    final userRef = FirebaseFirestore.instance.collection('users').doc(userId);
     final notifRef = userRef.collection('notifications');
 
     final snapshot = await notifRef.limit(1).get();

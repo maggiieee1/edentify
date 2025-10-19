@@ -25,11 +25,7 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
         leadingWidth: 70,
         leading: Padding(
           padding: const EdgeInsets.only(left: 16),
-          child: Image.asset(
-            'assets/logo.png',
-            height: 40,
-            width: 40,
-          ),
+          child: Image.asset('assets/logo.png', height: 40, width: 40),
         ),
         actions: [
           Padding(
@@ -73,8 +69,7 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(30),
                       ),
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 16),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                     ),
                   ),
                 ),
@@ -101,8 +96,14 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
                 DropdownButton<String>(
                   value: _sortOrder,
                   items: const [
-                    DropdownMenuItem(value: "desc", child: Text("Newest First")),
-                    DropdownMenuItem(value: "asc", child: Text("Oldest First")),
+                    DropdownMenuItem(
+                      value: "desc",
+                      child: Text("Newest First"),
+                    ),
+                    DropdownMenuItem(
+                      value: "asc",
+                      child: Text("Oldest First"),
+                    ),
                   ],
                   onChanged: (val) {
                     if (val != null) {
@@ -132,13 +133,26 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
                       child: Text("No treatment records found"),
                     );
                   }
-                  final docs = snapshot.data!.docs;
+
+                  // 🩺 Group records by date (ignore _pre / _post)
+                  final grouped = <String, Map<String, dynamic>>{};
+                  for (final doc in snapshot.data!.docs) {
+                    final id = doc.id; // e.g. "2025-10-19_pre"
+                    final dateKey = id.split('_').first;
+                    grouped[dateKey] = doc.data() as Map<String, dynamic>;
+                  }
+
+                  final sortedKeys = grouped.keys.toList()
+                    ..sort((a, b) => _sortOrder == "desc"
+                        ? b.compareTo(a)
+                        : a.compareTo(b));
+
                   return ListView.builder(
-                    itemCount: docs.length,
+                    itemCount: sortedKeys.length,
                     itemBuilder: (context, index) {
-                      final data = docs[index].data() as Map<String, dynamic>;
-                      final date = docs[index].id; // document ID = yyyy-MM-dd
-                      return _recordCard(context, date, data);
+                      final dateKey = sortedKeys[index];
+                      final data = grouped[dateKey];
+                      return _recordCard(context, dateKey, data);
                     },
                   );
                 },
@@ -150,51 +164,27 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
     );
   }
 
-  String _formatRecordTitle(String date, Map<String, dynamic> data) {
-    try {
-      final sessionType = data['sessionType'] ?? 'unknown';
-      final formattedDate = DateFormat('MMMM dd, yyyy')
-          .format(DateFormat('yyyy-MM-dd').parse(date));
-      String sessionLabel = '';
-      if (sessionType == 'pre') {
-        sessionLabel = 'Pre-Dialysis Session';
-      } else if (sessionType == 'post') {
-        sessionLabel = 'Post-Dialysis Session';
-      } else {
-        sessionLabel = 'Dialysis Session';
-      }
-      return "$formattedDate – $sessionLabel";
-    } catch (e) {
-      return date; // fallback
-    }
-  }
-
   Widget _recordCard(
-    BuildContext context,
-    String date,
-    Map<String, dynamic> data,
-  ) {
+      BuildContext context, String dateKey, Map<String, dynamic>? data) {
     return GestureDetector(
       onTap: () {
         try {
-          // =======================================================
-          // ✅ FIX: Convert the date string into a DateTime object
-          // =======================================================
-          final DateTime dateToNavigate = DateTime.parse(date);
-
+          final dateToNavigate = DateFormat('yyyy-MM-dd').parse(dateKey);
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) => TreatmentDetailScreen(
                 patientId: widget.patientId,
-                date: dateToNavigate, // Pass the DateTime object
+                date: dateToNavigate,
               ),
             ),
           );
         } catch (e) {
-          // Handle potential errors if the date string is ever in a wrong format
+          print("❌ Date parse error for record ID '$dateKey': $e");
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Could not open record: Invalid date format.")),
+            const SnackBar(
+              content: Text("Could not open record: Invalid date format."),
+            ),
           );
         }
       },
@@ -205,11 +195,20 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Text(
-            _formatRecordTitle(date, data),
+            _formatDateTitle(dateKey),
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
         ),
       ),
     );
+  }
+
+  String _formatDateTitle(String dateKey) {
+    try {
+      final parsedDate = DateFormat('yyyy-MM-dd').parse(dateKey);
+      return DateFormat('MMMM dd, yyyy').format(parsedDate);
+    } catch (e) {
+      return dateKey;
+    }
   }
 }
