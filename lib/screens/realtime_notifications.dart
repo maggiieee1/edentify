@@ -30,11 +30,49 @@ class RealtimeNotifications {
           final title = data['title'] ?? 'New Notification';
           final message = data['message'] ?? '';
 
+          // 🆕 Check for session type (pre/post)
+          final sessionType = data['sessionType'];
+          String sessionLabel = '';
+          Color sessionColor = Colors.teal;
+
+          if (sessionType == 'pre') {
+            sessionLabel = 'Pre-Dialysis Session';
+            sessionColor = Colors.teal;
+          } else if (sessionType == 'post') {
+            sessionLabel = 'Post-Dialysis Session';
+            sessionColor = Colors.red.shade700;
+          }
+
           // 🎯 Show Snackbar when a *new unread* notification arrives
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('$title\n$message'),
-              backgroundColor: Colors.teal,
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  if (sessionLabel.isNotEmpty)
+                    Text(
+                      sessionLabel,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  const SizedBox(height: 4),
+                  Text(
+                    message,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+              backgroundColor: sessionColor,
               behavior: SnackBarBehavior.floating,
               duration: const Duration(seconds: 5),
             ),

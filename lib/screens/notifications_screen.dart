@@ -50,6 +50,7 @@ class NotificationsScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final doc = notifications[index];
               final data = doc.data() as Map<String, dynamic>;
+
               final title = data['title'] ?? 'Notification';
               final message = data['message'] ?? '';
               final timestamp = (data['createdAt'] as Timestamp?)?.toDate();
@@ -59,6 +60,15 @@ class NotificationsScreen extends StatelessWidget {
               // 🆕 New fields
               final type = data['type'];
               final recordDate = data['recordDate'];
+              final sessionType = data['sessionType']; // 🆕 added
+
+              // 🆕 Format session label
+              String sessionLabel = '';
+              if (sessionType == 'pre') {
+                sessionLabel = 'Pre-Dialysis Session';
+              } else if (sessionType == 'post') {
+                sessionLabel = 'Post-Dialysis Session';
+              }
 
               return Card(
                 color: isRead ? Colors.white : Colors.teal.shade50,
@@ -68,15 +78,19 @@ class NotificationsScreen extends StatelessWidget {
                 elevation: 2,
                 margin: const EdgeInsets.only(bottom: 12),
                 child: ListTile(
-                  leading: const CircleAvatar(
-                    backgroundColor: Colors.teal,
+                  leading: CircleAvatar(
+                    backgroundColor: sessionType == 'post'
+                        ? Colors.red.shade600
+                        : Colors.teal, // 🆕 visually differentiate
                     child: Icon(
-                      Icons.notifications,
+                      sessionType == 'post'
+                          ? Icons.water_drop
+                          : Icons.monitor_heart,
                       color: Colors.white,
                     ),
                   ),
                   title: Text(
-                    title,
+                    sessionLabel.isNotEmpty ? '$title • $sessionLabel' : title,
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Column(
@@ -104,7 +118,7 @@ class NotificationsScreen extends StatelessWidget {
                       await doc.reference.update({'read': true});
                     }
 
-                    // ✅ Handle navigation
+                    // ✅ Navigate to record detail
                     if (type == 'treatment_record' && recordDate != null) {
                       try {
                         Navigator.push(
@@ -112,7 +126,7 @@ class NotificationsScreen extends StatelessWidget {
                           MaterialPageRoute(
                             builder: (_) => TreatmentDetailScreen(
                               patientId: userId,
-                              date: recordDate, // direct to that date’s detail
+                              date: recordDate,
                             ),
                           ),
                         );
