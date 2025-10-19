@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'treatment_detail_screen.dart';
 import 'notifications_screen.dart'; // ✅ Added import for NotificationsScreen
+import 'package:intl/intl.dart';
 
 class TreatmentRecordScreen extends StatefulWidget {
   final String patientId;
@@ -161,6 +162,28 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
     );
   }
 
+  // ✅ Improved readable title formatter
+  String _formatRecordTitle(String date, Map<String, dynamic> data) {
+    try {
+      final sessionType = data['sessionType'] ?? 'unknown';
+      final formattedDate = DateFormat('MMMM dd, yyyy')
+          .format(DateFormat('yyyy-MM-dd').parse(date));
+
+      String sessionLabel = '';
+      if (sessionType == 'pre') {
+        sessionLabel = 'Pre-Dialysis Session';
+      } else if (sessionType == 'post') {
+        sessionLabel = 'Post-Dialysis Session';
+      } else {
+        sessionLabel = 'Dialysis Session';
+      }
+
+      return "$formattedDate – $sessionLabel";
+    } catch (e) {
+      return date; // fallback
+    }
+  }
+
   Widget _recordCard(
     BuildContext context,
     String date,
@@ -185,7 +208,7 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Text(
-            date,
+            _formatRecordTitle(date, data),
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
         ),
