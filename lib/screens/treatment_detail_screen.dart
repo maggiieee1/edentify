@@ -90,7 +90,7 @@ class _TreatmentDetailScreenState extends State<TreatmentDetailScreen> {
         }
 
         final data = snapshot.data!.docs.first.data() as Map<String, dynamic>;
-        final note = data['doctorNote'] ?? 'No notes from the doctor.';
+        final note = data['doctor_note'] ?? 'No notes from the doctor.';
         final result = data['result'] ?? 'N/A';
         final status = (data['status'] as String?)?.capitalize() ?? 'Unknown';
         final photoUrl = data['imageURL'] as String?;
