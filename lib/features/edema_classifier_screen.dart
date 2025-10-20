@@ -41,8 +41,8 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
 
   Future<void> _loadModel() async {
     await Tflite.loadModel(
-      model: "assets/model_edema.tflite",
-      labels: "assets/labels_edema.txt",
+      model: "assets/model_unquant.tflite",
+      labels: "assets/labels.txt",
     );
   }
 
@@ -80,7 +80,7 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
     try {
       final output = await Tflite.runModelOnImage(
         path: imageFile.path,
-        numResults: 4,
+        numResults: 5,
         threshold: 0.5,
         imageMean: 127.5,
         imageStd: 127.5,
@@ -94,7 +94,6 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
           _predictedLabel = label;
         });
 
-        // ✅ Navigate to ClassificationResultScreen for Save/Retake
         if (!mounted) return;
         Navigator.push(
           context,

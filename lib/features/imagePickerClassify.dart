@@ -83,14 +83,12 @@ class _ImagePickerClassifyState extends State<ImagePickerClassify> {
     );
   }
 
-  // 🔹 Pick and classify the image, auto-converting HEIF/HEIC to JPG
   Future<void> _pickAndClassifyImage() async {
     final picker = ImagePicker();
     XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
     if (image == null) return;
 
-    // ✅ Step 1: Convert .heif/.heic to .jpg if needed
     File imageFile = await _convertToJpgIfNeeded(File(image.path));
 
     setState(() {
@@ -101,7 +99,7 @@ class _ImagePickerClassifyState extends State<ImagePickerClassify> {
     try {
       var output = await Tflite.runModelOnImage(
         path: imageFile.path,
-        numResults: 3,
+        numResults: 5,
         threshold: 0.5,
         imageMean: 127.5,
         imageStd: 127.5,
@@ -169,8 +167,8 @@ class _ImagePickerClassifyState extends State<ImagePickerClassify> {
 
   Future<void> loadModel() async {
     await Tflite.loadModel(
-      model: "assets/model_edema.tflite",
-      labels: "assets/labels_edema.txt",
+      model: "assets/model_unquant.tflite",
+      labels: "assets/labels.txt",
     );
   }
 

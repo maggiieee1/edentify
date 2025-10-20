@@ -270,7 +270,7 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
               DropdownButtonFormField<String>(
                 isExpanded: true,
                 hint: const Text("Select cups"),
-                value: null,
+                initialValue: null,
                 onChanged: (value) {
                   if (value != null) {
                     final ml = int.tryParse(

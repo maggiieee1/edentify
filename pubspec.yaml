@@ -82,8 +82,8 @@ flutter_launcher_icons:
 flutter:
   assets:
     - assets/logo.png
-    - assets/model_edema.tflite
-    - assets/labels_edema.txt
+    - assets/model_unquant.tflite
+    - assets/labels.txt
     - assets/default_avatar.png
 
   # The following line ensures that the Material Icons font is

@@ -2,10 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart'; // 👈 NEW IMPORT
+import 'package:firebase_storage/firebase_storage.dart';
 
 class ClassificationResultScreen extends StatefulWidget {
-  final String imagePath; // This is the local path: /data/user/...
+  final String imagePath;
   final String label;
   final String userId;
 
@@ -25,6 +25,12 @@ class _ClassificationResultScreenState
     extends State<ClassificationResultScreen> {
   bool _isSaving = false;
 
+  /// 🧹 Normalize label (remove numeric prefix and trim)
+  String _normalizeLabel(String rawLabel) {
+    return rawLabel.replaceAll(RegExp(r'^\d+\s*'), '').trim();
+  }
+
+  /// 🎨 Color based on severity
   Color _getSeverityColor(String severity) {
     switch (severity.toLowerCase()) {
       case 'normal':
@@ -40,6 +46,7 @@ class _ClassificationResultScreenState
     }
   }
 
+  /// 💡 Recommendations based on severity
   List<String> _getRecommendations(String severity) {
     switch (severity.toLowerCase()) {
       case 'normal':
@@ -71,6 +78,7 @@ class _ClassificationResultScreenState
     }
   }
 
+  /// 💾 Save scan result and upload image
   Future<void> _saveToDatabase() async {
     if (_isSaving) return;
     setState(() => _isSaving = true);
@@ -123,34 +131,26 @@ class _ClassificationResultScreenState
       final doctorId = userData['doctorId'];
       final centerId = userData['centerId'] ?? 'unassigned';
 
-      // --- 1️⃣ Save to patient's scan history and keep the document ID reference ---
+      final normalizedLabel = _normalizeLabel(widget.label);
+
+      // --- 1️⃣ Save to patient's scan history ---
       final scanDocRef =
-          firestore
-              .collection('users')
-              .doc(userId)
-              .collection('scanHistory')
-              .doc();
+          firestore.collection('users').doc(userId).collection('scanHistory').doc();
 
       await scanDocRef.set({
         'imageURL': imageUrl,
-        'result': widget.label,
+        'result': normalizedLabel,
         'timestamp': FieldValue.serverTimestamp(),
         'doctorId': doctorId ?? 'unassigned',
         'centerId': centerId,
         'patientName': patientName,
       });
 
-      // Now link this specific scan to the doctor notification:
-      final scanDocId = scanDocRef.id;
-      // ✅ Store this for the notification
-
-      // --- 2️⃣ Create a pending_approvals document for the doctor to review ---
-      String pendingDocId = ''; // 👈 define the variable properly
+      // --- 2️⃣ Create a pending_approvals document for the doctor ---
       final pendingDocRef = firestore.collection('pending_approvals').doc();
-      pendingDocId = pendingDocRef.id; // assign ID before saving
       await pendingDocRef.set({
         'imageURL': imageUrl,
-        'result': widget.label,
+        'result': normalizedLabel,
         'submitted_date': FieldValue.serverTimestamp(),
         'status': 'pending',
         'patient_id': userId,
@@ -160,51 +160,43 @@ class _ClassificationResultScreenState
       });
 
       // --- 3️⃣ Notify patient ---
-      await firestore
-          .collection('users')
-          .doc(userId)
-          .collection('notifications')
-          .add({
-            'title': 'New Edema Scan Result',
-            'message': 'Your scan has been classified as ${widget.label}.',
-            'createdAt': FieldValue.serverTimestamp(),
-            'read': false,
-          });
+      await firestore.collection('users').doc(userId).collection('notifications').add({
+        'title': 'New Edema Scan Result',
+        'message': 'Your scan has been classified as $normalizedLabel.',
+        'createdAt': FieldValue.serverTimestamp(),
+        'read': false,
+      });
 
-      // --- 4️⃣ Notify doctor (freeze previous and add new) ---
+      // --- 4️⃣ Notify doctor ---
       if (doctorId != null && doctorId.isNotEmpty) {
-        final doctorNotifRef = firestore
-            .collection('users')
-            .doc(doctorId)
-            .collection('notifications');
+        final doctorNotifRef =
+            firestore.collection('users').doc(doctorId).collection('notifications');
 
-        // 🔹 Step 4.1 — Mark all previous scan notifications for this patient as "archived"
-        final oldNotifs =
-            await doctorNotifRef
-                .where('patient_id', isEqualTo: userId)
-                .where('type', isEqualTo: 'scan_review')
-                .get();
+        // Mark old ones as archived
+        final oldNotifs = await doctorNotifRef
+            .where('patient_id', isEqualTo: userId)
+            .where('type', isEqualTo: 'scan_review')
+            .get();
 
         for (var doc in oldNotifs.docs) {
           await doc.reference.update({'archived': true});
         }
 
-        // 🔹 Step 4.2 — Add a fresh notification (this one stays permanent)
+        // Add new one
         await doctorNotifRef.add({
           'title': 'New Edema Scan for Review',
           'message':
-              'Patient $patientName has submitted a new scan result (${widget.label}) for review.',
+              'Patient $patientName has submitted a new scan result ($normalizedLabel) for review.',
           'patient_id': userId,
           'patient_name': patientName,
-          'pending_doc_id': pendingDocId,
-          'scan_doc_id': scanDocId, // ✅ NEW: direct link to that exact scan
+          'pending_doc_id': pendingDocRef.id,
+          'scan_doc_id': scanDocRef.id,
           'createdAt': FieldValue.serverTimestamp(),
           'read': false,
           'archived': false,
           'type': 'scan_review',
           'center_id': centerId,
-          // ✅ Freeze scan data
-          'result_label': widget.label,
+          'result_label': normalizedLabel,
           'imageURL': imageUrl,
         });
       }
@@ -259,8 +251,9 @@ class _ClassificationResultScreenState
 
   @override
   Widget build(BuildContext context) {
-    final severityColor = _getSeverityColor(widget.label);
-    final recommendations = _getRecommendations(widget.label);
+    final normalizedLabel = _normalizeLabel(widget.label);
+    final severityColor = _getSeverityColor(normalizedLabel);
+    final recommendations = _getRecommendations(normalizedLabel);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -274,7 +267,7 @@ class _ClassificationResultScreenState
               const SizedBox(height: 20),
               Center(
                 child: Text(
-                  widget.label,
+                  normalizedLabel,
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -287,7 +280,6 @@ class _ClassificationResultScreenState
                 borderRadius: BorderRadius.circular(12),
                 child: AspectRatio(
                   aspectRatio: 3 / 4,
-                  // This still uses the local path for immediate display
                   child: Image.file(
                     File(widget.imagePath),
                     fit: BoxFit.contain,
