@@ -109,19 +109,30 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _loadLatestScan() async {
+  Future<void> _loadLatestScan({String? scanDocId}) async {
     try {
-      final query =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(_userId)
-              .collection('scanHistory')
-              .orderBy('timestamp', descending: true)
-              .limit(1)
-              .get();
+      final collectionRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(_userId)
+          .collection('scanHistory');
 
-      if (query.docs.isNotEmpty && mounted) {
-        final scanData = query.docs.first.data();
+      DocumentSnapshot? scanDoc;
+
+      if (scanDocId != null && scanDocId.isNotEmpty) {
+        // ✅ Load specific scan if scanDocId was provided
+        scanDoc = await collectionRef.doc(scanDocId).get();
+      } else {
+        // ✅ Otherwise load latest scan
+        final query =
+            await collectionRef
+                .orderBy('timestamp', descending: true)
+                .limit(1)
+                .get();
+        if (query.docs.isNotEmpty) scanDoc = query.docs.first;
+      }
+
+      if (scanDoc != null && scanDoc.exists && mounted) {
+        final scanData = scanDoc.data() as Map<String, dynamic>;
         setState(() {
           _latestScanImageUrl = scanData['imageURL'];
           _latestScanResult = scanData['result'] ?? 'No Result';
@@ -135,7 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     } catch (e) {
-      debugPrint("Error loading latest scan: $e");
+      debugPrint("Error loading scan: $e");
     }
   }
 
