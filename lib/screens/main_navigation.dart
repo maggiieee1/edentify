@@ -17,15 +17,18 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
   late final List<Widget> _screens;
-  RealtimeNotifications? _notificationListener; // 👈 keep a reference
+  RealtimeNotifications? _notificationListener;
 
   @override
   void initState() {
     super.initState();
 
-    // 🟢 Start real-time notification listener
+    // 🟢 Start real-time notification listener for all screens
     _notificationListener = RealtimeNotifications(userId: widget.userId);
-    _notificationListener!.startListening(context);
+    _notificationListener!.startListening(
+      context,
+      isOnNotificationScreen: false,
+    );
 
     _screens = [
       HomeScreen(userId: widget.userId),
@@ -37,7 +40,7 @@ class _MainNavigationState extends State<MainNavigation> {
 
   @override
   void dispose() {
-    // 🔴 Stop the listener when leaving the screen (for safety)
+    // 🔴 Stop the listener when leaving screen to avoid leaks or duplicates
     _notificationListener?.stopListening();
     super.dispose();
   }
@@ -50,16 +53,24 @@ class _MainNavigationState extends State<MainNavigation> {
       body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: (index) {
+          setState(() => _currentIndex = index);
+        },
         backgroundColor: teal,
-        selectedItemColor: Color(0xFF056C5B),
+        selectedItemColor: const Color(0xFF056C5B),
         unselectedItemColor: Colors.grey,
         showSelectedLabels: false,
         showUnselectedLabels: false,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.image_sharp), label: 'Classification'),
-          BottomNavigationBarItem(icon: Icon(Icons.library_books), label: 'Records'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.image_sharp),
+            label: 'Classification',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.library_books),
+            label: 'Records',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
