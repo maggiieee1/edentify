@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../screens/main_navigation.dart';
+import '../screens/notifications_screen.dart';
 
 class UpdateWaterIntakeScreen extends StatefulWidget {
   final String userId;
-  const UpdateWaterIntakeScreen({super.key, required this.userId, required int waterIntake, required Future<void> Function() onUpdated});
+  const UpdateWaterIntakeScreen({
+    super.key,
+    required this.userId,
+    required int waterIntake,
+    required Future<void> Function() onUpdated,
+  });
 
   @override
   State<UpdateWaterIntakeScreen> createState() =>
@@ -16,7 +22,7 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
   final TextEditingController _waterController = TextEditingController();
   double totalMl = 0;
 
-  final int mlPerCup = 240; // Updated per PH glass standard
+  final int mlPerCup = 240;
   final int dailyLimitMl = 1000;
   final int alertThresholdMl = 800;
 
@@ -134,7 +140,7 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // Close dialog
+              Navigator.pop(context);
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
@@ -153,20 +159,52 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leadingWidth: 70, // ✅ same as SettingsScreen
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: Image.asset(
+            'assets/logo.png',
+            height: 40, // ✅ exact match
+            width: 40,
+          ),
+        ),
+        title: const Text(
+          'Water Intake',
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.notifications_none_rounded,
+              color: Colors.black,
+              size: 32, // ✅ same visual scale as SettingsScreen
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      NotificationsScreen(userId: widget.userId),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 12),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Image.asset('assets/logo.png', height: 32),
-                  const Icon(Icons.notifications_none),
-                ],
-              ),
-              const SizedBox(height: 16),
               const Center(
                 child: Text(
                   "Update Water Intake",
@@ -174,8 +212,10 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
                 ),
               ),
               const SizedBox(height: 24),
+
               const Text("Today's Water Intake:"),
               const SizedBox(height: 12),
+
               Wrap(
                 spacing: 4,
                 runSpacing: 4,
@@ -187,7 +227,7 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
                     } else if (totalMl >= alertThresholdMl) {
                       cupColor = Colors.orange;
                     } else {
-                      cupColor = Color(0xFF056C5B);
+                      cupColor = const Color(0xFF056C5B);
                     }
                   } else {
                     cupColor = Colors.black12;
@@ -196,6 +236,7 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
                   return Icon(Icons.local_drink, size: 36, color: cupColor);
                 }),
               ),
+
               const SizedBox(height: 8),
               Text(
                 "${totalMl.toInt().toString().padLeft(2, '0')} ml / $cups cups",
@@ -206,12 +247,14 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
                 ),
               ),
               const SizedBox(height: 24),
+
               const Text(
                 "Water Intake:",
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const Text("How many mL did you drink?"),
               const SizedBox(height: 8),
+
               TextField(
                 controller: _waterController,
                 keyboardType: TextInputType.number,
@@ -220,10 +263,10 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
                   border: OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 6),
-              
+
               const SizedBox(height: 12),
               const Text("Or select an approximate amount:"),
+
               DropdownButtonFormField<String>(
                 isExpanded: true,
                 hint: const Text("Select cups"),
@@ -242,10 +285,13 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
                   return DropdownMenuItem(value: option, child: Text(option));
                 }).toList(),
               ),
+
               const SizedBox(height: 24),
               Center(
                 child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF056C5B),),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF056C5B),
+                  ),
                   onPressed: () async {
                     await updateWaterIntake();
                   },
