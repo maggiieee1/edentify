@@ -1,8 +1,10 @@
+// classification_result_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'not_relevant_screen.dart';
 
 class ClassificationResultScreen extends StatefulWidget {
   final String imagePath;
@@ -24,6 +26,24 @@ class ClassificationResultScreen extends StatefulWidget {
 class _ClassificationResultScreenState
     extends State<ClassificationResultScreen> {
   bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // 🟡 Automatically redirect if scan is "Not Relevant"
+    final normalized = _normalizeLabel(widget.label).toLowerCase();
+    if (normalized.contains('not relevant')) {
+      Future.microtask(() {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => NotRelevantScreen(userId: widget.userId),
+          ),
+        );
+      });
+    }
+  }
 
   /// 🧹 Normalize label (remove numeric prefix and trim)
   String _normalizeLabel(String rawLabel) {
@@ -172,7 +192,6 @@ class _ClassificationResultScreenState
         final doctorNotifRef =
             firestore.collection('users').doc(doctorId).collection('notifications');
 
-        // Mark old ones as archived
         final oldNotifs = await doctorNotifRef
             .where('patient_id', isEqualTo: userId)
             .where('type', isEqualTo: 'scan_review')
@@ -182,7 +201,6 @@ class _ClassificationResultScreenState
           await doc.reference.update({'archived': true});
         }
 
-        // Add new one
         await doctorNotifRef.add({
           'title': 'New Edema Scan for Review',
           'message':
@@ -226,7 +244,7 @@ class _ClassificationResultScreenState
         },
       );
     } catch (e) {
-      if (mounted) Navigator.of(context).pop(); // close loading dialog
+      if (mounted) Navigator.of(context).pop();
       await showDialog(
         context: context,
         builder: (BuildContext context) {
@@ -243,15 +261,17 @@ class _ClassificationResultScreenState
         },
       );
     } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final normalizedLabel = _normalizeLabel(widget.label);
+    if (normalizedLabel.toLowerCase().contains('not relevant')) {
+      return const SizedBox.shrink(); // Prevents build flash before redirect
+    }
+
     final severityColor = _getSeverityColor(normalizedLabel);
     final recommendations = _getRecommendations(normalizedLabel);
 

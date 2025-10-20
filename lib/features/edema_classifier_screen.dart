@@ -8,7 +8,8 @@ import 'classification_result_screen.dart';
 class EdemaClassifierScreen extends StatefulWidget {
   final String userId;
 
-  const EdemaClassifierScreen({Key? key, required this.userId}) : super(key: key);
+  const EdemaClassifierScreen({Key? key, required this.userId})
+      : super(key: key);
 
   @override
   State<EdemaClassifierScreen> createState() => _EdemaClassifierScreenState();
@@ -18,6 +19,7 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
   CameraController? _controller;
   bool _isCameraReady = false;
   bool _loading = false;
+  bool _isFlashOn = false; // 🔦 NEW: track flash state
   File? _image;
   String? _predictedLabel;
 
@@ -35,7 +37,9 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
       ResolutionPreset.high,
       enableAudio: false,
     );
+
     await _controller!.initialize();
+    await _controller!.setFlashMode(FlashMode.off); // default off
     if (mounted) setState(() => _isCameraReady = true);
   }
 
@@ -46,9 +50,31 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
     );
   }
 
+  Future<void> _toggleFlash() async {
+    if (_controller == null) return;
+
+    try {
+      if (_isFlashOn) {
+        await _controller!.setFlashMode(FlashMode.off);
+      } else {
+        await _controller!.setFlashMode(FlashMode.torch);
+      }
+
+      setState(() {
+        _isFlashOn = !_isFlashOn;
+      });
+    } catch (e) {
+      debugPrint("Error toggling flash: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Flash not supported on this device")),
+      );
+    }
+  }
+
   Future<void> _takePicture() async {
-    if (!_controller!.value.isInitialized) return;
-    if (_controller!.value.isTakingPicture) return;
+    if (!_controller!.value.isInitialized || _controller!.value.isTakingPicture) {
+      return;
+    }
 
     try {
       final picture = await _controller!.takePicture();
@@ -89,7 +115,8 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
       setState(() => _loading = false);
 
       if (output != null && output.isNotEmpty) {
-        final label = output[0]["label"].toString().replaceAll(RegExp(r'\d'), '');
+        final label =
+            output[0]["label"].toString().replaceAll(RegExp(r'\d'), '').trim();
         setState(() {
           _predictedLabel = label;
         });
@@ -136,6 +163,7 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
               ? CameraPreview(_controller!)
               : const Center(child: CircularProgressIndicator()),
 
+          // 🔄 Loading overlay
           if (_loading)
             Container(
               color: Colors.black54,
@@ -144,6 +172,7 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
               ),
             ),
 
+          // 📸 Bottom controls
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
@@ -152,11 +181,14 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // 📁 Gallery button
                   IconButton(
                     icon: const Icon(Icons.photo_library, color: Colors.white),
                     iconSize: 32,
                     onPressed: _pickImage,
                   ),
+
+                  // 📸 Capture button
                   GestureDetector(
                     onTap: _takePicture,
                     child: Container(
@@ -168,7 +200,16 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 48),
+
+                  // 🔦 Flash toggle button
+                  IconButton(
+                    icon: Icon(
+                      _isFlashOn ? Icons.flash_on : Icons.flash_off,
+                      color: _isFlashOn ? Colors.yellow : Colors.white,
+                    ),
+                    iconSize: 32,
+                    onPressed: _toggleFlash,
+                  ),
                 ],
               ),
             ),
