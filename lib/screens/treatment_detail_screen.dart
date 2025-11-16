@@ -76,7 +76,7 @@ class _TreatmentDetailScreenState extends State<TreatmentDetailScreen> {
               )
               .where('timestamp', isLessThan: Timestamp.fromDate(endOfDayUtc))
               .orderBy('timestamp', descending: true)
-              .limit(1)
+              .limit(1) // Fetches the latest scan for that day
               .get(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -89,6 +89,7 @@ class _TreatmentDetailScreenState extends State<TreatmentDetailScreen> {
           );
         }
 
+        // Use the fields from patient_history_screen.dart
         final data = snapshot.data!.docs.first.data() as Map<String, dynamic>;
         final note = data['doctor_note'] ?? 'No notes from the doctor.';
         final result = data['result'] ?? 'N/A';
@@ -173,7 +174,7 @@ class _TreatmentDetailScreenState extends State<TreatmentDetailScreen> {
         }
 
         return _buildInfoCard(
-          "Vitals & Weight",
+          "Vitals & Dialysis Metrics",
           "",
           children: [
             if (preDoc != null && preDoc.exists)
@@ -181,6 +182,12 @@ class _TreatmentDetailScreenState extends State<TreatmentDetailScreen> {
                 "Pre-Dialysis",
                 preDoc.data() as Map<String, dynamic>,
               ),
+
+            // Add a divider if both sections exist
+            if ((preDoc != null && preDoc.exists) &&
+                (postDoc != null && postDoc.exists))
+              const Divider(height: 24, thickness: 1),
+
             if (postDoc != null && postDoc.exists)
               _buildSection(
                 "Post-Dialysis",
@@ -198,28 +205,30 @@ class _TreatmentDetailScreenState extends State<TreatmentDetailScreen> {
         .doc(widget.patientId)
         .collection('records');
 
-    final preDoc = await recordsRef.doc("${dateKey}_pre").get();
-    final postDoc = await recordsRef.doc("${dateKey}_post").get();
+    // This fetches both documents in parallel
+    final results = await Future.wait([
+      recordsRef.doc("${dateKey}_pre").get(),
+      recordsRef.doc("${dateKey}_post").get(),
+    ]);
 
-    return [preDoc, postDoc];
+    return results;
   }
 
+  // --- ⭐️ MODIFICATION START ⭐️ ---
+  //    Updated to use the exact fields from your AddPatientRecordScreen
   Widget _buildSection(String title, Map<String, dynamic> data) {
-    // Detect whether this is pre or post
     final isPost = title.toLowerCase().contains("post");
 
-    // Handle possible weight field variations
+    // Use exact field names from your "write" code
+    // Convert to string and handle nulls
     final weight =
-        data['weight'] ??
-        data['postWeight'] ??
-        data['weightAfter'] ??
-        data['post_weight'] ??
-        data['post_weight_kg'] ??
+        (isPost
+            ? data['postWeight']?.toString()
+            : data['preWeight']?.toString()) ??
         'N/A';
 
-    // Handle possible UF variations
-    final ufGoal = data['ufGoal'] ?? data['uf_goal'] ?? 'N/A';
-    final ufRemoved = data['ufRemoved'] ?? data['uf_removed'] ?? 'N/A';
+    final ufGoal = data['ufGoal']?.toString() ?? 'N/A';
+    final ufRemoved = data['ufRemoved']?.toString() ?? 'N/A';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,18 +242,45 @@ class _TreatmentDetailScreenState extends State<TreatmentDetailScreen> {
             color: Colors.teal,
           ),
         ),
-        const SizedBox(height: 6),
-        _buildDetailRow("Blood Pressure:", data['bloodPressure'] ?? 'N/A'),
-        _buildDetailRow("Pulse Rate:", "${data['pulseRate'] ?? 'N/A'} bpm"),
-        _buildDetailRow("Respiration:", "${data['respiration'] ?? 'N/A'} /min"),
-        const SizedBox(height: 6),
-        _buildDetailRow("Weight:", "$weight kg"),
-        _buildDetailRow("UF Goal:", "$ufGoal ml"),
-        _buildDetailRow("UF Removed:", "$ufRemoved ml"),
+        const SizedBox(height: 8),
+        _buildDetailRow(
+          "Blood Pressure:",
+          data['bloodPressure']?.toString() ?? 'N/A',
+        ),
+        _buildDetailRow(
+          "Pulse Rate:",
+          "${data['pulseRate']?.toString() ?? 'N/A'} bpm",
+        ),
+        _buildDetailRow(
+          "Respiration:",
+          "${data['respiration']?.toString() ?? 'N/A'} /min",
+        ),
+        _buildDetailRow(
+          "Temperature:",
+          "${data['temperature']?.toString() ?? 'N/A'} °C",
+        ),
+        _buildDetailRow(
+          "Oxygen Saturation:",
+          "${data['oxygenSaturation']?.toString() ?? 'N/A'} %",
+        ),
+        const SizedBox(height: 8),
+        const Divider(height: 1),
+        const SizedBox(height: 8),
+        _buildDetailRow(
+          isPost ? "Post-Weight:" : "Pre-Weight:",
+          "$weight kg",
+          isBold: true,
+        ),
+
+        // Conditionally show UF Goal or UF Removed
+        if (!isPost) _buildDetailRow("UF Goal:", "$ufGoal L"),
+        if (isPost) _buildDetailRow("UF Removed:", "$ufRemoved L"),
+
         const SizedBox(height: 8),
       ],
     );
   }
+  // --- ⭐️ MODIFICATION END ⭐️ ---
 
   // --- Helper UI components ---
   Widget _buildInfoCard(
