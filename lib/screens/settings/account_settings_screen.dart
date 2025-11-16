@@ -101,6 +101,10 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
         return 'Email';
       case 'birthday':
         return 'Birthday';
+      case 'emergencyContactName':
+        return 'Emergency Contact';
+      case 'emergencyContactNumber':
+        return 'Emergency Contact Number';
       default:
         return field;
     }
@@ -220,6 +224,18 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
         "icon": Icons.cake,
         "field": "birthday",
         "value": data['birthday'] ?? "N/A",
+      },
+      {
+        "label": "Emergency Contact",
+        "icon": Icons.warning_amber_rounded,
+        "field": "emergencyContactName",
+        "value": data['emergencyContactName'] ?? "N/A",
+      },
+      {
+        "label": "Emergency Contact Number",
+        "icon": Icons.phone_in_talk_rounded,
+        "field": "emergencyContactNumber",
+        "value": data['emergencyContactNumber'] ?? "N/A",
       },
     ];
 

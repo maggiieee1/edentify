@@ -43,11 +43,7 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
         leadingWidth: 70, // same width as home_screen
         leading: Padding(
           padding: const EdgeInsets.only(left: 16),
-          child: Image.asset(
-            'assets/logo.png',
-            height: 40,
-            width: 40,
-          ),
+          child: Image.asset('assets/logo.png', height: 40, width: 40),
         ),
         actions: [
           Padding(
@@ -151,12 +147,14 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
             /// 🟢 History list
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(widget.userId)
-                    .collection('scanHistory')
-                    .orderBy('timestamp', descending: _isRecentFirst)
-                    .snapshots(),
+                // We still fetch all scans, ordered by timestamp
+                stream:
+                    FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(widget.userId)
+                        .collection('scanHistory')
+                        .orderBy('timestamp', descending: _isRecentFirst)
+                        .snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
@@ -166,35 +164,122 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                     return const Center(child: Text("No scan history found."));
                   }
 
-                  final scanDocs = snapshot.data!.docs.where((doc) {
-                    final result =
-                        (doc.data() as Map<String, dynamic>)['result'] ?? '';
-                    return _selectedFilter == 'All' ||
-                        result == _selectedFilter;
-                  }).toList();
+                  // 🟢 START: DE-DUPLICATION LOGIC (V2 - Using imageURL)
+                  final allDocs = snapshot.data!.docs;
+
+                  // Use a Map to hold the "true" scan, keyed by its imageURL
+                  final Map<String, QueryDocumentSnapshot> processedDocs = {};
+                  final Set<String> finalizedImageURLs = {};
+
+                  // First pass: Find all FINALIZED scans.
+                  // These always take priority.
+                  for (final doc in allDocs) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final imageUrl = data['imageURL'] as String?;
+                    final isFinalized = data['isFinalized'] == true;
+
+                    if (isFinalized) {
+                      if (imageUrl != null && imageUrl.isNotEmpty) {
+                        finalizedImageURLs.add(imageUrl);
+                        processedDocs[imageUrl] = doc; // Add the finalized doc
+                      }
+                    }
+                  }
+
+                  // Second pass: Add PENDING scans, but ONLY if a
+                  // finalized version (by imageURL) doesn't already exist.
+                  for (final doc in allDocs) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final imageUrl = data['imageURL'] as String?;
+                    final isFinalized = data['isFinalized'] == true;
+
+                    if (!isFinalized) {
+                      // This covers `false` and `null`
+                      if (imageUrl != null && imageUrl.isNotEmpty) {
+                        // If this imageURL is NOT in the finalized set,
+                        // then it's a pending scan with no finalized copy. Add it.
+                        if (!finalizedImageURLs.contains(imageUrl)) {
+                          processedDocs[imageUrl] = doc;
+                        }
+                      } else {
+                        // Fallback for scans with no imageURL:
+                        // Use doc ID to prevent crashes, though de-duplication
+                        // won't work for them.
+                        processedDocs[doc.id] = doc;
+                      }
+                    }
+                  }
+
+                  // Our final list of docs is the values of our map.
+                  List<QueryDocumentSnapshot> deDuplicatedList =
+                      processedDocs.values.toList();
+
+                  // Re-sort the de-duplicated list based on the user's toggle
+                  deDuplicatedList.sort((a, b) {
+                    final aData = a.data() as Map<String, dynamic>;
+                    final bData = b.data() as Map<String, dynamic>;
+                    final aTimestamp =
+                        (aData['timestamp'] as Timestamp?)?.toDate() ??
+                        DateTime(1970);
+                    final bTimestamp =
+                        (bData['timestamp'] as Timestamp?)?.toDate() ??
+                        DateTime(1970);
+
+                    if (_isRecentFirst) {
+                      return bTimestamp.compareTo(aTimestamp); // Descending
+                    } else {
+                      return aTimestamp.compareTo(bTimestamp); // Ascending
+                    }
+                  });
+                  // 🟢 END: DE-DUPLICATION LOGIC
+
+                  // This filter now runs on the clean, de-duplicated list
+                  final scanDocs =
+                      deDuplicatedList.where((doc) {
+                        final result =
+                            (doc.data() as Map<String, dynamic>)['result'] ??
+                            '';
+                        return _selectedFilter == 'All' ||
+                            result == _selectedFilter;
+                      }).toList();
+
+                  // Check for empty list *after* filtering
+                  if (scanDocs.isEmpty) {
+                    return const Center(
+                      child: Text("No scans match your filter."),
+                    );
+                  }
 
                   return ListView.builder(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     itemCount: scanDocs.length,
                     itemBuilder: (context, index) {
+                      // 🟢 We now use the 'scanDocs' list
                       final data =
                           scanDocs[index].data() as Map<String, dynamic>;
                       final result = data['result'] ?? 'No result';
                       final imageUrl = data['imageURL'] ?? '';
                       final timestamp =
                           (data['timestamp'] as Timestamp?)?.toDate();
-                      final formattedDate = timestamp != null
-                          ? DateFormat('MM/dd/yyyy').format(timestamp)
-                          : 'Unknown date';
+                      final formattedDate =
+                          timestamp != null
+                              ? DateFormat('MM/dd/yyyy').format(timestamp)
+                              : 'Unknown date';
+
+                      // 🟢 We add a check to see if it's finalized
+                      final isFinalized = data['isFinalized'] == true;
 
                       return GestureDetector(
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  ScanDetailsScreen(scanData: data),
+                              builder:
+                                  (context) =>
+                                      ScanDetailsScreen(scanData: data),
                             ),
                           );
                         },
@@ -219,8 +304,10 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                                     fit: BoxFit.cover,
                                     errorBuilder:
                                         (context, error, stackTrace) =>
-                                            const Icon(Icons.broken_image,
-                                                size: 50),
+                                            const Icon(
+                                              Icons.broken_image,
+                                              size: 50,
+                                            ),
                                   ),
                                 )
                               else
@@ -253,9 +340,28 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                                       const SizedBox(height: 6),
                                       Text(
                                         "Date: $formattedDate",
-                                        style:
-                                            const TextStyle(fontSize: 14),
+                                        style: const TextStyle(fontSize: 14),
                                       ),
+                                      const SizedBox(height: 6),
+                                      // 🟢 Add a status indicator
+                                      if (isFinalized)
+                                        const Text(
+                                          "Reviewed by Doctor",
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black54,
+                                          ),
+                                        )
+                                      else
+                                        const Text(
+                                          "Pending Review",
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.black54,
+                                          ),
+                                        ),
                                     ],
                                   ),
                                 ),

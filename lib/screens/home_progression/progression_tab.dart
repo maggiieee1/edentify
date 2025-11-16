@@ -17,6 +17,26 @@ class _ProgressionTabState extends State<ProgressionTab> {
   String _selectedRange = "Weekly";
 
   @override
+  void initState() {
+    super.initState();
+    _enableOfflineSync();
+  }
+
+  /// Enables Firestore offline persistence for smoother access
+  Future<void> _enableOfflineSync() async {
+    try {
+      await FirebaseFirestore.instance.enablePersistence();
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      );
+      debugPrint("✅ Firestore offline sync enabled successfully.");
+    } catch (e) {
+      debugPrint("⚠️ Offline sync may already be enabled: $e");
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
@@ -105,7 +125,6 @@ class _ProgressionTabState extends State<ProgressionTab> {
               ),
               const SizedBox(height: 8),
               const EdemaSeverityChart(),
-              
               const SizedBox(height: 24),
 
               const Text(
@@ -132,7 +151,6 @@ class _ProgressionTabState extends State<ProgressionTab> {
               VitalSignsGraph(userId: widget.userId, range: 'week'),
               const SizedBox(height: 24),
 
-              
               // === PROGRESS SCORECARD SECTION ===
               const Text(
                 "Progress Summary",
@@ -175,7 +193,7 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
           .collection('scanHistory')
           .orderBy('timestamp', descending: true)
           .limit(1)
-          .get();
+          .get(const GetOptions(source: Source.cache)); // Try cache first
 
       if (snapshot.docs.isNotEmpty) {
         setState(() {
@@ -183,9 +201,23 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
           _isLoading = false;
         });
       } else {
-        setState(() {
-          _isLoading = false;
-        });
+        // If no cache, try server
+        final onlineSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.userId)
+            .collection('scanHistory')
+            .orderBy('timestamp', descending: true)
+            .limit(1)
+            .get(const GetOptions(source: Source.server));
+
+        if (onlineSnapshot.docs.isNotEmpty) {
+          setState(() {
+            _latestData = onlineSnapshot.docs.first.data();
+            _isLoading = false;
+          });
+        } else {
+          setState(() => _isLoading = false);
+        }
       }
     } catch (e) {
       debugPrint('Error fetching latest data: $e');
@@ -202,7 +234,6 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
       case 'mild':
         return 'Stable';
       case 'moderate':
-        return 'Needs Attention';
       case 'severe':
         return 'Needs Attention';
       default:
@@ -213,24 +244,20 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator(color: Colors.teal));
     }
 
     if (_latestData == null) {
       return const Center(child: Text('No data available'));
     }
 
-    // Extract data
     final double preWeight = _latestData!['preWeight'] ?? 0.0;
     final double postWeight = _latestData!['postWeight'] ?? 0.0;
     final double weightDifference = preWeight - postWeight;
-
     final double ufGoal = _latestData!['ufGoal'] ?? 0.0;
     final double ufRemoved = _latestData!['ufRemoved'] ?? 0.0;
-
     final String bp = _latestData!['bp'] ?? 'N/A';
     final String edemaGrade = _latestData!['result'] ?? 'N/A';
-
     final String overallStatus = _getOverallProgressStatus(edemaGrade);
 
     return Container(
@@ -241,9 +268,10 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 4))
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
@@ -284,49 +312,46 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
 
   int _getGradeFromLabel(String label) {
     switch (label.toLowerCase()) {
-      case 'normal': return 0;
-      case 'mild': return 1;
-      case 'moderate': return 2;
-      case 'severe': return 3;
-      default: return 0;
+      case 'normal':
+        return 0;
+      case 'mild':
+        return 1;
+      case 'moderate':
+        return 2;
+      case 'severe':
+        return 3;
+      default:
+        return 0;
     }
   }
 
-  Widget _buildSummaryItem(
-      String title, String value, IconData icon, Color color) {
+  Widget _buildSummaryItem(String title, String value, IconData icon, Color color) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           Icon(icon, color: color, size: 28),
           const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey)),
+                const SizedBox(height: 4),
+                Text(value,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDivider() {
-    return const Divider(height: 1, color: Colors.grey);
-  }
+  Widget _buildDivider() => const Divider(height: 1, color: Colors.grey);
 
   Widget _buildStatusIndicator(String status) {
     Color statusColor;
@@ -337,11 +362,8 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
       case 'Stable':
         statusColor = Colors.blue;
         break;
-      case 'Needs Attention':
-        statusColor = Colors.red;
-        break;
       default:
-        statusColor = Colors.grey;
+        statusColor = Colors.red;
         break;
     }
 
