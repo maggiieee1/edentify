@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'dart:math'; // ⬅️ IMPORT ADDED HERE
 
 class UfGraph extends StatefulWidget {
   final String userId;
@@ -31,9 +32,10 @@ class _UfGraphState extends State<UfGraph> {
 
   void _updateStream() {
     final now = DateTime.now();
-    final startDate = widget.range == "Weekly"
-        ? now.subtract(const Duration(days: 7))
-        : now.subtract(const Duration(days: 30));
+    final startDate =
+        widget.range == "Weekly"
+            ? now.subtract(const Duration(days: 7))
+            : now.subtract(const Duration(days: 30));
 
     final query = FirebaseFirestore.instance
         .collection('users')
@@ -61,7 +63,7 @@ class _UfGraphState extends State<UfGraph> {
           for (var doc in snapshot.data!.docs) {
             final data = doc.data() as Map<String, dynamic>;
             final dateString = data['date'];
-            
+
             // Basic validation
             if (dateString != null) {
               final date = DateTime.tryParse(dateString);
@@ -77,7 +79,6 @@ class _UfGraphState extends State<UfGraph> {
         final bool isDataEmpty = tempDates.isEmpty;
 
         // --- Build UI ---
-        // We return the full container structure every time.
         return Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
@@ -99,33 +100,34 @@ class _UfGraphState extends State<UfGraph> {
               // --- Chart Area ---
               SizedBox(
                 height: 250,
-                // Stack allows us to overlay messages
                 child: Stack(
                   children: [
                     // The Bar Chart
                     BarChart(
                       BarChartData(
-                        // Use empty list for barGroups if data is empty
-                        barGroups: isDataEmpty ? [] : List.generate(tempDates.length, (i) {
-                          return BarChartGroupData(
-                            x: i,
-                            barsSpace: 8,
-                            barRods: [
-                              BarChartRodData(
-                                toY: tempGoal[i],
-                                color: Colors.purple,
-                                width: 10,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                              BarChartRodData(
-                                toY: tempRemoved[i],
-                                color: Colors.amber,
-                                width: 10,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ],
-                          );
-                        }),
+                        barGroups:
+                            isDataEmpty
+                                ? []
+                                : List.generate(tempDates.length, (i) {
+                                  return BarChartGroupData(
+                                    x: i,
+                                    barsSpace: 8,
+                                    barRods: [
+                                      BarChartRodData(
+                                        toY: tempGoal[i],
+                                        color: Colors.purple,
+                                        width: 10,
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                      BarChartRodData(
+                                        toY: tempRemoved[i],
+                                        color: Colors.amber,
+                                        width: 10,
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                    ],
+                                  );
+                                }),
                         gridData: FlGridData(show: true),
                         borderData: FlBorderData(show: false),
                         titlesData: FlTitlesData(
@@ -133,22 +135,30 @@ class _UfGraphState extends State<UfGraph> {
                             axisNameWidget: const Text(
                               "Fluid (L)",
                               style: TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.w500),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                             sideTitles: SideTitles(
                               showTitles: true,
                               reservedSize: 36,
-                              getTitlesWidget: (value, meta) => Text(
-                                value.toStringAsFixed(1),
-                                style: const TextStyle(fontSize: 10),
-                              ),
+                              getTitlesWidget:
+                                  (value, meta) => Text(
+                                    value.toStringAsFixed(1),
+                                    style: const TextStyle(fontSize: 10),
+                                  ),
                             ),
                           ),
+                          // **ROBUST FIX APPLIED HERE**
                           bottomTitles: AxisTitles(
                             sideTitles: SideTitles(
-                              showTitles: true,
-                              // Adjust interval to avoid clutter
-                              interval: (tempDates.length / 7).ceil().toDouble(),
+                              // Hides titles if there is no data
+                              showTitles: !isDataEmpty,
+                              // Guarantees the interval is at least 1.0, preventing the crash
+                              interval: max(
+                                1.0,
+                                (tempDates.length / 7).ceil().toDouble(),
+                              ),
                               getTitlesWidget: (value, meta) {
                                 final index = value.toInt();
                                 if (index < 0 || index >= tempDates.length) {
@@ -162,10 +172,13 @@ class _UfGraphState extends State<UfGraph> {
                               },
                             ),
                           ),
+                          // **END OF FIX**
                           rightTitles: AxisTitles(
-                              sideTitles: SideTitles(showTitles: false)),
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
                           topTitles: AxisTitles(
-                              sideTitles: SideTitles(showTitles: false)),
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
                         ),
                       ),
                     ),

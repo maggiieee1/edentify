@@ -59,20 +59,21 @@ class _ProgressionTabState extends State<ProgressionTab> {
                     onPressed: () {
                       showDialog(
                         context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text("About Progression Graphs"),
-                          content: const Text(
-                            "These graphs help you monitor your weight and fluid status "
-                            "over time. Stable pre-weight and steady post-weight suggest "
-                            "good fluid management between dialysis sessions.",
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text("Got it"),
+                        builder:
+                            (context) => AlertDialog(
+                              title: const Text("About Progression Graphs"),
+                              content: const Text(
+                                "These graphs help you monitor your weight and fluid status "
+                                "over time. Stable pre-weight and steady post-weight suggest "
+                                "good fluid management between dialysis sessions.",
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text("Got it"),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
                       );
                     },
                   ),
@@ -325,7 +326,12 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
     }
   }
 
-  Widget _buildSummaryItem(String title, String value, IconData icon, Color color) {
+  Widget _buildSummaryItem(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -336,13 +342,23 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(value,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
               ],
             ),
           ),
