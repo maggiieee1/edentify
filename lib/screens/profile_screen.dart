@@ -20,11 +20,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String formatDate(dynamic dateRaw) {
     if (dateRaw == null) return 'N/A';
+
     DateTime? date;
-    if (dateRaw is Timestamp)
+
+    if (dateRaw is Timestamp) {
       date = dateRaw.toDate();
-    else if (dateRaw is String)
-      date = DateTime.tryParse(dateRaw);
+    } else if (dateRaw is String) {
+      // Handle "DD/MM/YYYY"
+      try {
+        final parts = dateRaw.split('/');
+        if (parts.length == 3) {
+          final day = int.parse(parts[0]);
+          final month = int.parse(parts[1]);
+          final year = int.parse(parts[2]);
+          date = DateTime(year, month, day);
+        }
+      } catch (_) {
+        date = null;
+      }
+    }
+
     return date != null ? DateFormat('MM/dd/yyyy').format(date) : 'N/A';
   }
 
@@ -503,15 +518,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Expanded(
             child: _buildTitled(
               "Emergency Contact",
-              user['emergencyContactName'] ?? 'N/A',
+              user['emergencyContact'] ?? 'N/A',
             ),
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: _buildTitled(
-              "Contact Number",
-              user['emergencyContactNumber'] ?? 'N/A',
-            ),
+            child: _buildTitled("Contact Number", user['phone'] ?? 'N/A'),
           ),
         ],
       ),
