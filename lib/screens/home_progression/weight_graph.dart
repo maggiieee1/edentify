@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'dart:math'; // 👈 ADD THIS IMPORT
+import 'dart:math';
 
 class WeightGraph extends StatefulWidget {
   final String userId;
@@ -31,9 +31,10 @@ class _WeightGraphState extends State<WeightGraph> {
 
   void _updateStream() {
     final now = DateTime.now();
-    final startDate = widget.range == "Weekly"
-        ? now.subtract(const Duration(days: 7))
-        : now.subtract(const Duration(days: 30));
+    final startDate =
+        widget.range == "Weekly"
+            ? now.subtract(const Duration(days: 7))
+            : now.subtract(const Duration(days: 30));
 
     final query = FirebaseFirestore.instance
         .collection('users')
@@ -87,8 +88,10 @@ class _WeightGraphState extends State<WeightGraph> {
         final bool isDataEmpty = tempDates.isEmpty;
 
         // 👇 FIX: Calculate interval safely, ensuring it's at least 1.0
-        final double bottomInterval =
-            max(1.0, (tempDates.length / 5).ceil().toDouble());
+        final double bottomInterval = max(
+          1.0,
+          (tempDates.length / 5).ceil().toDouble(),
+        );
 
         // --- Build UI ---
         return Container(
@@ -98,7 +101,10 @@ class _WeightGraphState extends State<WeightGraph> {
             borderRadius: BorderRadius.circular(16),
             boxShadow: const [
               BoxShadow(
-                  color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
+                color: Colors.black12,
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
             ],
           ),
           child: Column(
@@ -111,41 +117,45 @@ class _WeightGraphState extends State<WeightGraph> {
                     // The Chart
                     LineChart(
                       LineChartData(
-                        lineBarsData: isDataEmpty
-                            ? []
-                            : [
-                                LineChartBarData(
-                                  spots: List.generate(
-                                    tempPost.length,
-                                    (i) => FlSpot(i.toDouble(), tempPost[i]),
+                        lineBarsData:
+                            isDataEmpty
+                                ? []
+                                : [
+                                  LineChartBarData(
+                                    spots: List.generate(
+                                      tempPost.length,
+                                      (i) => FlSpot(i.toDouble(), tempPost[i]),
+                                    ),
+                                    isCurved: true,
+                                    color: Colors.blue,
+                                    barWidth: 3,
+                                    dotData: FlDotData(show: true),
                                   ),
-                                  isCurved: true,
-                                  color: Colors.blue,
-                                  barWidth: 3,
-                                  dotData: FlDotData(show: true),
-                                ),
-                                LineChartBarData(
-                                  spots: List.generate(
-                                    tempPre.length,
-                                    (i) => FlSpot(i.toDouble(), tempPre[i]),
+                                  LineChartBarData(
+                                    spots: List.generate(
+                                      tempPre.length,
+                                      (i) => FlSpot(i.toDouble(), tempPre[i]),
+                                    ),
+                                    isCurved: true,
+                                    color: Colors.green,
+                                    barWidth: 3,
+                                    dotData: FlDotData(show: true),
                                   ),
-                                  isCurved: true,
-                                  color: Colors.green,
-                                  barWidth: 3,
-                                  dotData: FlDotData(show: true),
-                                ),
-                              ],
-                        gridData:
-                            FlGridData(show: true, drawVerticalLine: true),
+                                ],
+                        gridData: FlGridData(
+                          show: true,
+                          drawVerticalLine: true,
+                        ),
                         titlesData: FlTitlesData(
                           leftTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
                               reservedSize: 40,
-                              getTitlesWidget: (value, meta) => Text(
-                                value.toStringAsFixed(1),
-                                style: const TextStyle(fontSize: 10),
-                              ),
+                              getTitlesWidget:
+                                  (value, meta) => Text(
+                                    value.toStringAsFixed(1),
+                                    style: const TextStyle(fontSize: 10),
+                                  ),
                             ),
                           ),
                           bottomTitles: AxisTitles(
@@ -167,9 +177,11 @@ class _WeightGraphState extends State<WeightGraph> {
                             ),
                           ),
                           rightTitles: AxisTitles(
-                              sideTitles: SideTitles(showTitles: false)),
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
                           topTitles: AxisTitles(
-                              sideTitles: SideTitles(showTitles: false)),
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
                         ),
                         borderData: FlBorderData(show: false),
                       ),

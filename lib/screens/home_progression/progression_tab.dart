@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:edentify/screens/home_progression/edema_severity_chart.dart';
 import 'package:flutter/material.dart';
+
+// Ensure these are imported correctly from your project structure
 import 'weight_graph.dart';
 import 'uf_graph.dart';
 import 'vital_signs_graph.dart';
@@ -14,6 +16,7 @@ class ProgressionTab extends StatefulWidget {
 }
 
 class _ProgressionTabState extends State<ProgressionTab> {
+  // This state controls the range for ALL graphs
   String _selectedRange = "Weekly";
 
   @override
@@ -22,7 +25,6 @@ class _ProgressionTabState extends State<ProgressionTab> {
     _enableOfflineSync();
   }
 
-  /// Enables Firestore offline persistence for smoother access
   Future<void> _enableOfflineSync() async {
     try {
       await FirebaseFirestore.instance.enablePersistence();
@@ -30,9 +32,8 @@ class _ProgressionTabState extends State<ProgressionTab> {
         persistenceEnabled: true,
         cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
       );
-      debugPrint("✅ Firestore offline sync enabled successfully.");
     } catch (e) {
-      debugPrint("⚠️ Offline sync may already be enabled: $e");
+      // Ignore if already enabled
     }
   }
 
@@ -50,12 +51,21 @@ class _ProgressionTabState extends State<ProgressionTab> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    "Patient Progression",
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  // FIX 1: Wrapped in Expanded to prevent horizontal overflow on small screens
+                  const Expanded(
+                    child: Text(
+                      "Patient Progression",
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.info_outline, color: Colors.blue),
+                    // Added visual density to tighten layout if needed
+                    visualDensity: VisualDensity.compact,
                     onPressed: () {
                       showDialog(
                         context: context,
@@ -81,6 +91,8 @@ class _ProgressionTabState extends State<ProgressionTab> {
               ),
 
               const SizedBox(height: 4),
+
+              // === RANGE SELECTOR ===
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -94,6 +106,7 @@ class _ProgressionTabState extends State<ProgressionTab> {
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: _selectedRange,
+                        isDense: true, // Makes the dropdown more compact
                         items: const [
                           DropdownMenuItem(
                             value: "Weekly",
@@ -125,40 +138,45 @@ class _ProgressionTabState extends State<ProgressionTab> {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
+              // Ensure your graph widgets handle their own width constraints internally
               const EdemaSeverityChart(),
-              const SizedBox(height: 24),
 
+              const SizedBox(height: 24),
               const Text(
                 "Weight Progression",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 12),
               WeightGraph(userId: widget.userId, range: _selectedRange),
-              const SizedBox(height: 24),
 
+              const SizedBox(height: 24),
               const Text(
                 "Ultrafiltration Progression",
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
               UfGraph(userId: widget.userId, range: _selectedRange),
-              const SizedBox(height: 24),
 
+              const SizedBox(height: 24),
               const Text(
                 "Vital Signs Monitoring",
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
               VitalSignsGraph(userId: widget.userId, range: 'week'),
+
               const SizedBox(height: 24),
 
-              // === PROGRESS SCORECARD SECTION ===
+              // === PROGRESS SUMMARY ===
               const Text(
                 "Progress Summary",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 12),
               _ProgressScorecard(userId: widget.userId),
+
+              // Add bottom padding for scrolling space
+              const SizedBox(height: 30),
             ],
           ),
         ),
@@ -167,7 +185,10 @@ class _ProgressionTabState extends State<ProgressionTab> {
   }
 }
 
-// === NEW WIDGET FOR PROGRESS SCORECARD ===
+// =========================================================================
+// === PROGRESS SCORECARD ===
+// =========================================================================
+
 class _ProgressScorecard extends StatefulWidget {
   final String userId;
   const _ProgressScorecard({required this.userId});
@@ -177,68 +198,92 @@ class _ProgressScorecard extends StatefulWidget {
 }
 
 class _ProgressScorecardState extends State<_ProgressScorecard> {
-  Map<String, dynamic>? _latestData;
+  Map<String, dynamic> _combinedData = {};
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchLatestData();
+    _fetchCombinedData();
   }
 
-  Future<void> _fetchLatestData() async {
+  double _convertToDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  Future<void> _fetchCombinedData() async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.userId)
-          .collection('scanHistory')
-          .orderBy('timestamp', descending: true)
-          .limit(1)
-          .get(const GetOptions(source: Source.cache)); // Try cache first
+      // 1. Fetch Edema Data
+      final scanQuery =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.userId)
+              .collection('scanHistory')
+              .orderBy('timestamp', descending: true)
+              .get();
 
-      if (snapshot.docs.isNotEmpty) {
-        setState(() {
-          _latestData = snapshot.docs.first.data();
-          _isLoading = false;
-        });
-      } else {
-        // If no cache, try server
-        final onlineSnapshot = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(widget.userId)
-            .collection('scanHistory')
-            .orderBy('timestamp', descending: true)
-            .limit(1)
-            .get(const GetOptions(source: Source.server));
+      // 2. Fetch Vitals Data
+      final recordQuery =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.userId)
+              .collection('records')
+              .orderBy('date', descending: true)
+              .limit(10)
+              .get();
 
-        if (onlineSnapshot.docs.isNotEmpty) {
-          setState(() {
-            _latestData = onlineSnapshot.docs.first.data();
-            _isLoading = false;
-          });
-        } else {
-          setState(() => _isLoading = false);
+      // --- Process Edema Data ---
+      String latestEdemaGrade = 'N/A';
+      double averageEdemaScore = 0.0;
+
+      if (scanQuery.docs.isNotEmpty) {
+        latestEdemaGrade = scanQuery.docs.first.data()['result'] ?? 'N/A';
+
+        double totalScore = 0.0;
+        int count = 0;
+        for (var doc in scanQuery.docs) {
+          totalScore += _getGradeScoreFromLabel(doc.data()['result'] ?? 'N/A');
+          count++;
+        }
+        if (count > 0) averageEdemaScore = totalScore / count;
+      }
+
+      // --- Process Vitals Data ---
+      Map<String, dynamic> latestRecord = {};
+
+      if (recordQuery.docs.isNotEmpty) {
+        latestRecord = recordQuery.docs.first.data();
+        for (var doc in recordQuery.docs) {
+          final data = doc.data();
+          final double postWeight = _convertToDouble(data['postWeight']);
+          if (postWeight > 0) {
+            latestRecord = data;
+            break;
+          }
         }
       }
-    } catch (e) {
-      debugPrint('Error fetching latest data: $e');
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
 
-  String _getOverallProgressStatus(String edemaGrade) {
-    switch (edemaGrade.toLowerCase()) {
-      case 'normal':
-        return 'Improving';
-      case 'mild':
-        return 'Stable';
-      case 'moderate':
-      case 'severe':
-        return 'Needs Attention';
-      default:
-        return 'Needs Attention';
+      // --- Combine Data ---
+      if (mounted) {
+        setState(() {
+          _combinedData = {
+            'latestEdemaGrade': latestEdemaGrade,
+            'averageEdemaGradeScore': averageEdemaScore,
+            'preWeight': _convertToDouble(latestRecord['preWeight']),
+            'postWeight': _convertToDouble(latestRecord['postWeight']),
+            'ufGoal': _convertToDouble(latestRecord['ufGoal']),
+            'ufRemoved': _convertToDouble(latestRecord['ufRemoved']),
+            'bloodPressure': latestRecord['bloodPressure']?.toString() ?? 'N/A',
+          };
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching combined data: $e');
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -248,18 +293,16 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
       return const Center(child: CircularProgressIndicator(color: Colors.teal));
     }
 
-    if (_latestData == null) {
-      return const Center(child: Text('No data available'));
-    }
-
-    final double preWeight = _latestData!['preWeight'] ?? 0.0;
-    final double postWeight = _latestData!['postWeight'] ?? 0.0;
+    final double preWeight = _combinedData['preWeight'] ?? 0.0;
+    final double postWeight = _combinedData['postWeight'] ?? 0.0;
     final double weightDifference = preWeight - postWeight;
-    final double ufGoal = _latestData!['ufGoal'] ?? 0.0;
-    final double ufRemoved = _latestData!['ufRemoved'] ?? 0.0;
-    final String bp = _latestData!['bp'] ?? 'N/A';
-    final String edemaGrade = _latestData!['result'] ?? 'N/A';
-    final String overallStatus = _getOverallProgressStatus(edemaGrade);
+    final double ufGoal = _combinedData['ufGoal'] ?? 0.0;
+    final double ufRemoved = _combinedData['ufRemoved'] ?? 0.0;
+    final String bloodPressure = _combinedData['bloodPressure'] ?? 'N/A';
+    final String latestEdemaGrade = _combinedData['latestEdemaGrade'] ?? 'N/A';
+    final double averageEdemaScore =
+        _combinedData['averageEdemaGradeScore'] ?? 0.0;
+    final String overallStatus = _getOverallProgressStatus(averageEdemaScore);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -276,39 +319,70 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min, // Ensure column shrinks to fit content
         children: [
           _buildSummaryItem(
-            'Edema Grade',
-            '$edemaGrade (Grade ${_getGradeFromLabel(edemaGrade)})',
+            'Latest Edema Grade',
+            '$latestEdemaGrade (Grade ${_getGradeFromLabel(latestEdemaGrade)})',
             Icons.swap_vert,
             Colors.orange,
           ),
+
           _buildSummaryItem(
-            'Pre-Post Weight Difference',
+            'Pre-Post Weight Difference (Latest)',
             '${weightDifference.toStringAsFixed(1)} kg removed',
             Icons.scale,
             Colors.blue,
           ),
+
           _buildDivider(),
+
+          // This one usually causes overflow because the string is long
           _buildSummaryItem(
-            'UF Goal vs UF Removed',
+            'UF Goal vs UF Removed (Latest)',
             '${ufGoal.toStringAsFixed(1)} L planned | ${ufRemoved.toStringAsFixed(1)} L removed',
             Icons.opacity,
             Colors.lightBlue,
           ),
+
           _buildDivider(),
           _buildSummaryItem(
-            'Blood Pressure Stability',
-            'Average BP: $bp mmHg',
+            'Blood Pressure Stability (Latest)',
+            'BP: $bloodPressure mmHg',
             Icons.favorite,
             Colors.red,
           ),
+
           _buildDivider(),
           const SizedBox(height: 16),
+
+          // FIX 2: Replaced the fixed Row with a Flexible layout logic
           _buildStatusIndicator(overallStatus),
+
+          const SizedBox(height: 8),
+          Text(
+            'Based on average edema score (${averageEdemaScore.toStringAsFixed(2)}) across all records.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 10, color: Colors.grey),
+          ),
         ],
       ),
     );
+  }
+
+  double _getGradeScoreFromLabel(String label) {
+    switch (label.toLowerCase()) {
+      case 'normal':
+        return 0.0;
+      case 'mild':
+        return 1.0;
+      case 'moderate':
+        return 2.0;
+      case 'severe':
+        return 3.0;
+      default:
+        return 0.0;
+    }
   }
 
   int _getGradeFromLabel(String label) {
@@ -326,6 +400,15 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
     }
   }
 
+  String _getOverallProgressStatus(double averageScore) {
+    if (averageScore <= 0.5)
+      return 'Improving (Excellent)';
+    else if (averageScore <= 1.5)
+      return 'Stable (Good)';
+    else
+      return 'Needs Attention (High Avg)';
+  }
+
   Widget _buildSummaryItem(
     String title,
     String value,
@@ -335,6 +418,8 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start, // Align to top in case of wrapping
         children: [
           Icon(icon, color: color, size: 28),
           const SizedBox(width: 16),
@@ -353,6 +438,8 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
                 const SizedBox(height: 4),
                 Text(
                   value,
+                  // FIX 3: Allow wrapping of long values
+                  softWrap: true,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -369,13 +456,14 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
 
   Widget _buildDivider() => const Divider(height: 1, color: Colors.grey);
 
+  // FIX 4: Changed from Row to Wrap to handle long status text responsibly
   Widget _buildStatusIndicator(String status) {
     Color statusColor;
     switch (status) {
-      case 'Improving':
+      case 'Improving (Excellent)':
         statusColor = Colors.green;
         break;
-      case 'Stable':
+      case 'Stable (Good)':
         statusColor = Colors.blue;
         break;
       default:
@@ -383,8 +471,13 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
         break;
     }
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    // Using Wrap instead of Row ensures that if the status text is too long
+    // for the screen width, it drops to the next line instead of causing an error.
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      runSpacing: 5.0, // Space between lines if it wraps
+      spacing: 8.0, // Space between label and badge
       children: [
         const Text(
           'Overall Progress: ',
@@ -398,6 +491,7 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
           ),
           child: Text(
             status,
+            textAlign: TextAlign.center,
             style: TextStyle(
               color: statusColor,
               fontWeight: FontWeight.bold,

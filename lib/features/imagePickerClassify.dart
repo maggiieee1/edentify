@@ -67,13 +67,15 @@ class _ImagePickerClassifyState extends State<ImagePickerClassify> {
             ),
           ),
         ),
-        body: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : Center(
-                child: _image == null
-                    ? const Text("No image selected")
-                    : Image.file(_image!),
-              ),
+        body:
+            _loading
+                ? const Center(child: CircularProgressIndicator())
+                : Center(
+                  child:
+                      _image == null
+                          ? const Text("No image selected")
+                          : Image.file(_image!),
+                ),
         floatingActionButton: FloatingActionButton(
           onPressed: _pickAndClassifyImage,
           backgroundColor: Colors.teal[900],
@@ -110,18 +112,22 @@ class _ImagePickerClassifyState extends State<ImagePickerClassify> {
       });
 
       if (output != null && output.isNotEmpty) {
-        final label = output[0]["label"].toString().replaceAll(RegExp(r'\d'), '');
+        final label = output[0]["label"].toString().replaceAll(
+          RegExp(r'\d'),
+          '',
+        );
         final user = FirebaseAuth.instance.currentUser;
         final userId = user?.uid ?? 'unknown_user';
 
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ClassificationResultScreen(
-              imagePath: imageFile.path,
-              label: label,
-              userId: userId,
-            ),
+            builder:
+                (context) => ClassificationResultScreen(
+                  imagePath: imageFile.path,
+                  label: label,
+                  userId: userId,
+                ),
           ),
         );
       } else {
@@ -131,9 +137,9 @@ class _ImagePickerClassifyState extends State<ImagePickerClassify> {
       }
     } catch (e) {
       print("Error: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
       setState(() {
         _loading = false;
       });
@@ -148,7 +154,10 @@ class _ImagePickerClassifyState extends State<ImagePickerClassify> {
         final bytes = await file.readAsBytes();
         final decoded = img.decodeImage(bytes);
         if (decoded != null) {
-          final jpgPath = file.path.replaceAll(RegExp(r'\.heic|\.heif', caseSensitive: false), '.jpg');
+          final jpgPath = file.path.replaceAll(
+            RegExp(r'\.heic|\.heif', caseSensitive: false),
+            '.jpg',
+          );
           final jpgFile = File(jpgPath)
             ..writeAsBytesSync(img.encodeJpg(decoded, quality: 95));
           print('✅ Converted HEIF to JPG: ${jpgFile.path}');

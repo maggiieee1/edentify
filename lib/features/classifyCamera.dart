@@ -114,39 +114,45 @@ class _ClassifyCameraState extends State<ClassifyCamera> {
             ),
           ],
         ),
-        body: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : Stack(
-                alignment: Alignment.center,
-                children: [
-                  _cameraController.value.isInitialized
-                      ? CameraPreview(_cameraController)
-                      : const Center(child: CircularProgressIndicator()),
-                  Positioned(
-                    bottom: 30,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: ElevatedButton.icon(
-                        onPressed: _captureAndClassifyImage,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF008080),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+        body:
+            _loading
+                ? const Center(child: CircularProgressIndicator())
+                : Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    _cameraController.value.isInitialized
+                        ? CameraPreview(_cameraController)
+                        : const Center(child: CircularProgressIndicator()),
+                    Positioned(
+                      bottom: 30,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: ElevatedButton.icon(
+                          onPressed: _captureAndClassifyImage,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF008080),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 14,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                        ),
-                        icon: const Icon(Icons.camera_alt, color: Colors.white),
-                        label: const Text(
-                          "Capture and Classify",
-                          style: TextStyle(color: Colors.white, fontSize: 16),
+                          icon: const Icon(
+                            Icons.camera_alt,
+                            color: Colors.white,
+                          ),
+                          label: const Text(
+                            "Capture and Classify",
+                            style: TextStyle(color: Colors.white, fontSize: 16),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
       ),
     );
   }
@@ -182,11 +188,12 @@ class _ClassifyCameraState extends State<ClassifyCamera> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ClassificationResultScreen(
-              imagePath: imageFile.path,
-              label: label,
-              userId: userId,
-            ),
+            builder:
+                (context) => ClassificationResultScreen(
+                  imagePath: imageFile.path,
+                  label: label,
+                  userId: userId,
+                ),
           ),
         );
       } else {
@@ -196,9 +203,9 @@ class _ClassifyCameraState extends State<ClassifyCamera> {
       }
     } catch (e) {
       print("Error: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 

@@ -19,9 +19,13 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // 1. Set the body background to white to match the AppBar
+      backgroundColor: Colors.white,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
+        // 2. This prevents the AppBar color from changing when scrolling in Material 3
+        surfaceTintColor: Colors.transparent,
         leadingWidth: 70,
         leading: Padding(
           padding: const EdgeInsets.only(left: 16),
@@ -40,8 +44,9 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>
-                        NotificationsScreen(userId: widget.patientId),
+                    builder:
+                        (context) =>
+                            NotificationsScreen(userId: widget.patientId),
                   ),
                 );
               },
@@ -69,7 +74,9 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(30),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                      ),
                     ),
                   ),
                 ),
@@ -100,10 +107,7 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
                       value: "desc",
                       child: Text("Newest First"),
                     ),
-                    DropdownMenuItem(
-                      value: "asc",
-                      child: Text("Oldest First"),
-                    ),
+                    DropdownMenuItem(value: "asc", child: Text("Oldest First")),
                   ],
                   onChanged: (val) {
                     if (val != null) {
@@ -118,12 +122,13 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
             const SizedBox(height: 10),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection("users")
-                    .doc(widget.patientId)
-                    .collection("records")
-                    .orderBy("createdAt", descending: _sortOrder == "desc")
-                    .snapshots(),
+                stream:
+                    FirebaseFirestore.instance
+                        .collection("users")
+                        .doc(widget.patientId)
+                        .collection("records")
+                        .orderBy("createdAt", descending: _sortOrder == "desc")
+                        .snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
@@ -142,10 +147,13 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
                     grouped[dateKey] = doc.data() as Map<String, dynamic>;
                   }
 
-                  final sortedKeys = grouped.keys.toList()
-                    ..sort((a, b) => _sortOrder == "desc"
-                        ? b.compareTo(a)
-                        : a.compareTo(b));
+                  final sortedKeys =
+                      grouped.keys.toList()..sort(
+                        (a, b) =>
+                            _sortOrder == "desc"
+                                ? b.compareTo(a)
+                                : a.compareTo(b),
+                      );
 
                   return ListView.builder(
                     itemCount: sortedKeys.length,
@@ -165,7 +173,10 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
   }
 
   Widget _recordCard(
-      BuildContext context, String dateKey, Map<String, dynamic>? data) {
+    BuildContext context,
+    String dateKey,
+    Map<String, dynamic>? data,
+  ) {
     return GestureDetector(
       onTap: () {
         try {
@@ -173,10 +184,11 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => TreatmentDetailScreen(
-                patientId: widget.patientId,
-                date: dateToNavigate,
-              ),
+              builder:
+                  (_) => TreatmentDetailScreen(
+                    patientId: widget.patientId,
+                    date: dateToNavigate,
+                  ),
             ),
           );
         } catch (e) {
@@ -189,6 +201,9 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
         }
       },
       child: Card(
+        // Set card color to white or a slight off-white to pop against the white background
+        color: Colors.white,
+        surfaceTintColor: Colors.white, // For M3 consistency
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         elevation: 2,
         margin: const EdgeInsets.symmetric(vertical: 6),

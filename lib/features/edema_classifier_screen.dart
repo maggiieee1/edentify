@@ -9,7 +9,7 @@ class EdemaClassifierScreen extends StatefulWidget {
   final String userId;
 
   const EdemaClassifierScreen({Key? key, required this.userId})
-      : super(key: key);
+    : super(key: key);
 
   @override
   State<EdemaClassifierScreen> createState() => _EdemaClassifierScreenState();
@@ -72,7 +72,8 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
   }
 
   Future<void> _takePicture() async {
-    if (!_controller!.value.isInitialized || _controller!.value.isTakingPicture) {
+    if (!_controller!.value.isInitialized ||
+        _controller!.value.isTakingPicture) {
       return;
     }
 
@@ -125,11 +126,12 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ClassificationResultScreen(
-              imagePath: imageFile.path,
-              label: label,
-              userId: widget.userId,
-            ),
+            builder:
+                (_) => ClassificationResultScreen(
+                  imagePath: imageFile.path,
+                  label: label,
+                  userId: widget.userId,
+                ),
           ),
         );
       } else {
@@ -139,9 +141,9 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
       }
     } catch (e) {
       debugPrint("Classification error: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
       setState(() => _loading = false);
     }
   }
