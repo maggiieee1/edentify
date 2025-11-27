@@ -41,144 +41,137 @@ class _ProgressionTabState extends State<ProgressionTab> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // === HEADER SECTION ===
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // FIX 1: Wrapped in Expanded to prevent horizontal overflow on small screens
-                  const Expanded(
-                    child: Text(
-                      "Patient Progression",
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.info_outline, color: Colors.blue),
-                    // Added visual density to tighten layout if needed
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder:
-                            (context) => AlertDialog(
-                              title: const Text("About Progression Graphs"),
-                              content: const Text(
-                                "These graphs help you monitor your weight and fluid status "
-                                "over time. Stable pre-weight and steady post-weight suggest "
-                                "good fluid management between dialysis sessions.",
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  child: const Text("Got it"),
-                                ),
-                              ],
-                            ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 4),
-
-              // === RANGE SELECTOR ===
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedRange,
-                        isDense: true, // Makes the dropdown more compact
-                        items: const [
-                          DropdownMenuItem(
-                            value: "Weekly",
-                            child: Text("Last 7 Days"),
-                          ),
-                          DropdownMenuItem(
-                            value: "Monthly",
-                            child: Text("Last 30 Days"),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() {
-                              _selectedRange = value;
-                            });
-                          }
-                        },
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              // === GRAPHS SECTION ===
-              const Text(
-                "Edema Severity Chart (RVSS-based)",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              // Ensure your graph widgets handle their own width constraints internally
-              const EdemaSeverityChart(),
-
-              const SizedBox(height: 24),
-              const Text(
-                "Weight Progression",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 12),
-              WeightGraph(userId: widget.userId, range: _selectedRange),
-
-              const SizedBox(height: 24),
-              const Text(
-                "Ultrafiltration Progression",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              UfGraph(userId: widget.userId, range: _selectedRange),
-
-              const SizedBox(height: 24),
-              const Text(
-                "Vital Signs Monitoring",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              VitalSignsGraph(userId: widget.userId, range: 'week'),
-
-              const SizedBox(height: 24),
-
-              // === PROGRESS SUMMARY ===
-              const Text(
-                "Progress Summary",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 12),
-              _ProgressScorecard(userId: widget.userId),
-
-              // Add bottom padding for scrolling space
-              const SizedBox(height: 30),
-            ],
+      // === APPBAR IMPLEMENTATION (Cleaned up) ===
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        // FIX 1: Logo moved to leading position
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8.0),
+          child: Image.asset(
+            'assets/logo.png',
+            height: 28,
+          ), // Using the asset logo
+        ),
+        title: const Text(
+          "Patient Progression",
+          style: TextStyle(
+            color: Colors.black87,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
           ),
+        ),
+        actions: [
+          // Optional: Add info button back if needed
+          IconButton(
+            icon: const Icon(Icons.info_outline, color: Colors.blueGrey),
+            onPressed: () {
+              // ... show info dialog ...
+            },
+          ),
+        ],
+      ),
+
+      // === END APPBAR IMPLEMENTATION ===
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // === RANGE SELECTOR (Moved back to body, aligned left) ===
+            Row(
+              mainAxisAlignment: MainAxisAlignment.start, // Aligns to the left
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedRange,
+                      isDense: true,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black87,
+                      ),
+                      icon: const Icon(
+                        Icons.calendar_month,
+                        size: 18,
+                        color: Colors.blueGrey,
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: "Weekly",
+                          child: Text("Last 7 Days"),
+                        ),
+                        DropdownMenuItem(
+                          value: "Monthly",
+                          child: Text("Last 30 Days"),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            _selectedRange = value;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            // === GRAPHS SECTION ===
+            const Text(
+              "Edema Severity Chart (RVSS-based)",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            const EdemaSeverityChart(),
+
+            const SizedBox(height: 24),
+            const Text(
+              "Weight Progression",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            WeightGraph(userId: widget.userId, range: _selectedRange),
+
+            const SizedBox(height: 24),
+            const Text(
+              "Ultrafiltration Progression",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            UfGraph(userId: widget.userId, range: _selectedRange),
+
+            const SizedBox(height: 24),
+            const Text(
+              "Vital Signs Monitoring",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            VitalSignsGraph(userId: widget.userId, range: _selectedRange),
+
+            const SizedBox(height: 24),
+
+            // === PROGRESS SUMMARY ===
+            const Text(
+              "Progress Summary",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            _ProgressScorecard(userId: widget.userId),
+
+            // Add bottom padding for scrolling space
+            const SizedBox(height: 30),
+          ],
         ),
       ),
     );
@@ -186,7 +179,7 @@ class _ProgressionTabState extends State<ProgressionTab> {
 }
 
 // =========================================================================
-// === PROGRESS SCORECARD ===
+// === PROGRESS SCORECARD (REMAINS UNCHANGED) ===
 // =========================================================================
 
 class _ProgressScorecard extends StatefulWidget {

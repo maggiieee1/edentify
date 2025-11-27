@@ -155,7 +155,11 @@ class _ClassificationResultScreenState
 
       // --- 1️⃣ Save to patient's scan history ---
       final scanDocRef =
-          firestore.collection('users').doc(userId).collection('scanHistory').doc();
+          firestore
+              .collection('users')
+              .doc(userId)
+              .collection('scanHistory')
+              .doc();
 
       await scanDocRef.set({
         'imageURL': imageUrl,
@@ -180,22 +184,29 @@ class _ClassificationResultScreenState
       });
 
       // --- 3️⃣ Notify patient ---
-      await firestore.collection('users').doc(userId).collection('notifications').add({
-        'title': 'New Edema Scan Result',
-        'message': 'Your scan has been classified as $normalizedLabel.',
-        'createdAt': FieldValue.serverTimestamp(),
-        'read': false,
-      });
+      await firestore
+          .collection('users')
+          .doc(userId)
+          .collection('notifications')
+          .add({
+            'title': 'New Edema Scan Result',
+            'message': 'Your scan has been classified as $normalizedLabel.',
+            'createdAt': FieldValue.serverTimestamp(),
+            'read': false,
+          });
 
       // --- 4️⃣ Notify doctor ---
       if (doctorId != null && doctorId.isNotEmpty) {
-        final doctorNotifRef =
-            firestore.collection('users').doc(doctorId).collection('notifications');
+        final doctorNotifRef = firestore
+            .collection('users')
+            .doc(doctorId)
+            .collection('notifications');
 
-        final oldNotifs = await doctorNotifRef
-            .where('patient_id', isEqualTo: userId)
-            .where('type', isEqualTo: 'scan_review')
-            .get();
+        final oldNotifs =
+            await doctorNotifRef
+                .where('patient_id', isEqualTo: userId)
+                .where('type', isEqualTo: 'scan_review')
+                .get();
 
         for (var doc in oldNotifs.docs) {
           await doc.reference.update({'archived': true});

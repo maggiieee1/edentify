@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart'; // ⬅️ IMPORT ADDED
 import 'scan_detail_screen.dart';
 import '../screens/notifications_screen.dart';
 
@@ -297,17 +298,28 @@ class _ScanHistoryScreenState extends State<ScanHistoryScreen> {
                                     topLeft: Radius.circular(12),
                                     bottomLeft: Radius.circular(12),
                                   ),
-                                  child: Image.network(
-                                    imageUrl,
+                                  child: CachedNetworkImage(
+                                    // ⬅️ USED CACHED NETWORK IMAGE
+                                    imageUrl: imageUrl,
                                     width: 100,
                                     height: 100,
                                     fit: BoxFit.cover,
-                                    errorBuilder:
-                                        (context, error, stackTrace) =>
-                                            const Icon(
-                                              Icons.broken_image,
-                                              size: 50,
+                                    placeholder:
+                                        (context, url) => Container(
+                                          width: 100,
+                                          height: 100,
+                                          color: Colors.black12,
+                                          child: const Center(
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
                                             ),
+                                          ),
+                                        ),
+                                    errorWidget:
+                                        (context, url, error) => const Icon(
+                                          Icons.broken_image,
+                                          size: 50,
+                                        ),
                                   ),
                                 )
                               else

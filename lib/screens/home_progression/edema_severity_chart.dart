@@ -64,7 +64,7 @@ class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
 
       // First pass: Find all FINALIZED scans. These always take priority.
       for (final doc in allDocs) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         final imageUrl = data['imageURL'] as String?;
         final isFinalized = data['isFinalized'] == true;
 
@@ -80,7 +80,7 @@ class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
       // Second pass: Add PENDING scans, but ONLY if a
       // finalized version (by imageURL) doesn't already exist.
       for (final doc in allDocs) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         final imageUrl = data['imageURL'] as String?;
         final isFinalized = data['isFinalized'] == true;
 

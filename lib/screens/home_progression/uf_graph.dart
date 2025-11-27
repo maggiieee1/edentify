@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'dart:math'; // ⬅️ IMPORT ADDED HERE
+import 'dart:math';
 
 class UfGraph extends StatefulWidget {
   final String userId;
@@ -97,39 +97,63 @@ class _UfGraphState extends State<UfGraph> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- Chart Area ---
+              // --- Chart Area (Now a Line Chart) ---
               SizedBox(
                 height: 250,
                 child: Stack(
                   children: [
-                    // The Bar Chart
-                    BarChart(
-                      BarChartData(
-                        barGroups:
+                    LineChart(
+                      LineChartData(
+                        // 1. Line Data Setup
+                        lineBarsData:
                             isDataEmpty
                                 ? []
-                                : List.generate(tempDates.length, (i) {
-                                  return BarChartGroupData(
-                                    x: i,
-                                    barsSpace: 8,
-                                    barRods: [
-                                      BarChartRodData(
-                                        toY: tempGoal[i],
-                                        color: Colors.purple,
-                                        width: 10,
-                                        borderRadius: BorderRadius.circular(2),
-                                      ),
-                                      BarChartRodData(
-                                        toY: tempRemoved[i],
-                                        color: Colors.amber,
-                                        width: 10,
-                                        borderRadius: BorderRadius.circular(2),
-                                      ),
-                                    ],
-                                  );
-                                }),
-                        gridData: FlGridData(show: true),
+                                : [
+                                  // UF Goal Line (Purple)
+                                  LineChartBarData(
+                                    spots: List.generate(tempDates.length, (i) {
+                                      return FlSpot(i.toDouble(), tempGoal[i]);
+                                    }),
+                                    isCurved: false,
+                                    color: Colors.purple,
+                                    barWidth: 2,
+                                    dotData: FlDotData(
+                                      show: true,
+                                      checkToShowDot: (spot, barData) {
+                                        // Only show dot if UF Goal == UF Removed, or if it's an end point, to reduce clutter
+                                        return tempGoal[spot.x.toInt()] ==
+                                            tempRemoved[spot.x.toInt()];
+                                      },
+                                    ),
+                                    belowBarData: BarAreaData(show: false),
+                                  ),
+                                  // UF Removed Line (Amber)
+                                  LineChartBarData(
+                                    spots: List.generate(tempDates.length, (i) {
+                                      return FlSpot(
+                                        i.toDouble(),
+                                        tempRemoved[i],
+                                      );
+                                    }),
+                                    isCurved: false,
+                                    color: Colors.amber,
+                                    barWidth: 2,
+                                    dotData: FlDotData(
+                                      show: true,
+                                    ), // Show all removed points
+                                    belowBarData: BarAreaData(show: false),
+                                  ),
+                                ],
+
+                        // 2. Axis Configuration
+                        gridData: FlGridData(
+                          show: true,
+                          drawVerticalLine: false,
+                        ),
                         borderData: FlBorderData(show: false),
+                        lineTouchData: LineTouchData(enabled: true),
+
+                        // 3. Titles (Labels)
                         titlesData: FlTitlesData(
                           leftTitles: AxisTitles(
                             axisNameWidget: const Text(
@@ -149,12 +173,12 @@ class _UfGraphState extends State<UfGraph> {
                                   ),
                             ),
                           ),
-                          // **ROBUST FIX APPLIED HERE**
+                          // **FIXED bottomTitles for improved readability (works better with Line Chart)**
                           bottomTitles: AxisTitles(
                             sideTitles: SideTitles(
-                              // Hides titles if there is no data
                               showTitles: !isDataEmpty,
-                              // Guarantees the interval is at least 1.0, preventing the crash
+                              reservedSize: 30,
+                              // Calculate interval: approx 1 label per week
                               interval: max(
                                 1.0,
                                 (tempDates.length / 7).ceil().toDouble(),
@@ -165,14 +189,17 @@ class _UfGraphState extends State<UfGraph> {
                                   return const SizedBox.shrink();
                                 }
                                 final date = tempDates[index];
-                                return Text(
-                                  DateFormat.MMMd().format(date),
-                                  style: const TextStyle(fontSize: 10),
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: Text(
+                                    DateFormat.MMMd().format(date),
+                                    style: const TextStyle(fontSize: 10),
+                                    textAlign: TextAlign.center,
+                                  ),
                                 );
                               },
                             ),
                           ),
-                          // **END OF FIX**
                           rightTitles: AxisTitles(
                             sideTitles: SideTitles(showTitles: false),
                           ),
@@ -212,21 +239,21 @@ class _UfGraphState extends State<UfGraph> {
 
               const SizedBox(height: 12),
 
-              // --- Legend (Always visible) ---
+              // --- Legend (Updated to show circles for line chart) ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: const [
-                  Icon(Icons.square, size: 12, color: Colors.purple),
+                  Icon(Icons.circle, size: 10, color: Colors.purple),
                   SizedBox(width: 4),
                   Text("UF Goal", style: TextStyle(fontSize: 12)),
                   SizedBox(width: 16),
-                  Icon(Icons.square, size: 12, color: Colors.amber),
+                  Icon(Icons.circle, size: 10, color: Colors.amber),
                   SizedBox(width: 4),
                   Text("UF Removed", style: TextStyle(fontSize: 12)),
                 ],
               ),
 
-              // --- Description (Always visible) ---
+              // --- Description ---
               const SizedBox(height: 12),
               const Text(
                 "This chart compares the planned fluid removal (UF Goal) with the actual fluid "

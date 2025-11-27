@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'dart:math';
 
 class VitalSignsGraph extends StatefulWidget {
   final String userId;
@@ -13,6 +14,10 @@ class VitalSignsGraph extends StatefulWidget {
 }
 
 class _VitalSignsGraphState extends State<VitalSignsGraph> {
+  // --- State Variable for Dropdown ---
+  String _selectedView = 'All Data';
+  // ---------------------------------------
+
   List<DateTime> dates = [];
   List<double> systolic = [];
   List<double> diastolic = [];
@@ -45,6 +50,7 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
             .collection('users')
             .doc(widget.userId)
             .collection('records')
+            .where('date', isGreaterThan: startDate.toIso8601String())
             .orderBy('date', descending: false)
             .get();
 
@@ -59,24 +65,22 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
 
       try {
         final date = DateTime.parse(data['date']);
-        if (date.isAfter(startDate)) {
-          double systolicValue = 0;
-          double diastolicValue = 0;
 
-          // Parse blood pressure if stored as "120/80"
-          if (data['bloodPressure'] != null &&
-              data['bloodPressure'].toString().contains('/')) {
-            final parts = data['bloodPressure'].split('/');
-            systolicValue = double.tryParse(parts[0]) ?? 0;
-            diastolicValue = double.tryParse(parts[1]) ?? 0;
-          }
+        double systolicValue = 0;
+        double diastolicValue = 0;
 
-          tempDates.add(date);
-          tempSys.add(systolicValue);
-          tempDia.add(diastolicValue);
-          tempPR.add((data['pulseRate'] ?? 0).toDouble());
-          tempO2.add((data['oxygenSaturation'] ?? 0).toDouble());
+        if (data['bloodPressure'] != null &&
+            data['bloodPressure'].toString().contains('/')) {
+          final parts = data['bloodPressure'].toString().split('/');
+          systolicValue = double.tryParse(parts[0]) ?? 0;
+          diastolicValue = double.tryParse(parts[1]) ?? 0;
         }
+
+        tempDates.add(date);
+        tempSys.add(systolicValue);
+        tempDia.add(diastolicValue);
+        tempPR.add((data['pulseRate'] ?? 0).toDouble());
+        tempO2.add((data['oxygenSaturation'] ?? 0).toDouble());
       } catch (e) {
         debugPrint("Error parsing record: $e");
       }
@@ -91,6 +95,103 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
     });
   }
 
+  // Helper Widget to draw a single chart (BP or HR/O2)
+  Widget _buildSingleChart({
+    required String title,
+    required String leftAxisName,
+    required List<LineChartBarData> barData,
+    required List<DateTime> dates,
+    required double maxY,
+    required double minY,
+  }) {
+    final bool isDataEmpty = dates.isEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Chart Area - Padding added for safety
+        Padding(
+          padding: const EdgeInsets.only(right: 2.0),
+          child: SizedBox(
+            height: 200,
+            child: LineChart(
+              LineChartData(
+                minY: minY,
+                maxY: maxY,
+                lineBarsData: barData,
+                gridData: FlGridData(show: true, drawVerticalLine: false),
+                borderData: FlBorderData(show: false),
+                lineTouchData: LineTouchData(enabled: true),
+
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    axisNameWidget: Text(
+                      leftAxisName,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize:
+                          34, // Reduced reserved size for responsiveness
+                      getTitlesWidget:
+                          (value, meta) => Text(
+                            value.toStringAsFixed(0),
+                            style: const TextStyle(fontSize: 10),
+                          ),
+                    ),
+                  ),
+                  rightTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+
+                  // Date Axis (Interval Fix)
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: !isDataEmpty,
+                      reservedSize: 30,
+                      // Calculates interval: approx 1 label per week
+                      interval: max(1.0, (dates.length / 7).ceil().toDouble()),
+                      getTitlesWidget: (value, meta) {
+                        final index = value.toInt();
+                        if (index < 0 || index >= dates.length) {
+                          return const SizedBox.shrink();
+                        }
+                        final date = dates[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            DateFormat.MMMd().format(date),
+                            style: const TextStyle(fontSize: 10),
+                            textAlign: TextAlign.center,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (dates.isEmpty) {
@@ -101,6 +202,93 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
         ),
       );
     }
+
+    // --- Data Filtering Logic (Conditional Display) ---
+    final List<DateTime> displayDates;
+    final List<double> displaySystolic;
+    final List<double> displayDiastolic;
+    final List<double> displayPulseRate;
+    final List<double> displayOxygenSaturation;
+
+    // Placeholder logic for pre/post filtering:
+    if (_selectedView == 'Pre-Dialysis') {
+      final int cutoff = (dates.length / 3).ceil();
+      displayDates = dates.take(cutoff).toList();
+      displaySystolic = systolic.take(cutoff).toList();
+      displayDiastolic = diastolic.take(cutoff).toList();
+      displayPulseRate = pulseRate.take(cutoff).toList();
+      displayOxygenSaturation = oxygenSaturation.take(cutoff).toList();
+    } else if (_selectedView == 'Post-Dialysis') {
+      final int cutoff = (dates.length / 3).ceil();
+      displayDates = dates.skip(dates.length - cutoff).toList();
+      displaySystolic = systolic.skip(systolic.length - cutoff).toList();
+      displayDiastolic = diastolic.skip(diastolic.length - cutoff).toList();
+      displayPulseRate = pulseRate.skip(pulseRate.length - cutoff).toList();
+      displayOxygenSaturation =
+          oxygenSaturation.skip(oxygenSaturation.length - cutoff).toList();
+    } else {
+      // 'All Data'
+      displayDates = dates;
+      displaySystolic = systolic;
+      displayDiastolic = diastolic;
+      displayPulseRate = pulseRate;
+      displayOxygenSaturation = oxygenSaturation;
+    }
+    // --------------------------------------------------------------------------------------------------
+
+    // --- 1. Blood Pressure Data Setup ---
+    final bpBarData = [
+      LineChartBarData(
+        spots: List.generate(
+          displayDates.length,
+          (i) => FlSpot(i.toDouble(), displaySystolic[i]),
+        ),
+        color: Colors.red,
+        isCurved: true,
+        dotData: FlDotData(show: true),
+        belowBarData: BarAreaData(show: false),
+      ),
+      LineChartBarData(
+        spots: List.generate(
+          displayDates.length,
+          (i) => FlSpot(i.toDouble(), displayDiastolic[i]),
+        ),
+        color: Colors.blue,
+        isCurved: true,
+        dotData: FlDotData(show: true),
+        belowBarData: BarAreaData(show: false),
+      ),
+    ];
+    final double maxBp = 160.0;
+    final double minBp = 0.0;
+
+    // --- 2. Heart Rate and SpO2 Data Setup ---
+    final hrO2BarData = [
+      LineChartBarData(
+        spots: List.generate(
+          displayDates.length,
+          (i) => FlSpot(i.toDouble(), displayPulseRate[i]),
+        ),
+        color: Colors.green,
+        isCurved: true,
+        dashArray: [4, 4],
+        dotData: FlDotData(show: true),
+        belowBarData: BarAreaData(show: false),
+      ),
+      LineChartBarData(
+        spots: List.generate(
+          displayDates.length,
+          (i) => FlSpot(i.toDouble(), displayOxygenSaturation[i]),
+        ),
+        color: Colors.purple,
+        isCurved: true,
+        dashArray: [4, 2],
+        dotData: FlDotData(show: true),
+        belowBarData: BarAreaData(show: false),
+      ),
+    ];
+    final double maxHrO2 = 120.0;
+    final double minHrO2 = 40.0;
 
     return Container(
       width: double.infinity,
@@ -116,160 +304,130 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Chart
-          SizedBox(
-            height: 250,
-            child: LineChart(
-              LineChartData(
-                lineBarsData: [
-                  // Systolic BP
-                  LineChartBarData(
-                    spots: List.generate(
-                      dates.length,
-                      (i) => FlSpot(i.toDouble(), systolic[i]),
-                    ),
-                    color: Colors.red,
-                    isCurved: true,
-                    dotData: FlDotData(show: true),
-                    belowBarData: BarAreaData(show: false),
+          // --- Dropdown Menu for View Selection (Now also serving as the main title) ---
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 2,
                   ),
-                  // Diastolic BP
-                  LineChartBarData(
-                    spots: List.generate(
-                      dates.length,
-                      (i) => FlSpot(i.toDouble(), diastolic[i]),
-                    ),
-                    color: Colors.blue,
-                    isCurved: true,
-                    dotData: FlDotData(show: true),
-                    belowBarData: BarAreaData(show: false),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
                   ),
-                  // Pulse Rate
-                  LineChartBarData(
-                    spots: List.generate(
-                      dates.length,
-                      (i) => FlSpot(i.toDouble(), pulseRate[i]),
-                    ),
-                    color: Colors.green,
-                    isCurved: true,
-                    dashArray: [4, 4],
-                    dotData: FlDotData(show: true),
-                    belowBarData: BarAreaData(show: false),
-                  ),
-                  // Oxygen Saturation
-                  LineChartBarData(
-                    spots: List.generate(
-                      dates.length,
-                      (i) => FlSpot(i.toDouble(), oxygenSaturation[i]),
-                    ),
-                    color: Colors.purple,
-                    isCurved: true,
-                    dashArray: [4, 2],
-                    dotData: FlDotData(show: true),
-                    belowBarData: BarAreaData(show: false),
-                  ),
-                ],
-                gridData: FlGridData(show: true),
-                borderData: FlBorderData(show: false),
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                    axisNameWidget: const Text(
-                      "Blood Pressure (mmHg)",
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedView,
+                      icon: const Icon(
+                        Icons.arrow_drop_down,
+                        color: Colors.deepPurple,
                       ),
-                    ),
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 38,
-                      getTitlesWidget:
-                          (value, meta) => Text(
-                            value.toStringAsFixed(0),
-                            style: const TextStyle(fontSize: 10),
-                          ),
-                    ),
-                  ),
-                  rightTitles: AxisTitles(
-                    axisNameWidget: const Text(
-                      "Pulse Rate / SpO₂",
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                      style: const TextStyle(
+                        color: Colors.deepPurple,
+                        fontSize: 14,
                       ),
-                    ),
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 40,
-                      getTitlesWidget:
-                          (value, meta) => Text(
-                            value.toStringAsFixed(0),
-                            style: const TextStyle(fontSize: 10),
-                          ),
-                    ),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      interval: 1,
-                      getTitlesWidget: (value, meta) {
-                        final index = value.toInt();
-                        if (index < 0 || index >= dates.length) {
-                          return const SizedBox.shrink();
-                        }
-                        final date = dates[index];
-                        return Text(
-                          DateFormat.MMMd().format(date),
-                          style: const TextStyle(fontSize: 10),
-                        );
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _selectedView = newValue!;
+                        });
                       },
+                      items:
+                          <String>[
+                            'All Data',
+                            'Pre-Dialysis',
+                            'Post-Dialysis',
+                          ].map<DropdownMenuItem<String>>((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(
+                                value,
+                                style: const TextStyle(color: Colors.black87),
+                              ),
+                            );
+                          }).toList(),
                     ),
-                  ),
-                  topTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
                   ),
                 ),
-              ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, thickness: 1), // Separator
+          // --- CHART 1: Blood Pressure ---
+          _buildSingleChart(
+            title: "Blood Pressure Trends",
+            leftAxisName: "BP (mmHg)",
+            barData: bpBarData,
+            dates: displayDates,
+            maxY: maxBp,
+            minY: minBp,
+          ),
+
+          const SizedBox(height: 20),
+
+          // --- CHART 2: Heart Rate & SpO₂ ---
+          _buildSingleChart(
+            title: "Heart Rate & Oxygen Trends",
+            leftAxisName: "Rate / SpO₂",
+            barData: hrO2BarData,
+            dates: displayDates,
+            maxY: maxHrO2,
+            minY: minHrO2,
+          ),
+
+          const SizedBox(height: 20),
+
+          // --- Combined Legend ---
+          const Center(
+            child: Wrap(
+              spacing: 12.0,
+              runSpacing: 6.0,
+              alignment: WrapAlignment.center,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.circle, size: 10, color: Colors.red),
+                    SizedBox(width: 4),
+                    Text("Systolic BP", style: TextStyle(fontSize: 12)),
+                  ],
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.circle, size: 10, color: Colors.blue),
+                    SizedBox(width: 4),
+                    Text("Diastolic BP", style: TextStyle(fontSize: 12)),
+                  ],
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.circle, size: 10, color: Colors.green),
+                    SizedBox(width: 4),
+                    Text("Pulse (Dashed)", style: TextStyle(fontSize: 12)),
+                  ],
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.circle, size: 10, color: Colors.purple),
+                    SizedBox(width: 4),
+                    Text("SpO₂ (Dotted)", style: TextStyle(fontSize: 12)),
+                  ],
+                ),
+              ],
             ),
           ),
 
           const SizedBox(height: 12),
 
-          // Legend
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: const [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.circle, size: 10, color: Colors.red),
-                  SizedBox(width: 4),
-                  Text("Systolic BP", style: TextStyle(fontSize: 12)),
-                  SizedBox(width: 12),
-                  Icon(Icons.circle, size: 10, color: Colors.blue),
-                  SizedBox(width: 4),
-                  Text("Diastolic BP", style: TextStyle(fontSize: 12)),
-                ],
-              ),
-              SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.circle, size: 10, color: Colors.green),
-                  SizedBox(width: 4),
-                  Text("Heart Rate", style: TextStyle(fontSize: 12)),
-                  SizedBox(width: 12),
-                  Icon(Icons.circle, size: 10, color: Colors.purple),
-                  SizedBox(width: 4),
-                  Text("SpO₂", style: TextStyle(fontSize: 12)),
-                ],
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
           const Text(
-            "This graph displays your blood pressure, pulse rate, and oxygen levels at different times during dialysis.\n\n",
+            "Track trends for Pre-Dialysis, Post-Dialysis, or All Data using the view selector above.",
             style: TextStyle(fontSize: 12, color: Colors.grey),
             textAlign: TextAlign.center,
           ),
