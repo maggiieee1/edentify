@@ -2,10 +2,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:image/image.dart' as img; // ✅ Add this package in pubspec.yaml
+// import 'package:image/image.dart' as img; // ❌ REMOVE THIS (Too slow)
+import 'package:flutter_image_compress/flutter_image_compress.dart'; // ✅ ADD THIS
 import 'package:tflite_v2/tflite_v2.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:path_provider/path_provider.dart'; // Needed to get temp directory
 import 'classification_result_screen.dart';
 
 class ImagePickerClassify extends StatefulWidget {
@@ -17,7 +19,6 @@ class ImagePickerClassify extends StatefulWidget {
 
 class _ImagePickerClassifyState extends State<ImagePickerClassify> {
   bool _loading = false;
-  bool _firebaseInitialized = false;
   File? _image;
 
   @override
@@ -25,11 +26,7 @@ class _ImagePickerClassifyState extends State<ImagePickerClassify> {
     super.initState();
     _loading = true;
 
-    _initializeFirebase().then((_) {
-      setState(() {
-        _firebaseInitialized = true;
-      });
-    });
+    _initializeFirebase();
 
     loadModel().then((value) {
       setState(() {
@@ -41,7 +38,6 @@ class _ImagePickerClassifyState extends State<ImagePickerClassify> {
   Future<void> _initializeFirebase() async {
     try {
       await Firebase.initializeApp();
-      print("Firebase initialized successfully");
     } catch (e) {
       print("Error initializing Firebase: $e");
     }
@@ -51,7 +47,7 @@ class _ImagePickerClassifyState extends State<ImagePickerClassify> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        Tflite.close();
+        // Optional: Tflite.close(); usually handled in dispose
         return true;
       },
       child: Scaffold(
@@ -73,7 +69,21 @@ class _ImagePickerClassifyState extends State<ImagePickerClassify> {
                 : Center(
                   child:
                       _image == null
-                          ? const Text("No image selected")
+                          ? const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.image_outlined,
+                                size: 100,
+                                color: Colors.grey,
+                              ),
+                              SizedBox(height: 20),
+                              Text(
+                                "Select an image from gallery",
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          )
                           : Image.file(_image!),
                 ),
         floatingActionButton: FloatingActionButton(
@@ -87,20 +97,27 @@ class _ImagePickerClassifyState extends State<ImagePickerClassify> {
 
   Future<void> _pickAndClassifyImage() async {
     final picker = ImagePicker();
-    XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    XFile? pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
-    if (image == null) return;
-
-    File imageFile = await _convertToJpgIfNeeded(File(image.path));
+    if (pickedFile == null) return;
 
     setState(() {
       _loading = true;
-      _image = imageFile;
     });
 
     try {
+      // ⚡️ OPTIMIZATION: Compress & Convert to JPG immediately
+      // This handles HEIC conversion automatically and resizes the image
+      // so TFLite doesn't crash on large inputs.
+      File optimizedFile = await _compressAndConvertFile(File(pickedFile.path));
+
+      setState(() {
+        _image = optimizedFile;
+      });
+
+      // Run TFLite on the OPTIMIZED file (much faster)
       var output = await Tflite.runModelOnImage(
-        path: imageFile.path,
+        path: optimizedFile.path,
         numResults: 5,
         threshold: 0.5,
         imageMean: 127.5,
@@ -112,73 +129,80 @@ class _ImagePickerClassifyState extends State<ImagePickerClassify> {
       });
 
       if (output != null && output.isNotEmpty) {
+        // Clean label text
         final label = output[0]["label"].toString().replaceAll(
           RegExp(r'\d'),
           '',
         );
+
         final user = FirebaseAuth.instance.currentUser;
         final userId = user?.uid ?? 'unknown_user';
+
+        if (!mounted) return; // 🛡️ Safety check before navigation
 
         Navigator.push(
           context,
           MaterialPageRoute(
             builder:
                 (context) => ClassificationResultScreen(
-                  imagePath: imageFile.path,
+                  imagePath: optimizedFile.path, // Pass the optimized path
                   label: label,
                   userId: userId,
                 ),
           ),
         );
       } else {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No classification result')),
         );
       }
     } catch (e) {
       print("Error: $e");
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
-      setState(() {
-        _loading = false;
-      });
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        setState(() {
+          _loading = false;
+        });
+      }
     }
   }
 
-  // ✅ Converts HEIF/HEIC files to JPG before classification
-  Future<File> _convertToJpgIfNeeded(File file) async {
-    final ext = file.path.split('.').last.toLowerCase();
-    if (ext == 'heic' || ext == 'heif') {
-      try {
-        final bytes = await file.readAsBytes();
-        final decoded = img.decodeImage(bytes);
-        if (decoded != null) {
-          final jpgPath = file.path.replaceAll(
-            RegExp(r'\.heic|\.heif', caseSensitive: false),
-            '.jpg',
-          );
-          final jpgFile = File(jpgPath)
-            ..writeAsBytesSync(img.encodeJpg(decoded, quality: 95));
-          print('✅ Converted HEIF to JPG: ${jpgFile.path}');
-          return jpgFile;
-        } else {
-          print('⚠️ Failed to decode HEIF, using original');
-          return file;
-        }
-      } catch (e) {
-        print('Error converting HEIF to JPG: $e');
-        return file;
-      }
+  // 🚀 FAST Native Compression & Conversion
+  Future<File> _compressAndConvertFile(File file) async {
+    final lastIndex = file.path.lastIndexOf(RegExp(r'.jp'));
+    final splitted = file.path.substring(0, (lastIndex));
+    final outPath = "${splitted}_out.jpg";
+
+    // If it's already a reasonable size/format, this library is smart enough
+    // to handle it efficiently.
+    // 1080px is plenty for TFLite and saves memory.
+    final result = await FlutterImageCompress.compressAndGetFile(
+      file.absolute.path,
+      outPath,
+      quality: 85,
+      minWidth: 1080,
+      minHeight: 1080,
+    );
+
+    if (result == null) {
+      return file; // Fallback to original if compression fails
     }
-    return file;
+
+    return File(result.path);
   }
 
   Future<void> loadModel() async {
-    await Tflite.loadModel(
-      model: "assets/model_unquant.tflite",
-      labels: "assets/labels.txt",
-    );
+    try {
+      await Tflite.loadModel(
+        model: "assets/model_unquant.tflite",
+        labels: "assets/labels.txt",
+      );
+    } catch (e) {
+      print("Error loading model: $e");
+    }
   }
 
   @override
