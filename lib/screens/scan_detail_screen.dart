@@ -39,7 +39,6 @@ class ScanDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // --- Data Extraction ---
     final result = scanData['result'] ?? 'No result';
     final imageUrl = scanData['imageURL'] ?? '';
 
@@ -49,40 +48,30 @@ class ScanDetailsScreen extends StatelessWidget {
             ? DateFormat('yyyy-MM-dd – hh:mm a').format(timestamp)
             : 'Unknown time';
 
-    // 🟢 START: NEW LOGIC
-    // Get fields based on what PatientHistoryScreen.dart *actually* saves.
     final notes = scanData['doctor_note'] ?? 'No additional notes';
     final bool hasDoctorNote = scanData['doctor_note'] != null;
 
-    // A record is "finalized" when the doctor moves it from pending.
     final bool isFinalized = scanData['isFinalized'] == true;
     final bool hasDoctorReviewId = scanData['reviewed_by_doctorId'] != null;
     final doctorName = scanData['reviewed_by_doctorName'];
 
-    // Any of these actions mean a doctor has touched the record.
     final bool isReviewedByDoctor =
         isFinalized || hasDoctorReviewId || hasDoctorNote;
 
-    // --- Logic for Doctor Classification Display Text ---
     String doctorClassificationBodyText;
     if (isFinalized || hasDoctorReviewId) {
-      // Case 1: The record is finalized. The 'result' *is* the final classification.
       doctorClassificationBodyText = "Doctor's final classification: $result";
       if (doctorName != null) {
         doctorClassificationBodyText =
             "Final classification by $doctorName: $result";
       }
     } else if (hasDoctorNote) {
-      // Case 2: (YOUR SCREENSHOT) A note was saved, but not finalized.
       doctorClassificationBodyText =
           "Doctor has reviewed this scan (see notes).";
     } else {
-      // Case 3: Truly untouched by a doctor.
       doctorClassificationBodyText = "Not classified by doctor yet";
     }
-    // 🟢 END: NEW LOGIC
 
-    // --- Colors ---
     final resultColor = _getResultColor(result);
     final cardColor = _getCardColor(result);
     final textTheme = Theme.of(context).textTheme;
@@ -94,7 +83,7 @@ class ScanDetailsScreen extends StatelessWidget {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
-        backgroundColor: const Color(0xFF056C5B), // Teal color
+        backgroundColor: const Color(0xFF056C5B),
         elevation: 2,
       ),
       body: SingleChildScrollView(
@@ -102,15 +91,14 @@ class ScanDetailsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // --- Image ---
             if (imageUrl.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: Image.network(
                   imageUrl,
                   width: double.infinity,
-                  height: 250, // Keep a consistent height
-                  fit: BoxFit.contain, // Use contain to see the whole image
+                  height: 250,
+                  fit: BoxFit.contain,
                   loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) return child;
                     return Center(
@@ -137,7 +125,6 @@ class ScanDetailsScreen extends StatelessWidget {
               ),
             const SizedBox(height: 24),
 
-            // --- Centered Result & Status ---
             Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -157,8 +144,6 @@ class ScanDetailsScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
 
-                // --- Doctor Status (Approved/Pending) ---
-                // 🟢 Use the new 'isReviewedByDoctor' logic
                 if (isReviewedByDoctor)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -170,7 +155,7 @@ class ScanDetailsScreen extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Reviewed by doctor', // More accurate than "Approved"
+                        'Reviewed by doctor',
                         style: TextStyle(
                           color: Colors.green.shade700,
                           fontSize: 16,
@@ -179,7 +164,7 @@ class ScanDetailsScreen extends StatelessWidget {
                       ),
                     ],
                   )
-                else // ONLY show pending if no review at all
+                else
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -206,7 +191,6 @@ class ScanDetailsScreen extends StatelessWidget {
             const Divider(thickness: 1),
             const SizedBox(height: 16),
 
-            // --- Timestamp ---
             Text(
               'Scan Time',
               style: textTheme.titleMedium?.copyWith(
@@ -220,7 +204,6 @@ class ScanDetailsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // --- Doctor's Card ---
             Card(
               color: cardColor,
               shape: RoundedRectangleBorder(
@@ -237,7 +220,6 @@ class ScanDetailsScreen extends StatelessWidget {
                       context,
                       icon: Icons.medical_services_outlined,
                       title: 'Doctor Classification',
-                      // 🟢 Use the new display text variable
                       body: doctorClassificationBodyText,
                       color: resultColor,
                     ),
@@ -246,7 +228,7 @@ class ScanDetailsScreen extends StatelessWidget {
                       context,
                       icon: Icons.notes_outlined,
                       title: 'Doctor Notes',
-                      body: notes, // This remains the same
+                      body: notes,
                       color: Colors.black54,
                     ),
                   ],
@@ -259,7 +241,6 @@ class ScanDetailsScreen extends StatelessWidget {
     );
   }
 
-  // Helper widget to build consistent rows in the card
   Widget _buildDoctorInfoRow(
     BuildContext context, {
     required IconData icon,

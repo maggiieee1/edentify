@@ -85,7 +85,7 @@ class AuthWrapper extends StatelessWidget {
           return const SplashScreen();
         } else if (snapshot.hasData && snapshot.data != null) {
           final userId = snapshot.data!.uid;
-          _setupUserNotifications(userId); // 🧩 Run setup once user logs in
+          _setupUserNotifications(userId);
           return MainNavigation(userId: userId);
         } else {
           return const SplashScreen();

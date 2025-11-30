@@ -1,7 +1,7 @@
 // FILE: lib/screens/landing_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // ✅ 1. Add this import
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LandingScreen extends StatelessWidget {
   const LandingScreen({super.key});
@@ -15,7 +15,6 @@ class LandingScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // Top welcome section (no changes here)
             Expanded(
               flex: 2,
               child: Padding(
@@ -52,7 +51,6 @@ class LandingScreen extends StatelessWidget {
               ),
             ),
 
-            // Bottom action section (changes are here)
             Expanded(
               flex: 1,
               child: Container(
@@ -87,14 +85,11 @@ class LandingScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      // ✅ 2. Make the function async
                       onPressed: () async {
-                        // ✅ 3. Sign out the current user first
                         await FirebaseAuth.instance.signOut();
 
-                        // Now, navigate to the center selection screen
                         if (context.mounted) {
-                           Navigator.pushNamed(context, '/centerSelection');
+                          Navigator.pushNamed(context, '/centerSelection');
                         }
                       },
                       child: Text(

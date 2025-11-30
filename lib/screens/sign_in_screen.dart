@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'center_selection_screen.dart';
-import '../utils/hash_utils.dart'; // adjust path as needed
+import '../utils/hash_utils.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -57,7 +57,9 @@ class _SignInScreenState extends State<SignInScreen> {
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(backgroundColor: Color(0xFF056C5B)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFF056C5B),
+                ),
                 child: Text('Accept'),
               ),
             ],
@@ -124,9 +126,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-        builder: (_) => const CenterSelectionScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const CenterSelectionScreen()),
       );
     } on FirebaseAuthException catch (e) {
       String message = 'Failed to register.';
@@ -245,7 +245,9 @@ class _SignInScreenState extends State<SignInScreen> {
                       ),
                       child:
                           _isSendingCode
-                              ? CircularProgressIndicator(color: Color(0xFF056C5B))
+                              ? CircularProgressIndicator(
+                                color: Color(0xFF056C5B),
+                              )
                               : Text(
                                 'Sign In',
                                 style: TextStyle(

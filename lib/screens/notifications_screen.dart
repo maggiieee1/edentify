@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../screens/treatment_detail_screen.dart';
-import 'realtime_notifications.dart'; // 👈 ADD THIS import
+import 'realtime_notifications.dart';
 
 class NotificationsScreen extends StatefulWidget {
   final String userId;
@@ -14,31 +14,27 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  RealtimeNotifications? _notificationListener; // 👈 ADD THIS
+  RealtimeNotifications? _notificationListener;
 
   @override
   void initState() {
     super.initState();
 
-    // 🟢 Start real-time listener but disable pop-up (since we're already on this screen)
     _notificationListener = RealtimeNotifications(userId: widget.userId);
     _notificationListener!.startListening(
       context,
       isOnNotificationScreen: true,
     );
 
-    // ✅ Automatically mark all unread notifications as read
     markAllAsRead(widget.userId);
   }
 
   @override
   void dispose() {
-    // 🔴 Stop listener when leaving screen to prevent duplicate streams
     _notificationListener?.stopListening();
     super.dispose();
   }
 
-  // ✅ Automatically mark all unread notifications as read
   void markAllAsRead(String userId) async {
     final unread =
         await FirebaseFirestore.instance
@@ -107,7 +103,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               final recordDate = data['recordDate'];
               final sessionType = data['sessionType'];
 
-              // 🎨 Define label and card colors
               String sessionLabel = '';
               Color cardColor = Colors.white;
 

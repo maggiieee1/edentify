@@ -14,17 +14,15 @@ class TreatmentRecordScreen extends StatefulWidget {
 }
 
 class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
-  String _sortOrder = "desc"; // default: newest first
+  String _sortOrder = "desc";
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // 1. Set the body background to white to match the AppBar
       backgroundColor: Colors.white,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
-        // 2. This prevents the AppBar color from changing when scrolling in Material 3
         surfaceTintColor: Colors.transparent,
         leadingWidth: 70,
         leading: Padding(
@@ -85,9 +83,7 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
                   backgroundColor: const Color(0xFF0CB49D),
                   child: IconButton(
                     icon: const Icon(Icons.add, color: Colors.white),
-                    onPressed: () {
-                      // TODO: Add new treatment record
-                    },
+                    onPressed: () {},
                   ),
                 ),
               ],
@@ -139,10 +135,9 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
                     );
                   }
 
-                  // 🩺 Group records by date (ignore _pre / _post)
                   final grouped = <String, Map<String, dynamic>>{};
                   for (final doc in snapshot.data!.docs) {
-                    final id = doc.id; // e.g. "2025-10-19_pre"
+                    final id = doc.id;
                     final dateKey = id.split('_').first;
                     grouped[dateKey] = doc.data() as Map<String, dynamic>;
                   }
@@ -201,9 +196,8 @@ class _TreatmentRecordScreenState extends State<TreatmentRecordScreen> {
         }
       },
       child: Card(
-        // Set card color to white or a slight off-white to pop against the white background
         color: Colors.white,
-        surfaceTintColor: Colors.white, // For M3 consistency
+        surfaceTintColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         elevation: 2,
         margin: const EdgeInsets.symmetric(vertical: 6),

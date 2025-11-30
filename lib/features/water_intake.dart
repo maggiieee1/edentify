@@ -46,12 +46,13 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
     final now = DateTime.now();
     final dateKey = DateFormat('yyyy-MM-dd').format(now);
 
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.userId)
-        .collection('waterIntake')
-        .doc(dateKey)
-        .get();
+    final doc =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.userId)
+            .collection('waterIntake')
+            .doc(dateKey)
+            .get();
 
     if (doc.exists) {
       final data = doc.data()!;
@@ -132,26 +133,27 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
   void _showAlertThresholdDialogAndRedirect() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Hydration Alert'),
-        content: Text(
-          'You have consumed $totalMl ml of water today. Make sure to monitor your intake.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => MainNavigation(userId: widget.userId),
-                ),
-              );
-            },
-            child: const Text('OK'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Hydration Alert'),
+            content: Text(
+              'You have consumed $totalMl ml of water today. Make sure to monitor your intake.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MainNavigation(userId: widget.userId),
+                    ),
+                  );
+                },
+                child: const Text('OK'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -162,21 +164,14 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leadingWidth: 70, // ✅ same as SettingsScreen
+        leadingWidth: 70,
         leading: Padding(
           padding: const EdgeInsets.only(left: 16),
-          child: Image.asset(
-            'assets/logo.png',
-            height: 40, // ✅ exact match
-            width: 40,
-          ),
+          child: Image.asset('assets/logo.png', height: 40, width: 40),
         ),
         title: const Text(
           'Water Intake',
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
         actions: [
@@ -184,14 +179,14 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
             icon: const Icon(
               Icons.notifications_none_rounded,
               color: Colors.black,
-              size: 32, // ✅ same visual scale as SettingsScreen
+              size: 32,
             ),
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      NotificationsScreen(userId: widget.userId),
+                  builder:
+                      (context) => NotificationsScreen(userId: widget.userId),
                 ),
               );
             },
@@ -273,17 +268,23 @@ class _UpdateWaterIntakeScreenState extends State<UpdateWaterIntakeScreen> {
                 initialValue: null,
                 onChanged: (value) {
                   if (value != null) {
-                    final ml = int.tryParse(
-                            value.split('(')[1].replaceAll('ml)', '')) ??
+                    final ml =
+                        int.tryParse(
+                          value.split('(')[1].replaceAll('ml)', ''),
+                        ) ??
                         0;
                     setState(() {
                       _waterController.text = ml.toString();
                     });
                   }
                 },
-                items: cupSuggestions.map((option) {
-                  return DropdownMenuItem(value: option, child: Text(option));
-                }).toList(),
+                items:
+                    cupSuggestions.map((option) {
+                      return DropdownMenuItem(
+                        value: option,
+                        child: Text(option),
+                      );
+                    }).toList(),
               ),
 
               const SizedBox(height: 24),

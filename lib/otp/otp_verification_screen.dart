@@ -20,15 +20,15 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    final args =
+        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
     userId = args['uid'];
     phone = args['phone'] ?? '';
     verificationId = args['verificationId'];
 
-    _sendOtp(); // send OTP automatically on screen open
+    _sendOtp();
   }
 
-  /// 🔹 Send OTP via Firebase Phone Auth
   Future<void> _sendOtp() async {
     setState(() {
       _isLoading = true;
@@ -68,7 +68,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     }
   }
 
-  /// 🔹 Verify OTP
   Future<void> _verifyOtp() async {
     final otp = _otpController.text.trim();
 
@@ -100,9 +99,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   }
 
   void _goToHome() {
-    Navigator.pushReplacementNamed(context, '/home', arguments: {
-      'uid': userId,
-    });
+    Navigator.pushReplacementNamed(
+      context,
+      '/home',
+      arguments: {'uid': userId},
+    );
   }
 
   @override
@@ -131,21 +132,15 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             ),
             const SizedBox(height: 20),
             if (_errorMessage != null)
-              Text(
-                _errorMessage!,
-                style: const TextStyle(color: Colors.red),
-              ),
+              Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
             const SizedBox(height: 20),
             _isLoading
                 ? const CircularProgressIndicator()
                 : ElevatedButton(
-                    onPressed: _verifyOtp,
-                    child: const Text("Verify OTP"),
-                  ),
-            TextButton(
-              onPressed: _sendOtp,
-              child: const Text("Resend OTP"),
-            ),
+                  onPressed: _verifyOtp,
+                  child: const Text("Verify OTP"),
+                ),
+            TextButton(onPressed: _sendOtp, child: const Text("Resend OTP")),
           ],
         ),
       ),

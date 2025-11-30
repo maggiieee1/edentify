@@ -15,7 +15,7 @@ class RecordScreen extends StatefulWidget {
 
 class _RecordScreenState extends State<RecordScreen> {
   late Future<Map<String, List<DateTime>>> _dateMapFuture;
-  String _sortOrder = "desc"; // default: newest first
+  String _sortOrder = "desc";
 
   @override
   void initState() {
@@ -26,23 +26,26 @@ class _RecordScreenState extends State<RecordScreen> {
   Future<Map<String, List<DateTime>>> _fetchAndGroupDates() async {
     final firestore = FirebaseFirestore.instance;
 
-    final waterDocs = await firestore
-        .collection('users')
-        .doc(widget.userId)
-        .collection('waterIntake')
-        .get();
+    final waterDocs =
+        await firestore
+            .collection('users')
+            .doc(widget.userId)
+            .collection('waterIntake')
+            .get();
 
-    final treatmentDocs = await firestore
-        .collection('users')
-        .doc(widget.userId)
-        .collection('treatment_data')
-        .get();
+    final treatmentDocs =
+        await firestore
+            .collection('users')
+            .doc(widget.userId)
+            .collection('treatment_data')
+            .get();
 
-    final recordDocs = await firestore
-        .collection('users')
-        .doc(widget.userId)
-        .collection('records')
-        .get();
+    final recordDocs =
+        await firestore
+            .collection('users')
+            .doc(widget.userId)
+            .collection('records')
+            .get();
 
     final Set<DateTime> uniqueDates = {};
 
@@ -59,11 +62,11 @@ class _RecordScreenState extends State<RecordScreen> {
       }
     }
 
-    // Sort based on _sortOrder
-    List<DateTime> sortedDates = uniqueDates.toList()
-      ..sort((a, b) => _sortOrder == "desc" ? b.compareTo(a) : a.compareTo(b));
+    List<DateTime> sortedDates =
+        uniqueDates.toList()..sort(
+          (a, b) => _sortOrder == "desc" ? b.compareTo(a) : a.compareTo(b),
+        );
 
-    // Group by month-year
     Map<String, List<DateTime>> grouped = {};
     for (var date in sortedDates) {
       final monthKey = DateFormat('yyyy MMMM').format(date);
@@ -90,11 +93,7 @@ class _RecordScreenState extends State<RecordScreen> {
         leadingWidth: 70,
         leading: Padding(
           padding: const EdgeInsets.only(left: 16),
-          child: Image.asset(
-            'assets/logo.png',
-            height: 40, // ✅ same as home_screen
-            width: 40,  // ✅ same as home_screen
-          ),
+          child: Image.asset('assets/logo.png', height: 40, width: 40),
         ),
         actions: [
           Padding(
@@ -103,7 +102,7 @@ class _RecordScreenState extends State<RecordScreen> {
               icon: const Icon(
                 Icons.notifications_none,
                 color: Colors.black,
-                size: 32, // ✅ same as home_screen
+                size: 32,
               ),
               onPressed: () {
                 Navigator.push(
@@ -131,7 +130,6 @@ class _RecordScreenState extends State<RecordScreen> {
             return ListView(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               children: [
-                // ✅ Title + Sort Dropdown
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -163,7 +161,6 @@ class _RecordScreenState extends State<RecordScreen> {
 
                 const SizedBox(height: 12),
 
-                // ✅ Records grouped by month
                 for (var entry in groupedDates.entries) ...[
                   Text(
                     entry.key,
@@ -191,10 +188,11 @@ class _RecordScreenState extends State<RecordScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => PatientRecordScreen(
-                                userId: widget.userId,
-                                selectedDate: date,
-                              ),
+                              builder:
+                                  (_) => PatientRecordScreen(
+                                    userId: widget.userId,
+                                    selectedDate: date,
+                                  ),
                             ),
                           );
                         },

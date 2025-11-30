@@ -289,8 +289,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // --- ⭐️ MODIFICATION START ⭐️ ---
-                    // Added a new section to count pre-dialysis sessions
                     _buildSectionTitle("Total Dialysis Sessions"),
                     StreamBuilder<QuerySnapshot>(
                       stream:
@@ -325,7 +323,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // --- ⭐️ MODIFICATION END ⭐️ ---
                     _buildContactSection(user),
                     const SizedBox(height: 20),
                     const Divider(color: Colors.teal),

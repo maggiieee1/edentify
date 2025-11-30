@@ -5,8 +5,7 @@ import 'dart:math';
 
 class WeightGraph extends StatefulWidget {
   final String userId;
-  final DateTime selectedMonth; // 1. Changed from String range to DateTime
-
+  final DateTime selectedMonth;
   const WeightGraph({
     super.key,
     required this.userId,
@@ -29,20 +28,17 @@ class _WeightGraphState extends State<WeightGraph> {
   @override
   void didUpdateWidget(covariant WeightGraph oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 2. Check if the month changed
     if (oldWidget.selectedMonth != widget.selectedMonth) {
       _updateStream();
     }
   }
 
   void _updateStream() {
-    // 3. Calculate Start and End of the selected month
     final startOfMonth = DateTime(
       widget.selectedMonth.year,
       widget.selectedMonth.month,
       1,
     );
-    // Calculate first day of the *next* month to use as an upper limit
     final endOfMonth = DateTime(
       widget.selectedMonth.year,
       widget.selectedMonth.month + 1,
@@ -53,9 +49,7 @@ class _WeightGraphState extends State<WeightGraph> {
         .collection('users')
         .doc(widget.userId)
         .collection('records')
-        // Filter: Date is greater than or equal to start of month...
         .where('date', isGreaterThanOrEqualTo: startOfMonth.toIso8601String())
-        // ...and strictly less than the start of the next month
         .where('date', isLessThan: endOfMonth.toIso8601String())
         .orderBy('date', descending: false);
 
@@ -64,7 +58,6 @@ class _WeightGraphState extends State<WeightGraph> {
     });
   }
 
-  // Safe parsing helper
   double _parseWeight(dynamic value) {
     if (value == null) return 0.0;
     if (value is double) return value;
@@ -80,7 +73,6 @@ class _WeightGraphState extends State<WeightGraph> {
     return StreamBuilder<QuerySnapshot>(
       stream: _recordStream,
       builder: (context, snapshot) {
-        // --- Data Processing ---
         final tempDates = <DateTime>[];
         final tempPre = <double>[];
         final tempPost = <double>[];
@@ -102,13 +94,11 @@ class _WeightGraphState extends State<WeightGraph> {
 
         final bool isDataEmpty = tempDates.isEmpty;
 
-        // Calculate interval safely
         final double bottomInterval = max(
           1.0,
           (tempDates.length / 5).ceil().toDouble(),
         );
 
-        // --- Build UI ---
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -124,19 +114,16 @@ class _WeightGraphState extends State<WeightGraph> {
           ),
           child: Column(
             children: [
-              // --- Chart Area ---
               SizedBox(
                 height: 250,
                 child: Stack(
                   children: [
-                    // The Chart
                     LineChart(
                       LineChartData(
                         lineBarsData:
                             isDataEmpty
                                 ? []
                                 : [
-                                  // Post-Weight Line (Blue)
                                   LineChartBarData(
                                     spots: List.generate(
                                       tempPost.length,
@@ -147,7 +134,6 @@ class _WeightGraphState extends State<WeightGraph> {
                                     barWidth: 3,
                                     dotData: const FlDotData(show: true),
                                   ),
-                                  // Pre-Weight Line (Green)
                                   LineChartBarData(
                                     spots: List.generate(
                                       tempPre.length,
@@ -186,7 +172,6 @@ class _WeightGraphState extends State<WeightGraph> {
                                 }
                                 final date = tempDates[index];
                                 return Text(
-                                  // Show Day only (e.g., "12") or Month/Day ("10/12")
                                   "${date.month}/${date.day}",
                                   style: const TextStyle(fontSize: 10),
                                 );
@@ -204,11 +189,9 @@ class _WeightGraphState extends State<WeightGraph> {
                       ),
                     ),
 
-                    // --- Loading Indicator ---
                     if (snapshot.connectionState == ConnectionState.waiting)
                       const Center(child: CircularProgressIndicator()),
 
-                    // --- Error Message ---
                     if (snapshot.hasError)
                       const Center(
                         child: Text(
@@ -217,7 +200,6 @@ class _WeightGraphState extends State<WeightGraph> {
                         ),
                       ),
 
-                    // --- No Data Message (Overlay) ---
                     if (!snapshot.hasError &&
                         snapshot.connectionState != ConnectionState.waiting &&
                         isDataEmpty)
@@ -231,7 +213,6 @@ class _WeightGraphState extends State<WeightGraph> {
                 ),
               ),
 
-              // --- Legend and Description ---
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,

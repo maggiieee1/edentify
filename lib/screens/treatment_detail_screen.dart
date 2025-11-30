@@ -22,7 +22,6 @@ class _TreatmentDetailScreenState extends State<TreatmentDetailScreen> {
 
   DateTime get endOfDayUtc => startOfDayUtc.add(const Duration(days: 1));
 
-  // Firestore document IDs are like "2025-10-19_pre"
   String get dateKey => DateFormat('yyyy-MM-dd').format(widget.date);
 
   @override
@@ -62,7 +61,6 @@ class _TreatmentDetailScreenState extends State<TreatmentDetailScreen> {
     );
   }
 
-  /// --- SECTION: Edema Scan History ---
   Widget _buildScanHistorySection() {
     return FutureBuilder<QuerySnapshot>(
       future:
@@ -76,7 +74,7 @@ class _TreatmentDetailScreenState extends State<TreatmentDetailScreen> {
               )
               .where('timestamp', isLessThan: Timestamp.fromDate(endOfDayUtc))
               .orderBy('timestamp', descending: true)
-              .limit(1) // Fetches the latest scan for that day
+              .limit(1)
               .get(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -89,7 +87,6 @@ class _TreatmentDetailScreenState extends State<TreatmentDetailScreen> {
           );
         }
 
-        // Use the fields from patient_history_screen.dart
         final data = snapshot.data!.docs.first.data() as Map<String, dynamic>;
         final note = data['doctor_note'] ?? 'No notes from the doctor.';
         final result = data['result'] ?? 'N/A';
@@ -153,7 +150,6 @@ class _TreatmentDetailScreenState extends State<TreatmentDetailScreen> {
     );
   }
 
-  /// --- SECTION: Vital Signs (Now shows both PRE and POST) ---
   Widget _buildVitalsSection() {
     return FutureBuilder<List<DocumentSnapshot>>(
       future: _getBothRecords(),
@@ -205,7 +201,6 @@ class _TreatmentDetailScreenState extends State<TreatmentDetailScreen> {
         .doc(widget.patientId)
         .collection('records');
 
-    // This fetches both documents in parallel
     final results = await Future.wait([
       recordsRef.doc("${dateKey}_pre").get(),
       recordsRef.doc("${dateKey}_post").get(),
@@ -214,13 +209,9 @@ class _TreatmentDetailScreenState extends State<TreatmentDetailScreen> {
     return results;
   }
 
-  // --- ⭐️ MODIFICATION START ⭐️ ---
-  //    Updated to use the exact fields from your AddPatientRecordScreen
   Widget _buildSection(String title, Map<String, dynamic> data) {
     final isPost = title.toLowerCase().contains("post");
 
-    // Use exact field names from your "write" code
-    // Convert to string and handle nulls
     final weight =
         (isPost
             ? data['postWeight']?.toString()
@@ -272,7 +263,6 @@ class _TreatmentDetailScreenState extends State<TreatmentDetailScreen> {
           isBold: true,
         ),
 
-        // Conditionally show UF Goal or UF Removed
         if (!isPost) _buildDetailRow("UF Goal:", "$ufGoal L"),
         if (isPost) _buildDetailRow("UF Removed:", "$ufRemoved L"),
 
@@ -280,9 +270,7 @@ class _TreatmentDetailScreenState extends State<TreatmentDetailScreen> {
       ],
     );
   }
-  // --- ⭐️ MODIFICATION END ⭐️ ---
 
-  // --- Helper UI components ---
   Widget _buildInfoCard(
     String title,
     String message, {

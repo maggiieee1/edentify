@@ -8,7 +8,10 @@ class RealtimeNotifications {
 
   RealtimeNotifications({required this.userId});
 
-  void startListening(BuildContext context, {bool isOnNotificationScreen = false}) {
+  void startListening(
+    BuildContext context, {
+    bool isOnNotificationScreen = false,
+  }) {
     final notificationsRef = FirebaseFirestore.instance
         .collection('users')
         .doc(userId)
@@ -26,7 +29,6 @@ class RealtimeNotifications {
           final isRead = data['read'] ?? false;
           if (isRead) continue;
 
-          // 🚫 No SnackBar, no visual pop-up — completely silent
           debugPrint("📡 New notification detected (silent mode).");
         }
       }

@@ -4,7 +4,7 @@ import 'settings/account_settings_screen.dart';
 import 'settings/about_edentify.dart';
 
 class SettingsScreen extends StatelessWidget {
-  final String userId; // ✅ Pass userId into this screen
+  final String userId;
 
   const SettingsScreen({super.key, required this.userId});
 
@@ -15,21 +15,14 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leadingWidth: 70, // ✅ match HomeScreen and ProfileScreen
+        leadingWidth: 70,
         leading: Padding(
           padding: const EdgeInsets.only(left: 16),
-          child: Image.asset(
-            'assets/logo.png',
-            height: 40, // ✅ same logo size
-            width: 40,
-          ),
+          child: Image.asset('assets/logo.png', height: 40, width: 40),
         ),
         title: const Text(
           'Settings',
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
@@ -73,7 +66,6 @@ class SettingsScreen extends StatelessWidget {
                   builder: (context) => const AboutEdentifyScreen(),
                 ),
               );
-              // TODO: Navigate to About Screen
             },
           ),
           _buildSettingsTile(
@@ -83,27 +75,27 @@ class SettingsScreen extends StatelessWidget {
             onTap: () async {
               final shouldLogout = await showDialog<bool>(
                 context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text("Confirm Logout"),
-                  content: const Text("Are you sure you want to log out?"),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text("Cancel"),
+                builder:
+                    (context) => AlertDialog(
+                      title: const Text("Confirm Logout"),
+                      content: const Text("Are you sure you want to log out?"),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text("Cancel"),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text(
+                            "Log Out",
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ],
                     ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text(
-                        "Log Out",
-                        style: TextStyle(color: Colors.red),
-                      ),
-                    ),
-                  ],
-                ),
               );
 
               if (shouldLogout == true) {
-                // ✅ Clear navigation stack and go back to landing
                 Navigator.pushNamedAndRemoveUntil(
                   context,
                   '/landing',

@@ -19,7 +19,6 @@ class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
     'Severe',
   ];
 
-  // Define colors for each grade
   static const List<Color> _gradeColors = [
     Colors.green,
     Colors.yellow,
@@ -36,7 +35,6 @@ class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
     _fetchEdemaData();
   }
 
-  // 🟢 ENTIRELY UPDATED FUNCTION
   Future<void> _fetchEdemaData() async {
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -47,22 +45,18 @@ class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
         return;
       }
 
-      // Fetch all scans
       final snapshot =
           await FirebaseFirestore.instance
               .collection('users')
               .doc(uid)
               .collection('scanHistory')
-              // We must sort by timestamp for the chart to be correct
               .orderBy('timestamp', descending: false)
               .get();
 
-      // 🟢 START: DE-DUPLICATION LOGIC
       final allDocs = snapshot.docs;
       final Map<String, QueryDocumentSnapshot> processedDocs = {};
       final Set<String> finalizedImageURLs = {};
 
-      // First pass: Find all FINALIZED scans. These always take priority.
       for (final doc in allDocs) {
         final data = doc.data();
         final imageUrl = data['imageURL'] as String?;
@@ -71,14 +65,11 @@ class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
         if (isFinalized) {
           if (imageUrl != null && imageUrl.isNotEmpty) {
             finalizedImageURLs.add(imageUrl);
-            processedDocs[imageUrl] =
-                doc; // Add/overwrite with the finalized doc
+            processedDocs[imageUrl] = doc;
           }
         }
       }
 
-      // Second pass: Add PENDING scans, but ONLY if a
-      // finalized version (by imageURL) doesn't already exist.
       for (final doc in allDocs) {
         final data = doc.data();
         final imageUrl = data['imageURL'] as String?;
@@ -90,17 +81,14 @@ class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
               processedDocs[imageUrl] = doc;
             }
           } else {
-            // Fallback for scans with no imageURL
             processedDocs[doc.id] = doc;
           }
         }
       }
 
-      // Get the de-duplicated list
       List<QueryDocumentSnapshot> deDuplicatedList =
           processedDocs.values.toList();
 
-      // Re-sort the list by timestamp ASCENDING, as the chart needs this
       deDuplicatedList.sort((a, b) {
         final aData = a.data() as Map<String, dynamic>;
         final bData = b.data() as Map<String, dynamic>;
@@ -108,11 +96,9 @@ class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
             (aData['timestamp'] as Timestamp?)?.toDate() ?? DateTime(1970);
         final bTimestamp =
             (bData['timestamp'] as Timestamp?)?.toDate() ?? DateTime(1970);
-        return aTimestamp.compareTo(bTimestamp); // Ascending
+        return aTimestamp.compareTo(bTimestamp);
       });
-      // 🟢 END: DE-DUPLICATION LOGIC
 
-      // NOW, we map the clean, de-duplicated list
       List<Map<String, dynamic>> fetchedData =
           deDuplicatedList.map((doc) {
             final data = doc.data() as Map<String, dynamic>;
@@ -170,9 +156,7 @@ class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
               : edemaData.isEmpty
               ? const Center(child: Text('No edema data available'))
               : Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment
-                        .center, // Center the content horizontally
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   AspectRatio(
                     aspectRatio: 1.6,
@@ -185,7 +169,6 @@ class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
                               showTitles: true,
                               reservedSize: 45,
                               getTitlesWidget: (value, meta) {
-                                // 🟢 Use a check to prevent range errors
                                 final index = value.toInt();
                                 if (index >= 0 &&
                                     index < edemaData.length &&
@@ -230,7 +213,6 @@ class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
                         ),
                         borderData: FlBorderData(show: true),
                         minX: 0,
-                        // 🟢 Handle case where there is only 1 data point
                         maxX:
                             edemaData.length > 1
                                 ? (edemaData.length - 1).toDouble()
@@ -244,7 +226,6 @@ class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
                             dotData: FlDotData(
                               show: true,
                               getDotPainter: (spot, percent, barData, index) {
-                                // 🟢 Add check to prevent range error
                                 if (index < edemaData.length) {
                                   final grade = edemaData[index]['grade'];
                                   return FlDotCirclePainter(
@@ -254,15 +235,14 @@ class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
                                     strokeWidth: 1,
                                   );
                                 }
-                                return FlDotCirclePainter(); // Default painter
+                                return FlDotCirclePainter();
                               },
                             ),
                             barWidth: 3,
                             spots: List.generate(edemaData.length, (index) {
-                              // 🟢 Handle single data point
                               if (edemaData.length == 1) {
                                 return FlSpot(
-                                  0.5, // Center the single point
+                                  0.5,
                                   edemaData[index]['grade'].toDouble(),
                                 );
                               }
@@ -280,8 +260,7 @@ class _EdemaSeverityChartState extends State<EdemaSeverityChart> {
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.center, // Center the legend items
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,

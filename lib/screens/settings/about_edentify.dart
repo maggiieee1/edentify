@@ -26,7 +26,6 @@ class AboutEdentifyScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// Logo / Header
             Center(
               child: Column(
                 children: [
@@ -54,7 +53,6 @@ class AboutEdentifyScreen extends StatelessWidget {
             ),
             const SizedBox(height: 30),
 
-            /// Overview
             Text(
               "Overview",
               style: GoogleFonts.poppins(
@@ -88,7 +86,6 @@ class AboutEdentifyScreen extends StatelessWidget {
             ),
             const SizedBox(height: 25),
 
-            /// Impact
             Text(
               "Impact and Significance",
               style: GoogleFonts.poppins(
@@ -105,7 +102,6 @@ class AboutEdentifyScreen extends StatelessWidget {
             ),
             const SizedBox(height: 25),
 
-            /// Team
             Text(
               "Developed By",
               style: GoogleFonts.poppins(
@@ -122,7 +118,6 @@ class AboutEdentifyScreen extends StatelessWidget {
             ),
             const SizedBox(height: 25),
 
-            /// Footer
             Center(
               child: Column(
                 children: [

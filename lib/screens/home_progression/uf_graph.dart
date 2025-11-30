@@ -6,7 +6,7 @@ import 'dart:math';
 
 class UfGraph extends StatefulWidget {
   final String userId;
-  final DateTime selectedMonth; // 1. Changed from String range to DateTime
+  final DateTime selectedMonth;
 
   const UfGraph({super.key, required this.userId, required this.selectedMonth});
 
@@ -26,14 +26,12 @@ class _UfGraphState extends State<UfGraph> {
   @override
   void didUpdateWidget(covariant UfGraph oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 2. Update stream if the month changes
     if (oldWidget.selectedMonth != widget.selectedMonth) {
       _updateStream();
     }
   }
 
   void _updateStream() {
-    // 3. Calculate Start (1st of month) and End (1st of NEXT month)
     final startOfMonth = DateTime(
       widget.selectedMonth.year,
       widget.selectedMonth.month,
@@ -49,7 +47,6 @@ class _UfGraphState extends State<UfGraph> {
         .collection('users')
         .doc(widget.userId)
         .collection('records')
-        // Filter: >= start AND < end
         .where('date', isGreaterThanOrEqualTo: startOfMonth.toIso8601String())
         .where('date', isLessThan: endOfMonth.toIso8601String())
         .orderBy('date', descending: false);
@@ -59,7 +56,6 @@ class _UfGraphState extends State<UfGraph> {
     });
   }
 
-  // Helper for safe parsing
   double _parseDouble(dynamic value) {
     if (value == null) return 0.0;
     if (value is double) return value;
@@ -73,7 +69,6 @@ class _UfGraphState extends State<UfGraph> {
     return StreamBuilder<QuerySnapshot>(
       stream: _recordStream,
       builder: (context, snapshot) {
-        // --- Data Processing ---
         final tempDates = <DateTime>[];
         final tempGoal = <double>[];
         final tempRemoved = <double>[];
@@ -87,7 +82,6 @@ class _UfGraphState extends State<UfGraph> {
               final date = DateTime.tryParse(dateString);
               if (date != null) {
                 tempDates.add(date);
-                // Use safe parser
                 tempGoal.add(_parseDouble(data['ufGoal']));
                 tempRemoved.add(_parseDouble(data['ufRemoved']));
               }
@@ -97,11 +91,9 @@ class _UfGraphState extends State<UfGraph> {
 
         final bool isDataEmpty = tempDates.isEmpty;
 
-        // --- Build UI ---
         return Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
-          // margin: const EdgeInsets.only(bottom: 20), // Optional depending on parent layout
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
@@ -116,38 +108,32 @@ class _UfGraphState extends State<UfGraph> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- Chart Area ---
               SizedBox(
                 height: 250,
                 child: Stack(
                   children: [
                     LineChart(
                       LineChartData(
-                        // 1. Line Data Setup
                         lineBarsData:
                             isDataEmpty
                                 ? []
                                 : [
-                                  // UF Goal Line (Purple)
                                   LineChartBarData(
                                     spots: List.generate(tempDates.length, (i) {
                                       return FlSpot(i.toDouble(), tempGoal[i]);
                                     }),
-                                    isCurved:
-                                        false, // Keeping straight lines for precise data
+                                    isCurved: false,
                                     color: Colors.purple,
                                     barWidth: 2,
                                     dotData: FlDotData(
                                       show: true,
                                       checkToShowDot: (spot, barData) {
-                                        // Reduce clutter: show dot if values match
                                         return tempGoal[spot.x.toInt()] ==
                                             tempRemoved[spot.x.toInt()];
                                       },
                                     ),
                                     belowBarData: BarAreaData(show: false),
                                   ),
-                                  // UF Removed Line (Amber)
                                   LineChartBarData(
                                     spots: List.generate(tempDates.length, (i) {
                                       return FlSpot(
@@ -163,7 +149,6 @@ class _UfGraphState extends State<UfGraph> {
                                   ),
                                 ],
 
-                        // 2. Axis Configuration
                         gridData: const FlGridData(
                           show: true,
                           drawVerticalLine: false,
@@ -171,7 +156,6 @@ class _UfGraphState extends State<UfGraph> {
                         borderData: FlBorderData(show: false),
                         lineTouchData: const LineTouchData(enabled: true),
 
-                        // 3. Titles (Labels)
                         titlesData: FlTitlesData(
                           leftTitles: AxisTitles(
                             axisNameWidget: const Text(
@@ -195,7 +179,6 @@ class _UfGraphState extends State<UfGraph> {
                             sideTitles: SideTitles(
                               showTitles: !isDataEmpty,
                               reservedSize: 30,
-                              // Calculate safe interval
                               interval: max(
                                 1.0,
                                 (tempDates.length / 7).ceil().toDouble(),
@@ -209,7 +192,6 @@ class _UfGraphState extends State<UfGraph> {
                                 return Padding(
                                   padding: const EdgeInsets.only(top: 8.0),
                                   child: Text(
-                                    // Show Day/Month (e.g. "Oct 12")
                                     DateFormat('MM/dd').format(date),
                                     style: const TextStyle(fontSize: 10),
                                     textAlign: TextAlign.center,
@@ -228,11 +210,9 @@ class _UfGraphState extends State<UfGraph> {
                       ),
                     ),
 
-                    // --- Loading Indicator ---
                     if (snapshot.connectionState == ConnectionState.waiting)
                       const Center(child: CircularProgressIndicator()),
 
-                    // --- Error Message ---
                     if (snapshot.hasError)
                       const Center(
                         child: Text(
@@ -241,7 +221,6 @@ class _UfGraphState extends State<UfGraph> {
                         ),
                       ),
 
-                    // --- No Data Message (Overlay) ---
                     if (!snapshot.hasError &&
                         snapshot.connectionState != ConnectionState.waiting &&
                         isDataEmpty)
@@ -257,7 +236,6 @@ class _UfGraphState extends State<UfGraph> {
 
               const SizedBox(height: 12),
 
-              // --- Legend ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: const [
@@ -271,7 +249,6 @@ class _UfGraphState extends State<UfGraph> {
                 ],
               ),
 
-              // --- Description ---
               const SizedBox(height: 12),
               const Text(
                 "This chart compares the planned fluid removal (UF Goal) with the actual fluid "

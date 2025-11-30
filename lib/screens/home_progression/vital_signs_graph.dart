@@ -6,7 +6,7 @@ import 'dart:math';
 
 class VitalSignsGraph extends StatefulWidget {
   final String userId;
-  final DateTime selectedMonth; // 1. Changed from String range to DateTime
+  final DateTime selectedMonth;
 
   const VitalSignsGraph({
     super.key,
@@ -19,7 +19,6 @@ class VitalSignsGraph extends StatefulWidget {
 }
 
 class _VitalSignsGraphState extends State<VitalSignsGraph> {
-  // --- State Variable for Dropdown ---
   String _selectedView = 'All Data';
 
   List<DateTime> dates = [];
@@ -32,7 +31,6 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
   @override
   void didUpdateWidget(covariant VitalSignsGraph oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 2. Refresh data if the month changes
     if (oldWidget.selectedMonth != widget.selectedMonth) {
       _fetchData();
     }
@@ -47,7 +45,6 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
 
-    // 3. Calculate Start (1st of month) and End (1st of NEXT month)
     final startOfMonth = DateTime(
       widget.selectedMonth.year,
       widget.selectedMonth.month,
@@ -65,7 +62,6 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
               .collection('users')
               .doc(widget.userId)
               .collection('records')
-              // Filter: >= start AND < end
               .where(
                 'date',
                 isGreaterThanOrEqualTo: startOfMonth.toIso8601String(),
@@ -92,7 +88,6 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
           double systolicValue = 0;
           double diastolicValue = 0;
 
-          // Parse BP "120/80"
           if (data['bloodPressure'] != null &&
               data['bloodPressure'].toString().contains('/')) {
             final parts = data['bloodPressure'].toString().split('/');
@@ -126,7 +121,6 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
     }
   }
 
-  // Helper Widget to draw a single chart
   Widget _buildSingleChart({
     required String title,
     required String leftAxisName,
@@ -150,9 +144,7 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
         ),
         const SizedBox(height: 8),
         Padding(
-          padding: const EdgeInsets.only(
-            right: 12.0,
-          ), // Extra padding for right side text
+          padding: const EdgeInsets.only(right: 12.0),
           child: SizedBox(
             height: 200,
             child: LineChart(
@@ -193,7 +185,6 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
                     sideTitles: SideTitles(
                       showTitles: !isDataEmpty,
                       reservedSize: 30,
-                      // Calculate safe interval (avoid division by zero)
                       interval: max(1.0, (dates.length / 7).ceil().toDouble()),
                       getTitlesWidget: (value, meta) {
                         final index = value.toInt();
@@ -204,7 +195,6 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
                         return Padding(
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Text(
-                            // Format: "Oct 12"
                             DateFormat('MM/dd').format(date),
                             style: const TextStyle(fontSize: 10),
                             textAlign: TextAlign.center,
@@ -242,14 +232,12 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
       );
     }
 
-    // --- Data Filtering Logic ---
     List<DateTime> displayDates;
     List<double> displaySystolic;
     List<double> displayDiastolic;
     List<double> displayPulseRate;
     List<double> displayOxygenSaturation;
 
-    // Kept your existing logic for Pre/Post filtering
     if (_selectedView == 'Pre-Dialysis') {
       final int cutoff = (dates.length / 3).ceil();
       displayDates = dates.take(cutoff).toList();
@@ -273,7 +261,6 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
       displayOxygenSaturation = oxygenSaturation;
     }
 
-    // --- Chart Data Preparation ---
     final bpBarData = [
       LineChartBarData(
         spots: List.generate(
@@ -322,7 +309,6 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
       ),
     ];
 
-    // --- UI Build ---
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -337,7 +323,6 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header & Dropdown
           Padding(
             padding: const EdgeInsets.only(bottom: 8.0),
             child: Row(
@@ -395,19 +380,17 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
           ),
           const Divider(height: 1, thickness: 1),
 
-          // BP Chart
           _buildSingleChart(
             title: "Blood Pressure Trends",
             leftAxisName: "BP (mmHg)",
             barData: bpBarData,
             dates: displayDates,
-            maxY: 200.0, // Expanded slightly to fit high BP
+            maxY: 200.0,
             minY: 40.0,
           ),
 
           const SizedBox(height: 20),
 
-          // Heart Rate Chart
           _buildSingleChart(
             title: "Heart Rate & Oxygen Trends",
             leftAxisName: "Rate / SpO₂",
@@ -419,7 +402,6 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
 
           const SizedBox(height: 20),
 
-          // Legend
           const Center(
             child: Wrap(
               spacing: 12.0,

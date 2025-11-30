@@ -3,11 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../screens/notifications_screen.dart';
 
-// ✅ Helper function to get the color based on scan severity
 Color _getSeverityColor(String severity) {
   switch (severity.toLowerCase()) {
     case 'normal':
-      return Colors.blue;
+      return Colors.green;
     case 'mild':
       return Colors.yellow.shade700;
     case 'moderate':
@@ -38,7 +37,6 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
     final dateKey = DateFormat('yyyy-MM-dd').format(widget.selectedDate);
     final firestore = FirebaseFirestore.instance;
 
-    // 1. Fetch Records
     final recordSnapshot =
         await firestore
             .collection('users')
@@ -60,7 +58,6 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
         postRecord = data;
     }
 
-    // 2. Fetch Water
     final waterDoc =
         await firestore
             .collection('users')
@@ -69,7 +66,6 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
             .doc(dateKey)
             .get();
 
-    // 3. Fetch Scans
     final scanSnapshot =
         await firestore
             .collection('users')
@@ -78,11 +74,6 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
             .orderBy('timestamp', descending: true)
             .get();
 
-    // ---------------------------------------------------------
-    // 🟢 UPDATED LOGIC: DE-DUPLICATION & DOCTOR PRIORITY
-    // ---------------------------------------------------------
-
-    // A. Filter by Date first
     final rawDocsOnDate =
         scanSnapshot.docs.where((doc) {
           final timestamp = (doc['timestamp'] as Timestamp?)?.toDate();
@@ -91,16 +82,13 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
                   DateFormat('yyyy-MM-dd').format(widget.selectedDate);
         }).toList();
 
-    // B. De-duplication Logic
     final Map<String, Map<String, dynamic>> processedDocs = {};
     final Set<String> finalizedImageURLs = {};
 
-    // Pass 1: Find all FINALIZED/APPROVED scans
     for (final doc in rawDocsOnDate) {
       final data = doc.data();
       final imageUrl = data['imageURL'] as String?;
 
-      // Check for doctor approval flags
       final bool isFinalized =
           data['isFinalized'] == true ||
           (data['reclassifiedResult'] != null &&
@@ -109,11 +97,10 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
 
       if (isFinalized && imageUrl != null && imageUrl.isNotEmpty) {
         finalizedImageURLs.add(imageUrl);
-        processedDocs[imageUrl] = data; // Doctor version takes priority
+        processedDocs[imageUrl] = data;
       }
     }
 
-    // Pass 2: Add PENDING scans (only if no finalized version exists)
     for (final doc in rawDocsOnDate) {
       final data = doc.data();
       final imageUrl = data['imageURL'] as String?;
@@ -130,20 +117,18 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
             processedDocs[imageUrl] = data;
           }
         } else {
-          // Fallback for scans without images
           processedDocs[doc.id] = data;
         }
       }
     }
 
-    // Convert map values to list
     final uniqueScans = processedDocs.values.toList();
 
     return {
       'waterIntake': waterDoc.exists ? waterDoc.data() : null,
       'preRecord': preRecord,
       'postRecord': postRecord,
-      'scanHistory': uniqueScans, // Return clean list
+      'scanHistory': uniqueScans,
     };
   }
 
@@ -269,8 +254,6 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
     );
   }
 
-  // --------------------- UI BUILDERS ------------------------
-
   Widget _buildScanSection(BuildContext context, List scans) {
     if (scans.isEmpty) {
       return Container(
@@ -291,7 +274,6 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
       );
     }
 
-    // Responsive Calculations
     double screenWidth = MediaQuery.of(context).size.width;
     double cardHeight = screenWidth < 350 ? 190 : 170;
 
@@ -319,7 +301,6 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
             ? DateFormat('MM/dd/yy h:mm a').format(scanDate)
             : 'No Date';
 
-    // 🟢 UPDATED: Display Reclassified Result if available
     final String displayResult =
         scan['reclassifiedResult'] ?? scan['result'] ?? 'Unknown';
     final bool isFinalized =
@@ -331,7 +312,7 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: _getSeverityColor(displayResult), // Use display result for color
+        color: _getSeverityColor(displayResult),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -344,7 +325,6 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Left Side: Text Details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,7 +363,6 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
                 Flexible(
-                  // ✅ Fix Overflow
                   child: Text(
                     displayResult,
                     style: const TextStyle(
@@ -415,7 +394,6 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
 
           const SizedBox(width: 12),
 
-          // Right Side: Image
           Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -509,7 +487,6 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
         ),
         const SizedBox(height: 12),
 
-        // VITAL SIGNS
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(12),
@@ -517,12 +494,11 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
             border: Border.all(color: Colors.teal, width: 2),
             borderRadius: BorderRadius.circular(8),
           ),
-          // 🟢 UPDATED: Changed from Row to Wrap to fix overflow on small screens
           child: Wrap(
             alignment: WrapAlignment.spaceAround,
             runAlignment: WrapAlignment.center,
-            spacing: 12, // Gap between items horizontally
-            runSpacing: 12, // Gap between lines if it wraps
+            spacing: 12,
+            runSpacing: 12,
             children: [
               _buildVital("HR", record['pulseRate']),
               _buildVital("BP", record['bloodPressure']),
@@ -534,7 +510,6 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
         ),
         const SizedBox(height: 20),
 
-        // WEIGHT & UF
         Row(
           children: [
             Expanded(child: _buildWeightSection(record)),
@@ -602,7 +577,7 @@ class _PatientRecordScreenState extends State<PatientRecordScreen> {
 
   Widget _buildVital(String label, dynamic value) {
     return Column(
-      mainAxisSize: MainAxisSize.min, // Ensure it doesn't expand unnecessarily
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           label,

@@ -23,7 +23,6 @@ class _MainNavigationState extends State<MainNavigation> {
   void initState() {
     super.initState();
 
-    // 🟢 Start real-time notification listener for all screens
     _notificationListener = RealtimeNotifications(userId: widget.userId);
     _notificationListener!.startListening(
       context,
@@ -40,7 +39,6 @@ class _MainNavigationState extends State<MainNavigation> {
 
   @override
   void dispose() {
-    // 🔴 Stop the listener when leaving screen to avoid leaks or duplicates
     _notificationListener?.stopListening();
     super.dispose();
   }

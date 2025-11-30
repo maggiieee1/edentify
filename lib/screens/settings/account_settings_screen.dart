@@ -25,60 +25,62 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
 
     final newValue = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Text(
-          "Edit ${_formatFieldName(field)}",
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF056C5B),
-          ),
-        ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: _formatFieldName(field),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
-          ),
-        ),
-        actionsPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        actionsAlignment: MainAxisAlignment.end,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.grey[700],
-            ),
-            child: const Text(
-              "Cancel",
-              style: TextStyle(fontSize: 16),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF056C5B),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text(
-              "Save",
-              style: TextStyle(
-                fontSize: 16,
+            title: Text(
+              "Edit ${_formatFieldName(field)}",
+              style: const TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: Color(0xFF056C5B),
               ),
             ),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: _formatFieldName(field),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            actionsPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 8,
+            ),
+            actionsAlignment: MainAxisAlignment.end,
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                style: TextButton.styleFrom(foregroundColor: Colors.grey[700]),
+                child: const Text("Cancel", style: TextStyle(fontSize: 16)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF056C5B),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: () => Navigator.pop(context, controller.text),
+                child: const Text(
+                  "Save",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
     );
 
     if (newValue != null && newValue.isNotEmpty && newValue != currentValue) {
@@ -122,8 +124,9 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
 
     try {
       final file = File(pickedFile.path);
-      final storageRef =
-          FirebaseStorage.instance.ref().child('profile_images/${widget.userId}.jpg');
+      final storageRef = FirebaseStorage.instance.ref().child(
+        'profile_images/${widget.userId}.jpg',
+      );
       await storageRef.putFile(file);
       final imageUrl = await storageRef.getDownloadURL();
 
@@ -139,9 +142,9 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _isUploading = false);
@@ -155,28 +158,22 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       appBar: AppBar(
         leading: Padding(
           padding: const EdgeInsets.only(left: 12),
-          child: Image.asset(
-            'assets/logo.png',
-            height: 40,
-            width: 40,
-          ),
+          child: Image.asset('assets/logo.png', height: 40, width: 40),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
         title: const Text(
           'Account Settings',
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection("users")
-            .doc(widget.userId)
-            .snapshots(),
+        stream:
+            FirebaseFirestore.instance
+                .collection("users")
+                .doc(widget.userId)
+                .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -193,7 +190,10 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
     );
   }
 
-  Widget _buildAccountSettings(BuildContext context, Map<String, dynamic> data) {
+  Widget _buildAccountSettings(
+    BuildContext context,
+    Map<String, dynamic> data,
+  ) {
     final fields = [
       {
         "label": "First Name",
@@ -242,29 +242,30 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // ✅ Profile Image Section
         Center(
           child: Stack(
             children: [
               CircleAvatar(
                 radius: 60,
                 backgroundColor: const Color(0xFF056C5B),
-                backgroundImage: data['profileImageUrl'] != null
-                    ? NetworkImage(data['profileImageUrl'])
-                    : null,
-                child: data['profileImageUrl'] == null
-                    ? Text(
-                        (data['firstName'] ?? 'U')
-                            .toString()
-                            .substring(0, 1)
-                            .toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 40,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )
-                    : null,
+                backgroundImage:
+                    data['profileImageUrl'] != null
+                        ? NetworkImage(data['profileImageUrl'])
+                        : null,
+                child:
+                    data['profileImageUrl'] == null
+                        ? Text(
+                          (data['firstName'] ?? 'U')
+                              .toString()
+                              .substring(0, 1)
+                              .toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 40,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                        : null,
               ),
               Positioned(
                 bottom: 0,
@@ -285,20 +286,21 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                         ),
                       ],
                     ),
-                    child: _isUploading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
+                    child:
+                        _isUploading
+                            ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFF056C5B),
+                              ),
+                            )
+                            : const Icon(
+                              Icons.camera_alt,
+                              size: 20,
                               color: Color(0xFF056C5B),
                             ),
-                          )
-                        : const Icon(
-                            Icons.camera_alt,
-                            size: 20,
-                            color: Color(0xFF056C5B),
-                          ),
                   ),
                 ),
               ),
@@ -326,12 +328,16 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
             elevation: 2,
             margin: const EdgeInsets.symmetric(vertical: 8),
             child: ListTile(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
+              ),
               leading: CircleAvatar(
                 backgroundColor: const Color(0xFF056C5B).withOpacity(0.1),
-                child: Icon(item["icon"] as IconData,
-                    color: const Color(0xFF056C5B)),
+                child: Icon(
+                  item["icon"] as IconData,
+                  color: const Color(0xFF056C5B),
+                ),
               ),
               title: Text(
                 item["label"] as String,

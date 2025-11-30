@@ -17,8 +17,6 @@ class ProgressionTab extends StatefulWidget {
 }
 
 class _ProgressionTabState extends State<ProgressionTab> {
-  // CHANGED: Store a DateTime instead of a String range.
-  // Defaults to the 1st day of the current month.
   DateTime _selectedMonth = DateTime(
     DateTime.now().year,
     DateTime.now().month,
@@ -38,13 +36,9 @@ class _ProgressionTabState extends State<ProgressionTab> {
         persistenceEnabled: true,
         cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
       );
-    } catch (e) {
-      // Ignore if already enabled
-    }
+    } catch (e) {}
   }
 
-  /// Helper to pick a month.
-  /// Note: Flutter's native picker picks a day, but we treat it as a month selector.
   Future<void> _pickMonth() async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -52,9 +46,7 @@ class _ProgressionTabState extends State<ProgressionTab> {
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
       initialEntryMode: DatePickerEntryMode.calendarOnly,
-      initialDatePickerMode:
-          DatePickerMode
-              .year, // Opens Year view first for easier month navigation
+      initialDatePickerMode: DatePickerMode.year,
       helpText: 'SELECT MONTH',
       builder: (context, child) {
         return Theme(
@@ -72,7 +64,6 @@ class _ProgressionTabState extends State<ProgressionTab> {
 
     if (picked != null) {
       setState(() {
-        // Snap the selected date to the 1st of the month
         _selectedMonth = DateTime(picked.year, picked.month, 1);
       });
     }
@@ -100,9 +91,7 @@ class _ProgressionTabState extends State<ProgressionTab> {
         actions: [
           IconButton(
             icon: const Icon(Icons.info_outline, color: Colors.blueGrey),
-            onPressed: () {
-              // ... show info dialog ...
-            },
+            onPressed: () {},
           ),
         ],
       ),
@@ -111,7 +100,6 @@ class _ProgressionTabState extends State<ProgressionTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // === NEW MONTH SELECTOR ===
             Row(
               children: [
                 Expanded(
@@ -171,15 +159,11 @@ class _ProgressionTabState extends State<ProgressionTab> {
 
             const SizedBox(height: 20),
 
-            // === GRAPHS SECTION ===
-            // Note: You must update your graph widgets to accept 'selectedMonth' (DateTime)
-            // instead of 'range' (String).
             const Text(
               "Edema Severity Chart (RVSS-based)",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
-            // Assuming EdemaSeverityChart needs the month too, otherwise leave as is.
             const EdemaSeverityChart(),
 
             const SizedBox(height: 24),
@@ -188,7 +172,6 @@ class _ProgressionTabState extends State<ProgressionTab> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 12),
-            // UPDATE REQUIRED: Change WeightGraph constructor to accept 'selectedMonth'
             WeightGraph(userId: widget.userId, selectedMonth: _selectedMonth),
 
             const SizedBox(height: 24),
@@ -197,7 +180,6 @@ class _ProgressionTabState extends State<ProgressionTab> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
-            // UPDATE REQUIRED: Change UfGraph constructor to accept 'selectedMonth'
             UfGraph(userId: widget.userId, selectedMonth: _selectedMonth),
 
             const SizedBox(height: 24),
@@ -206,7 +188,6 @@ class _ProgressionTabState extends State<ProgressionTab> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
-            // UPDATE REQUIRED: Change VitalSignsGraph constructor to accept 'selectedMonth'
             VitalSignsGraph(
               userId: widget.userId,
               selectedMonth: _selectedMonth,
@@ -214,7 +195,6 @@ class _ProgressionTabState extends State<ProgressionTab> {
 
             const SizedBox(height: 24),
 
-            // === PROGRESS SUMMARY (Overall Status) ===
             const Text(
               "Current Status Summary",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),

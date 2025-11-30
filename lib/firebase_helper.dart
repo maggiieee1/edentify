@@ -12,18 +12,20 @@ class FirebaseHelper {
     String result,
     String recommendations,
   ) async {
-    // Upload image to Firebase Storage
     final fileName = DateTime.now().millisecondsSinceEpoch.toString();
     final ref = _storage.ref().child('classification_images/$fileName.jpg');
     await ref.putFile(File(imagePath));
     final imageUrl = await ref.getDownloadURL();
 
-    // Save data to Firestore
-    await _firestore.collection('users').doc(userId).collection('scanHistory').add({
-      'result': result,
-      'imageURL': imageUrl,
-      'recommendations': recommendations,
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+    await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('scanHistory')
+        .add({
+          'result': result,
+          'imageURL': imageUrl,
+          'recommendations': recommendations,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
   }
 }

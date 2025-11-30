@@ -24,9 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  /// 🔹 Login function
   Future<void> _login() async {
-    // 1. Validate the form first
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -34,26 +32,24 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
-    // ✅ SOLUTION: Safely handle arguments
     final Object? routerArgs = ModalRoute.of(context)?.settings.arguments;
-    
-    // 2. Guard Clause: Check if arguments are missing or not the right type
+
     if (routerArgs == null || routerArgs is! Map<String, dynamic>) {
-       setState(() {
-        _errorMessage = "Center not selected. Please go back and select a center.";
+      setState(() {
+        _errorMessage =
+            "Center not selected. Please go back and select a center.";
         _isLoading = false;
       });
-      return; // Stop the function
+      return;
     }
-    
-    // 3. Guard Clause: Check if centerId is missing from the arguments
+
     final String? selectedCenterId = routerArgs['centerId'];
     if (selectedCenterId == null) {
       setState(() {
         _errorMessage = "Center ID is missing. Please select a center again.";
         _isLoading = false;
       });
-      return; // Stop the function
+      return;
     }
 
     try {
@@ -78,9 +74,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final userData = userDoc.data()!;
 
-      // Check if the user's centerId matches the selected center.
       if (userData['centerId'] != selectedCenterId) {
-        await FirebaseAuth.instance.signOut(); // Log out the user.
+        await FirebaseAuth.instance.signOut();
         setState(() {
           _errorMessage = "Your account is not registered with this center.";
         });
@@ -94,8 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
         });
         return;
       }
-      
-      // Use 'mounted' check before navigating
+
       if (!mounted) return;
 
       Navigator.pushReplacementNamed(
@@ -119,14 +113,12 @@ class _LoginScreenState extends State<LoginScreen> {
         _errorMessage = "An unexpected error occurred: $e";
       });
     } finally {
-      // Use 'mounted' check before setting state in async gaps
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
   }
 
-  /// 🔹 Forgot password function
   Future<void> _resetPassword() async {
     final email = _emailController.text.trim();
     if (email.isEmpty) {
@@ -144,7 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } on FirebaseAuthException catch (e) {
-       if (mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message ?? "Failed to send reset email")),
         );
@@ -161,7 +153,6 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            /// Green curved header
             ClipPath(
               clipper: _CurveClipper(),
               child: Container(
@@ -181,7 +172,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
 
-            /// Form section
             Padding(
               padding: EdgeInsets.symmetric(horizontal: size.width * 0.08),
               child: Form(
@@ -191,7 +181,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     const SizedBox(height: 25),
 
-                    /// Email
                     TextFormField(
                       controller: _emailController,
                       decoration: InputDecoration(
@@ -205,14 +194,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       keyboardType: TextInputType.emailAddress,
-                      validator: (value) =>
-                          value == null || !value.contains('@')
-                              ? "Enter a valid email"
-                              : null,
+                      validator:
+                          (value) =>
+                              value == null || !value.contains('@')
+                                  ? "Enter a valid email"
+                                  : null,
                     ),
                     const SizedBox(height: 20),
 
-                    /// Password
                     TextFormField(
                       controller: _passwordController,
                       decoration: InputDecoration(
@@ -226,17 +215,17 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       obscureText: true,
-                      validator: (value) =>
-                          value == null || value.isEmpty
-                              ? "Enter password"
-                              : null,
+                      validator:
+                          (value) =>
+                              value == null || value.isEmpty
+                                  ? "Enter password"
+                                  : null,
                     ),
 
-                    /// 🔹 Forgot password button
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: _isLoading ? null : _resetPassword, // Disable when loading
+                        onPressed: _isLoading ? null : _resetPassword,
                         child: const Text(
                           "Forgot Password?",
                           style: TextStyle(color: Color(0xFF056C5B)),
@@ -245,38 +234,39 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 10),
 
-                    /// Error message
                     if (_errorMessage != null)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 15.0),
                         child: Text(
                           _errorMessage!,
-                          style: const TextStyle(color: Colors.red, fontSize: 14),
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 14,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                       ),
 
-                    /// Login button
                     _isLoading
                         ? const Center(child: CircularProgressIndicator())
                         : ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF056C5B),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            onPressed: _login,
-                            child: const Text(
-                              "Log In",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF056C5B),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
                             ),
                           ),
+                          onPressed: _login,
+                          child: const Text(
+                            "Log In",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
                   ],
                 ),
               ),
