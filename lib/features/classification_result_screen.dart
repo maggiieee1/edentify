@@ -1,10 +1,12 @@
-// classification_result_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'not_relevant_screen.dart';
+
+// ✅ IMPORT YOUR HOME SCREEN HERE (Adjust path if needed)
+import 'package:edentify/screens/home_screen.dart';
 
 class ClassificationResultScreen extends StatefulWidget {
   final String imagePath;
@@ -45,12 +47,10 @@ class _ClassificationResultScreenState
     }
   }
 
-  /// 🧹 Normalize label (remove numeric prefix and trim)
   String _normalizeLabel(String rawLabel) {
     return rawLabel.replaceAll(RegExp(r'^\d+\s*'), '').trim();
   }
 
-  /// 🎨 Color based on severity
   Color _getSeverityColor(String severity) {
     switch (severity.toLowerCase()) {
       case 'normal':
@@ -66,7 +66,6 @@ class _ClassificationResultScreenState
     }
   }
 
-  /// 💡 Recommendations based on severity
   List<String> _getRecommendations(String severity) {
     switch (severity.toLowerCase()) {
       case 'normal':
@@ -98,11 +97,11 @@ class _ClassificationResultScreenState
     }
   }
 
-  /// 💾 Save scan result and upload image
   Future<void> _saveToDatabase() async {
     if (_isSaving) return;
     setState(() => _isSaving = true);
 
+    // 1. Show Loading Dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -230,32 +229,49 @@ class _ClassificationResultScreenState
         });
       }
 
-      if (mounted) Navigator.of(context).pop(); // dismiss progress dialog
-      if (mounted) Navigator.of(context).pop(); // go back to previous screen
+      // 2. Close the Loading Dialog
+      if (mounted) Navigator.of(context).pop();
 
-      // --- Success dialog ---
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Success'),
-            content: const Text(
-              'Your scan has been uploaded and saved successfully.',
-            ),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('OK'),
-                onPressed: () {
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                },
+      // 3. Show Success Dialog
+      if (mounted) {
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Success'),
+              content: const Text(
+                'Your scan has been uploaded and saved successfully.',
               ),
-            ],
-          );
-        },
-      );
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('OK'),
+                  onPressed: () {
+                    // ✅ Close Dialog
+                    Navigator.of(context).pop();
+
+                    // ✅ Navigate to Home Screen and clear history
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder:
+                            (context) => HomeScreen(
+                              userId:
+                                  widget
+                                      .userId, // Remove this line if Home() doesn't need ID
+                            ),
+                      ),
+                      (route) => false, // Clears the back stack
+                    );
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      }
     } catch (e) {
       if (mounted) Navigator.of(context).pop();
+
       await showDialog(
         context: context,
         builder: (BuildContext context) {
@@ -280,7 +296,7 @@ class _ClassificationResultScreenState
   Widget build(BuildContext context) {
     final normalizedLabel = _normalizeLabel(widget.label);
     if (normalizedLabel.toLowerCase().contains('not relevant')) {
-      return const SizedBox.shrink(); // Prevents build flash before redirect
+      return const SizedBox.shrink();
     }
 
     final severityColor = _getSeverityColor(normalizedLabel);

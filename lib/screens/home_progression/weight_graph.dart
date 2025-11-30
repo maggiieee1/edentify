@@ -5,8 +5,13 @@ import 'dart:math';
 
 class WeightGraph extends StatefulWidget {
   final String userId;
-  final String range;
-  const WeightGraph({super.key, required this.userId, required this.range});
+  final DateTime selectedMonth; // 1. Changed from String range to DateTime
+
+  const WeightGraph({
+    super.key,
+    required this.userId,
+    required this.selectedMonth,
+  });
 
   @override
   State<WeightGraph> createState() => _WeightGraphState();
@@ -24,23 +29,34 @@ class _WeightGraphState extends State<WeightGraph> {
   @override
   void didUpdateWidget(covariant WeightGraph oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.range != widget.range) {
+    // 2. Check if the month changed
+    if (oldWidget.selectedMonth != widget.selectedMonth) {
       _updateStream();
     }
   }
 
   void _updateStream() {
-    final now = DateTime.now();
-    final startDate =
-        widget.range == "Weekly"
-            ? now.subtract(const Duration(days: 7))
-            : now.subtract(const Duration(days: 30));
+    // 3. Calculate Start and End of the selected month
+    final startOfMonth = DateTime(
+      widget.selectedMonth.year,
+      widget.selectedMonth.month,
+      1,
+    );
+    // Calculate first day of the *next* month to use as an upper limit
+    final endOfMonth = DateTime(
+      widget.selectedMonth.year,
+      widget.selectedMonth.month + 1,
+      1,
+    );
 
     final query = FirebaseFirestore.instance
         .collection('users')
         .doc(widget.userId)
         .collection('records')
-        .where('date', isGreaterThan: startDate.toIso8601String())
+        // Filter: Date is greater than or equal to start of month...
+        .where('date', isGreaterThanOrEqualTo: startOfMonth.toIso8601String())
+        // ...and strictly less than the start of the next month
+        .where('date', isLessThan: endOfMonth.toIso8601String())
         .orderBy('date', descending: false);
 
     setState(() {
@@ -48,7 +64,7 @@ class _WeightGraphState extends State<WeightGraph> {
     });
   }
 
-  // 👇 ADD THIS HELPER FUNCTION for safe parsing
+  // Safe parsing helper
   double _parseWeight(dynamic value) {
     if (value == null) return 0.0;
     if (value is double) return value;
@@ -79,7 +95,6 @@ class _WeightGraphState extends State<WeightGraph> {
             if (date == null) continue;
 
             tempDates.add(date);
-            // 👇 USE THE SAFE PARSER
             tempPre.add(_parseWeight(data['preWeight']));
             tempPost.add(_parseWeight(data['postWeight']));
           }
@@ -87,7 +102,7 @@ class _WeightGraphState extends State<WeightGraph> {
 
         final bool isDataEmpty = tempDates.isEmpty;
 
-        // 👇 FIX: Calculate interval safely, ensuring it's at least 1.0
+        // Calculate interval safely
         final double bottomInterval = max(
           1.0,
           (tempDates.length / 5).ceil().toDouble(),
@@ -121,6 +136,7 @@ class _WeightGraphState extends State<WeightGraph> {
                             isDataEmpty
                                 ? []
                                 : [
+                                  // Post-Weight Line (Blue)
                                   LineChartBarData(
                                     spots: List.generate(
                                       tempPost.length,
@@ -129,8 +145,9 @@ class _WeightGraphState extends State<WeightGraph> {
                                     isCurved: true,
                                     color: Colors.blue,
                                     barWidth: 3,
-                                    dotData: FlDotData(show: true),
+                                    dotData: const FlDotData(show: true),
                                   ),
+                                  // Pre-Weight Line (Green)
                                   LineChartBarData(
                                     spots: List.generate(
                                       tempPre.length,
@@ -139,10 +156,10 @@ class _WeightGraphState extends State<WeightGraph> {
                                     isCurved: true,
                                     color: Colors.green,
                                     barWidth: 3,
-                                    dotData: FlDotData(show: true),
+                                    dotData: const FlDotData(show: true),
                                   ),
                                 ],
-                        gridData: FlGridData(
+                        gridData: const FlGridData(
                           show: true,
                           drawVerticalLine: true,
                         ),
@@ -161,7 +178,6 @@ class _WeightGraphState extends State<WeightGraph> {
                           bottomTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
-                              // 👇 USE THE SAFE INTERVAL
                               interval: bottomInterval,
                               getTitlesWidget: (value, meta) {
                                 final index = value.toInt();
@@ -170,16 +186,17 @@ class _WeightGraphState extends State<WeightGraph> {
                                 }
                                 final date = tempDates[index];
                                 return Text(
+                                  // Show Day only (e.g., "12") or Month/Day ("10/12")
                                   "${date.month}/${date.day}",
                                   style: const TextStyle(fontSize: 10),
                                 );
                               },
                             ),
                           ),
-                          rightTitles: AxisTitles(
+                          rightTitles: const AxisTitles(
                             sideTitles: SideTitles(showTitles: false),
                           ),
-                          topTitles: AxisTitles(
+                          topTitles: const AxisTitles(
                             sideTitles: SideTitles(showTitles: false),
                           ),
                         ),
@@ -206,7 +223,7 @@ class _WeightGraphState extends State<WeightGraph> {
                         isDataEmpty)
                       const Center(
                         child: Text(
-                          "No data for this period",
+                          "No data for this month",
                           style: TextStyle(color: Colors.grey, fontSize: 14),
                         ),
                       ),
@@ -214,7 +231,7 @@ class _WeightGraphState extends State<WeightGraph> {
                 ),
               ),
 
-              // --- Legend and Description (Always visible) ---
+              // --- Legend and Description ---
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,

@@ -6,8 +6,13 @@ import 'dart:math';
 
 class VitalSignsGraph extends StatefulWidget {
   final String userId;
-  final String range; // “Weekly” or “Monthly”
-  const VitalSignsGraph({super.key, required this.userId, required this.range});
+  final DateTime selectedMonth; // 1. Changed from String range to DateTime
+
+  const VitalSignsGraph({
+    super.key,
+    required this.userId,
+    required this.selectedMonth,
+  });
 
   @override
   State<VitalSignsGraph> createState() => _VitalSignsGraphState();
@@ -16,18 +21,19 @@ class VitalSignsGraph extends StatefulWidget {
 class _VitalSignsGraphState extends State<VitalSignsGraph> {
   // --- State Variable for Dropdown ---
   String _selectedView = 'All Data';
-  // ---------------------------------------
 
   List<DateTime> dates = [];
   List<double> systolic = [];
   List<double> diastolic = [];
   List<double> pulseRate = [];
   List<double> oxygenSaturation = [];
+  bool _isLoading = true;
 
   @override
   void didUpdateWidget(covariant VitalSignsGraph oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.range != widget.range) {
+    // 2. Refresh data if the month changes
+    if (oldWidget.selectedMonth != widget.selectedMonth) {
       _fetchData();
     }
   }
@@ -39,63 +45,88 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
   }
 
   Future<void> _fetchData() async {
-    final now = DateTime.now();
-    final startDate =
-        widget.range == "Weekly"
-            ? now.subtract(const Duration(days: 7))
-            : now.subtract(const Duration(days: 30));
+    setState(() => _isLoading = true);
 
-    final snapshot =
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(widget.userId)
-            .collection('records')
-            .where('date', isGreaterThan: startDate.toIso8601String())
-            .orderBy('date', descending: false)
-            .get();
+    // 3. Calculate Start (1st of month) and End (1st of NEXT month)
+    final startOfMonth = DateTime(
+      widget.selectedMonth.year,
+      widget.selectedMonth.month,
+      1,
+    );
+    final endOfMonth = DateTime(
+      widget.selectedMonth.year,
+      widget.selectedMonth.month + 1,
+      1,
+    );
 
-    final tempDates = <DateTime>[];
-    final tempSys = <double>[];
-    final tempDia = <double>[];
-    final tempPR = <double>[];
-    final tempO2 = <double>[];
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.userId)
+              .collection('records')
+              // Filter: >= start AND < end
+              .where(
+                'date',
+                isGreaterThanOrEqualTo: startOfMonth.toIso8601String(),
+              )
+              .where('date', isLessThan: endOfMonth.toIso8601String())
+              .orderBy('date', descending: false)
+              .get();
 
-    for (var doc in snapshot.docs) {
-      final data = doc.data();
+      final tempDates = <DateTime>[];
+      final tempSys = <double>[];
+      final tempDia = <double>[];
+      final tempPR = <double>[];
+      final tempO2 = <double>[];
 
-      try {
-        final date = DateTime.parse(data['date']);
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
 
-        double systolicValue = 0;
-        double diastolicValue = 0;
+        try {
+          final dateString = data['date'];
+          if (dateString == null) continue;
 
-        if (data['bloodPressure'] != null &&
-            data['bloodPressure'].toString().contains('/')) {
-          final parts = data['bloodPressure'].toString().split('/');
-          systolicValue = double.tryParse(parts[0]) ?? 0;
-          diastolicValue = double.tryParse(parts[1]) ?? 0;
+          final date = DateTime.parse(dateString);
+
+          double systolicValue = 0;
+          double diastolicValue = 0;
+
+          // Parse BP "120/80"
+          if (data['bloodPressure'] != null &&
+              data['bloodPressure'].toString().contains('/')) {
+            final parts = data['bloodPressure'].toString().split('/');
+            systolicValue = double.tryParse(parts[0]) ?? 0;
+            diastolicValue = double.tryParse(parts[1]) ?? 0;
+          }
+
+          tempDates.add(date);
+          tempSys.add(systolicValue);
+          tempDia.add(diastolicValue);
+          tempPR.add((data['pulseRate'] ?? 0).toDouble());
+          tempO2.add((data['oxygenSaturation'] ?? 0).toDouble());
+        } catch (e) {
+          debugPrint("Error parsing record: $e");
         }
-
-        tempDates.add(date);
-        tempSys.add(systolicValue);
-        tempDia.add(diastolicValue);
-        tempPR.add((data['pulseRate'] ?? 0).toDouble());
-        tempO2.add((data['oxygenSaturation'] ?? 0).toDouble());
-      } catch (e) {
-        debugPrint("Error parsing record: $e");
       }
-    }
 
-    setState(() {
-      dates = tempDates;
-      systolic = tempSys;
-      diastolic = tempDia;
-      pulseRate = tempPR;
-      oxygenSaturation = tempO2;
-    });
+      if (mounted) {
+        setState(() {
+          dates = tempDates;
+          systolic = tempSys;
+          diastolic = tempDia;
+          pulseRate = tempPR;
+          oxygenSaturation = tempO2;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching vitals: $e");
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
-  // Helper Widget to draw a single chart (BP or HR/O2)
+  // Helper Widget to draw a single chart
   Widget _buildSingleChart({
     required String title,
     required String leftAxisName,
@@ -118,9 +149,10 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
           ),
         ),
         const SizedBox(height: 8),
-        // Chart Area - Padding added for safety
         Padding(
-          padding: const EdgeInsets.only(right: 2.0),
+          padding: const EdgeInsets.only(
+            right: 12.0,
+          ), // Extra padding for right side text
           child: SizedBox(
             height: 200,
             child: LineChart(
@@ -128,9 +160,9 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
                 minY: minY,
                 maxY: maxY,
                 lineBarsData: barData,
-                gridData: FlGridData(show: true, drawVerticalLine: false),
+                gridData: const FlGridData(show: true, drawVerticalLine: false),
                 borderData: FlBorderData(show: false),
-                lineTouchData: LineTouchData(enabled: true),
+                lineTouchData: const LineTouchData(enabled: true),
 
                 titlesData: FlTitlesData(
                   leftTitles: AxisTitles(
@@ -143,8 +175,7 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
                     ),
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize:
-                          34, // Reduced reserved size for responsiveness
+                      reservedSize: 34,
                       getTitlesWidget:
                           (value, meta) => Text(
                             value.toStringAsFixed(0),
@@ -152,19 +183,17 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
                           ),
                     ),
                   ),
-                  rightTitles: AxisTitles(
+                  rightTitles: const AxisTitles(
                     sideTitles: SideTitles(showTitles: false),
                   ),
-                  topTitles: AxisTitles(
+                  topTitles: const AxisTitles(
                     sideTitles: SideTitles(showTitles: false),
                   ),
-
-                  // Date Axis (Interval Fix)
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: !isDataEmpty,
                       reservedSize: 30,
-                      // Calculates interval: approx 1 label per week
+                      // Calculate safe interval (avoid division by zero)
                       interval: max(1.0, (dates.length / 7).ceil().toDouble()),
                       getTitlesWidget: (value, meta) {
                         final index = value.toInt();
@@ -175,7 +204,8 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
                         return Padding(
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Text(
-                            DateFormat.MMMd().format(date),
+                            // Format: "Oct 12"
+                            DateFormat('MM/dd').format(date),
                             style: const TextStyle(fontSize: 10),
                             textAlign: TextAlign.center,
                           ),
@@ -194,23 +224,32 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const SizedBox(
+        height: 200,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     if (dates.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24.0),
-          child: CircularProgressIndicator(),
+      return Container(
+        height: 100,
+        alignment: Alignment.center,
+        child: const Text(
+          "No vital signs data for this month",
+          style: TextStyle(color: Colors.grey),
         ),
       );
     }
 
-    // --- Data Filtering Logic (Conditional Display) ---
-    final List<DateTime> displayDates;
-    final List<double> displaySystolic;
-    final List<double> displayDiastolic;
-    final List<double> displayPulseRate;
-    final List<double> displayOxygenSaturation;
+    // --- Data Filtering Logic ---
+    List<DateTime> displayDates;
+    List<double> displaySystolic;
+    List<double> displayDiastolic;
+    List<double> displayPulseRate;
+    List<double> displayOxygenSaturation;
 
-    // Placeholder logic for pre/post filtering:
+    // Kept your existing logic for Pre/Post filtering
     if (_selectedView == 'Pre-Dialysis') {
       final int cutoff = (dates.length / 3).ceil();
       displayDates = dates.take(cutoff).toList();
@@ -227,16 +266,14 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
       displayOxygenSaturation =
           oxygenSaturation.skip(oxygenSaturation.length - cutoff).toList();
     } else {
-      // 'All Data'
       displayDates = dates;
       displaySystolic = systolic;
       displayDiastolic = diastolic;
       displayPulseRate = pulseRate;
       displayOxygenSaturation = oxygenSaturation;
     }
-    // --------------------------------------------------------------------------------------------------
 
-    // --- 1. Blood Pressure Data Setup ---
+    // --- Chart Data Preparation ---
     final bpBarData = [
       LineChartBarData(
         spots: List.generate(
@@ -245,7 +282,7 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
         ),
         color: Colors.red,
         isCurved: true,
-        dotData: FlDotData(show: true),
+        dotData: const FlDotData(show: true),
         belowBarData: BarAreaData(show: false),
       ),
       LineChartBarData(
@@ -255,14 +292,11 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
         ),
         color: Colors.blue,
         isCurved: true,
-        dotData: FlDotData(show: true),
+        dotData: const FlDotData(show: true),
         belowBarData: BarAreaData(show: false),
       ),
     ];
-    final double maxBp = 160.0;
-    final double minBp = 0.0;
 
-    // --- 2. Heart Rate and SpO2 Data Setup ---
     final hrO2BarData = [
       LineChartBarData(
         spots: List.generate(
@@ -272,7 +306,7 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
         color: Colors.green,
         isCurved: true,
         dashArray: [4, 4],
-        dotData: FlDotData(show: true),
+        dotData: const FlDotData(show: true),
         belowBarData: BarAreaData(show: false),
       ),
       LineChartBarData(
@@ -283,13 +317,12 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
         color: Colors.purple,
         isCurved: true,
         dashArray: [4, 2],
-        dotData: FlDotData(show: true),
+        dotData: const FlDotData(show: true),
         belowBarData: BarAreaData(show: false),
       ),
     ];
-    final double maxHrO2 = 120.0;
-    final double minHrO2 = 40.0;
 
+    // --- UI Build ---
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -304,12 +337,16 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- Dropdown Menu for View Selection (Now also serving as the main title) ---
+          // Header & Dropdown
           Padding(
             padding: const EdgeInsets.only(bottom: 8.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                const Text(
+                  "Vitals",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
@@ -356,32 +393,33 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
               ],
             ),
           ),
-          const Divider(height: 1, thickness: 1), // Separator
-          // --- CHART 1: Blood Pressure ---
+          const Divider(height: 1, thickness: 1),
+
+          // BP Chart
           _buildSingleChart(
             title: "Blood Pressure Trends",
             leftAxisName: "BP (mmHg)",
             barData: bpBarData,
             dates: displayDates,
-            maxY: maxBp,
-            minY: minBp,
+            maxY: 200.0, // Expanded slightly to fit high BP
+            minY: 40.0,
           ),
 
           const SizedBox(height: 20),
 
-          // --- CHART 2: Heart Rate & SpO₂ ---
+          // Heart Rate Chart
           _buildSingleChart(
             title: "Heart Rate & Oxygen Trends",
             leftAxisName: "Rate / SpO₂",
             barData: hrO2BarData,
             dates: displayDates,
-            maxY: maxHrO2,
-            minY: minHrO2,
+            maxY: 130.0,
+            minY: 40.0,
           ),
 
           const SizedBox(height: 20),
 
-          // --- Combined Legend ---
+          // Legend
           const Center(
             child: Wrap(
               spacing: 12.0,
@@ -409,7 +447,7 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
                   children: [
                     Icon(Icons.circle, size: 10, color: Colors.green),
                     SizedBox(width: 4),
-                    Text("Pulse (Dashed)", style: TextStyle(fontSize: 12)),
+                    Text("Pulse", style: TextStyle(fontSize: 12)),
                   ],
                 ),
                 Row(
@@ -417,19 +455,11 @@ class _VitalSignsGraphState extends State<VitalSignsGraph> {
                   children: [
                     Icon(Icons.circle, size: 10, color: Colors.purple),
                     SizedBox(width: 4),
-                    Text("SpO₂ (Dotted)", style: TextStyle(fontSize: 12)),
+                    Text("SpO₂", style: TextStyle(fontSize: 12)),
                   ],
                 ),
               ],
             ),
-          ),
-
-          const SizedBox(height: 12),
-
-          const Text(
-            "Track trends for Pre-Dialysis, Post-Dialysis, or All Data using the view selector above.",
-            style: TextStyle(fontSize: 12, color: Colors.grey),
-            textAlign: TextAlign.center,
           ),
         ],
       ),

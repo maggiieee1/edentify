@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:edentify/screens/home_progression/edema_severity_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart'; // Required for DateFormat
 
 // Ensure these are imported correctly from your project structure
 import 'weight_graph.dart';
@@ -16,8 +17,13 @@ class ProgressionTab extends StatefulWidget {
 }
 
 class _ProgressionTabState extends State<ProgressionTab> {
-  // This state controls the range for ALL graphs
-  String _selectedRange = "Weekly";
+  // CHANGED: Store a DateTime instead of a String range.
+  // Defaults to the 1st day of the current month.
+  DateTime _selectedMonth = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+    1,
+  );
 
   @override
   void initState() {
@@ -37,21 +43,51 @@ class _ProgressionTabState extends State<ProgressionTab> {
     }
   }
 
+  /// Helper to pick a month.
+  /// Note: Flutter's native picker picks a day, but we treat it as a month selector.
+  Future<void> _pickMonth() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedMonth,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      initialEntryMode: DatePickerEntryMode.calendarOnly,
+      initialDatePickerMode:
+          DatePickerMode
+              .year, // Opens Year view first for easier month navigation
+      helpText: 'SELECT MONTH',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Colors.teal,
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        // Snap the selected date to the 1st of the month
+        _selectedMonth = DateTime(picked.year, picked.month, 1);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      // === APPBAR IMPLEMENTATION (Cleaned up) ===
       appBar: AppBar(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
-        // FIX 1: Logo moved to leading position
         leading: Padding(
           padding: const EdgeInsets.only(left: 8.0),
-          child: Image.asset(
-            'assets/logo.png',
-            height: 28,
-          ), // Using the asset logo
+          child: Image.asset('assets/logo.png', height: 28),
         ),
         title: const Text(
           "Patient Progression",
@@ -62,7 +98,6 @@ class _ProgressionTabState extends State<ProgressionTab> {
           ),
         ),
         actions: [
-          // Optional: Add info button back if needed
           IconButton(
             icon: const Icon(Icons.info_outline, color: Colors.blueGrey),
             onPressed: () {
@@ -71,54 +106,63 @@ class _ProgressionTabState extends State<ProgressionTab> {
           ),
         ],
       ),
-
-      // === END APPBAR IMPLEMENTATION ===
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // === RANGE SELECTOR (Moved back to body, aligned left) ===
+            // === NEW MONTH SELECTOR ===
             Row(
-              mainAxisAlignment: MainAxisAlignment.start, // Aligns to the left
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedRange,
-                      isDense: true,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.black87,
-                      ),
-                      icon: const Icon(
-                        Icons.calendar_month,
-                        size: 18,
-                        color: Colors.blueGrey,
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: "Weekly",
-                          child: Text("Last 7 Days"),
-                        ),
-                        DropdownMenuItem(
-                          value: "Monthly",
-                          child: Text("Last 30 Days"),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
                         ),
                       ],
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() {
-                            _selectedRange = value;
-                          });
-                        }
-                      },
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Viewing Data For:",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Text(
+                              DateFormat('MMMM yyyy').format(_selectedMonth),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.teal,
+                              ),
+                            ),
+                          ],
+                        ),
+                        IconButton.filledTonal(
+                          onPressed: _pickMonth,
+                          icon: const Icon(Icons.calendar_month),
+                          color: Colors.teal,
+                          tooltip: "Change Month",
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -128,11 +172,14 @@ class _ProgressionTabState extends State<ProgressionTab> {
             const SizedBox(height: 20),
 
             // === GRAPHS SECTION ===
+            // Note: You must update your graph widgets to accept 'selectedMonth' (DateTime)
+            // instead of 'range' (String).
             const Text(
               "Edema Severity Chart (RVSS-based)",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
+            // Assuming EdemaSeverityChart needs the month too, otherwise leave as is.
             const EdemaSeverityChart(),
 
             const SizedBox(height: 24),
@@ -141,7 +188,8 @@ class _ProgressionTabState extends State<ProgressionTab> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 12),
-            WeightGraph(userId: widget.userId, range: _selectedRange),
+            // UPDATE REQUIRED: Change WeightGraph constructor to accept 'selectedMonth'
+            WeightGraph(userId: widget.userId, selectedMonth: _selectedMonth),
 
             const SizedBox(height: 24),
             const Text(
@@ -149,7 +197,8 @@ class _ProgressionTabState extends State<ProgressionTab> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
-            UfGraph(userId: widget.userId, range: _selectedRange),
+            // UPDATE REQUIRED: Change UfGraph constructor to accept 'selectedMonth'
+            UfGraph(userId: widget.userId, selectedMonth: _selectedMonth),
 
             const SizedBox(height: 24),
             const Text(
@@ -157,19 +206,22 @@ class _ProgressionTabState extends State<ProgressionTab> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
-            VitalSignsGraph(userId: widget.userId, range: _selectedRange),
+            // UPDATE REQUIRED: Change VitalSignsGraph constructor to accept 'selectedMonth'
+            VitalSignsGraph(
+              userId: widget.userId,
+              selectedMonth: _selectedMonth,
+            ),
 
             const SizedBox(height: 24),
 
-            // === PROGRESS SUMMARY ===
+            // === PROGRESS SUMMARY (Overall Status) ===
             const Text(
-              "Progress Summary",
+              "Current Status Summary",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 12),
             _ProgressScorecard(userId: widget.userId),
 
-            // Add bottom padding for scrolling space
             const SizedBox(height: 30),
           ],
         ),
@@ -179,7 +231,7 @@ class _ProgressionTabState extends State<ProgressionTab> {
 }
 
 // =========================================================================
-// === PROGRESS SCORECARD (REMAINS UNCHANGED) ===
+// === PROGRESS SCORECARD (UNCHANGED LOGIC) ===
 // =========================================================================
 
 class _ProgressScorecard extends StatefulWidget {
@@ -209,7 +261,6 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
 
   Future<void> _fetchCombinedData() async {
     try {
-      // 1. Fetch Edema Data
       final scanQuery =
           await FirebaseFirestore.instance
               .collection('users')
@@ -218,7 +269,6 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
               .orderBy('timestamp', descending: true)
               .get();
 
-      // 2. Fetch Vitals Data
       final recordQuery =
           await FirebaseFirestore.instance
               .collection('users')
@@ -228,13 +278,11 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
               .limit(10)
               .get();
 
-      // --- Process Edema Data ---
       String latestEdemaGrade = 'N/A';
       double averageEdemaScore = 0.0;
 
       if (scanQuery.docs.isNotEmpty) {
         latestEdemaGrade = scanQuery.docs.first.data()['result'] ?? 'N/A';
-
         double totalScore = 0.0;
         int count = 0;
         for (var doc in scanQuery.docs) {
@@ -244,9 +292,7 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
         if (count > 0) averageEdemaScore = totalScore / count;
       }
 
-      // --- Process Vitals Data ---
       Map<String, dynamic> latestRecord = {};
-
       if (recordQuery.docs.isNotEmpty) {
         latestRecord = recordQuery.docs.first.data();
         for (var doc in recordQuery.docs) {
@@ -259,7 +305,6 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
         }
       }
 
-      // --- Combine Data ---
       if (mounted) {
         setState(() {
           _combinedData = {
@@ -312,7 +357,7 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
         ],
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min, // Ensure column shrinks to fit content
+        mainAxisSize: MainAxisSize.min,
         children: [
           _buildSummaryItem(
             'Latest Edema Grade',
@@ -320,24 +365,19 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
             Icons.swap_vert,
             Colors.orange,
           ),
-
           _buildSummaryItem(
             'Pre-Post Weight Difference (Latest)',
             '${weightDifference.toStringAsFixed(1)} kg removed',
             Icons.scale,
             Colors.blue,
           ),
-
           _buildDivider(),
-
-          // This one usually causes overflow because the string is long
           _buildSummaryItem(
             'UF Goal vs UF Removed (Latest)',
             '${ufGoal.toStringAsFixed(1)} L planned | ${ufRemoved.toStringAsFixed(1)} L removed',
             Icons.opacity,
             Colors.lightBlue,
           ),
-
           _buildDivider(),
           _buildSummaryItem(
             'Blood Pressure Stability (Latest)',
@@ -345,13 +385,9 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
             Icons.favorite,
             Colors.red,
           ),
-
           _buildDivider(),
           const SizedBox(height: 16),
-
-          // FIX 2: Replaced the fixed Row with a Flexible layout logic
           _buildStatusIndicator(overallStatus),
-
           const SizedBox(height: 8),
           Text(
             'Based on average edema score (${averageEdemaScore.toStringAsFixed(2)}) across all records.',
@@ -411,8 +447,7 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start, // Align to top in case of wrapping
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, color: color, size: 28),
           const SizedBox(width: 16),
@@ -431,7 +466,6 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
                 const SizedBox(height: 4),
                 Text(
                   value,
-                  // FIX 3: Allow wrapping of long values
                   softWrap: true,
                   style: const TextStyle(
                     fontSize: 16,
@@ -449,7 +483,6 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
 
   Widget _buildDivider() => const Divider(height: 1, color: Colors.grey);
 
-  // FIX 4: Changed from Row to Wrap to handle long status text responsibly
   Widget _buildStatusIndicator(String status) {
     Color statusColor;
     switch (status) {
@@ -464,13 +497,11 @@ class _ProgressScorecardState extends State<_ProgressScorecard> {
         break;
     }
 
-    // Using Wrap instead of Row ensures that if the status text is too long
-    // for the screen width, it drops to the next line instead of causing an error.
     return Wrap(
       alignment: WrapAlignment.center,
       crossAxisAlignment: WrapCrossAlignment.center,
-      runSpacing: 5.0, // Space between lines if it wraps
-      spacing: 8.0, // Space between label and badge
+      runSpacing: 5.0,
+      spacing: 8.0,
       children: [
         const Text(
           'Overall Progress: ',

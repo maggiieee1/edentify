@@ -6,8 +6,9 @@ import 'dart:math';
 
 class UfGraph extends StatefulWidget {
   final String userId;
-  final String range; // “Weekly” or “Monthly”
-  const UfGraph({super.key, required this.userId, required this.range});
+  final DateTime selectedMonth; // 1. Changed from String range to DateTime
+
+  const UfGraph({super.key, required this.userId, required this.selectedMonth});
 
   @override
   State<UfGraph> createState() => _UfGraphState();
@@ -25,28 +26,46 @@ class _UfGraphState extends State<UfGraph> {
   @override
   void didUpdateWidget(covariant UfGraph oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.range != widget.range) {
+    // 2. Update stream if the month changes
+    if (oldWidget.selectedMonth != widget.selectedMonth) {
       _updateStream();
     }
   }
 
   void _updateStream() {
-    final now = DateTime.now();
-    final startDate =
-        widget.range == "Weekly"
-            ? now.subtract(const Duration(days: 7))
-            : now.subtract(const Duration(days: 30));
+    // 3. Calculate Start (1st of month) and End (1st of NEXT month)
+    final startOfMonth = DateTime(
+      widget.selectedMonth.year,
+      widget.selectedMonth.month,
+      1,
+    );
+    final endOfMonth = DateTime(
+      widget.selectedMonth.year,
+      widget.selectedMonth.month + 1,
+      1,
+    );
 
     final query = FirebaseFirestore.instance
         .collection('users')
         .doc(widget.userId)
         .collection('records')
-        .where('date', isGreaterThan: startDate.toIso8601String())
+        // Filter: >= start AND < end
+        .where('date', isGreaterThanOrEqualTo: startOfMonth.toIso8601String())
+        .where('date', isLessThan: endOfMonth.toIso8601String())
         .orderBy('date', descending: false);
 
     setState(() {
       _recordStream = query.snapshots();
     });
+  }
+
+  // Helper for safe parsing
+  double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
   }
 
   @override
@@ -64,13 +83,13 @@ class _UfGraphState extends State<UfGraph> {
             final data = doc.data() as Map<String, dynamic>;
             final dateString = data['date'];
 
-            // Basic validation
             if (dateString != null) {
               final date = DateTime.tryParse(dateString);
               if (date != null) {
                 tempDates.add(date);
-                tempGoal.add((data['ufGoal'] ?? 0).toDouble());
-                tempRemoved.add((data['ufRemoved'] ?? 0).toDouble());
+                // Use safe parser
+                tempGoal.add(_parseDouble(data['ufGoal']));
+                tempRemoved.add(_parseDouble(data['ufRemoved']));
               }
             }
           }
@@ -82,7 +101,7 @@ class _UfGraphState extends State<UfGraph> {
         return Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
-          margin: const EdgeInsets.only(bottom: 20),
+          // margin: const EdgeInsets.only(bottom: 20), // Optional depending on parent layout
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
@@ -97,7 +116,7 @@ class _UfGraphState extends State<UfGraph> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- Chart Area (Now a Line Chart) ---
+              // --- Chart Area ---
               SizedBox(
                 height: 250,
                 child: Stack(
@@ -114,13 +133,14 @@ class _UfGraphState extends State<UfGraph> {
                                     spots: List.generate(tempDates.length, (i) {
                                       return FlSpot(i.toDouble(), tempGoal[i]);
                                     }),
-                                    isCurved: false,
+                                    isCurved:
+                                        false, // Keeping straight lines for precise data
                                     color: Colors.purple,
                                     barWidth: 2,
                                     dotData: FlDotData(
                                       show: true,
                                       checkToShowDot: (spot, barData) {
-                                        // Only show dot if UF Goal == UF Removed, or if it's an end point, to reduce clutter
+                                        // Reduce clutter: show dot if values match
                                         return tempGoal[spot.x.toInt()] ==
                                             tempRemoved[spot.x.toInt()];
                                       },
@@ -138,20 +158,18 @@ class _UfGraphState extends State<UfGraph> {
                                     isCurved: false,
                                     color: Colors.amber,
                                     barWidth: 2,
-                                    dotData: FlDotData(
-                                      show: true,
-                                    ), // Show all removed points
+                                    dotData: const FlDotData(show: true),
                                     belowBarData: BarAreaData(show: false),
                                   ),
                                 ],
 
                         // 2. Axis Configuration
-                        gridData: FlGridData(
+                        gridData: const FlGridData(
                           show: true,
                           drawVerticalLine: false,
                         ),
                         borderData: FlBorderData(show: false),
-                        lineTouchData: LineTouchData(enabled: true),
+                        lineTouchData: const LineTouchData(enabled: true),
 
                         // 3. Titles (Labels)
                         titlesData: FlTitlesData(
@@ -173,12 +191,11 @@ class _UfGraphState extends State<UfGraph> {
                                   ),
                             ),
                           ),
-                          // **FIXED bottomTitles for improved readability (works better with Line Chart)**
                           bottomTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: !isDataEmpty,
                               reservedSize: 30,
-                              // Calculate interval: approx 1 label per week
+                              // Calculate safe interval
                               interval: max(
                                 1.0,
                                 (tempDates.length / 7).ceil().toDouble(),
@@ -192,7 +209,8 @@ class _UfGraphState extends State<UfGraph> {
                                 return Padding(
                                   padding: const EdgeInsets.only(top: 8.0),
                                   child: Text(
-                                    DateFormat.MMMd().format(date),
+                                    // Show Day/Month (e.g. "Oct 12")
+                                    DateFormat('MM/dd').format(date),
                                     style: const TextStyle(fontSize: 10),
                                     textAlign: TextAlign.center,
                                   ),
@@ -200,10 +218,10 @@ class _UfGraphState extends State<UfGraph> {
                               },
                             ),
                           ),
-                          rightTitles: AxisTitles(
+                          rightTitles: const AxisTitles(
                             sideTitles: SideTitles(showTitles: false),
                           ),
-                          topTitles: AxisTitles(
+                          topTitles: const AxisTitles(
                             sideTitles: SideTitles(showTitles: false),
                           ),
                         ),
@@ -229,7 +247,7 @@ class _UfGraphState extends State<UfGraph> {
                         isDataEmpty)
                       const Center(
                         child: Text(
-                          "No data for this period",
+                          "No data for this month",
                           style: TextStyle(color: Colors.grey, fontSize: 14),
                         ),
                       ),
@@ -239,7 +257,7 @@ class _UfGraphState extends State<UfGraph> {
 
               const SizedBox(height: 12),
 
-              // --- Legend (Updated to show circles for line chart) ---
+              // --- Legend ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: const [
@@ -257,7 +275,7 @@ class _UfGraphState extends State<UfGraph> {
               const SizedBox(height: 12),
               const Text(
                 "This chart compares the planned fluid removal (UF Goal) with the actual fluid "
-                "removed (UF Removed). Matching bars means your fluid removal target was achieved.",
+                "removed (UF Removed). Matching points means your fluid removal target was achieved.",
                 style: TextStyle(fontSize: 12, color: Colors.grey),
                 textAlign: TextAlign.center,
               ),

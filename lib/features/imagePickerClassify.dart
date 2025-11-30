@@ -7,7 +7,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart'; // ✅ ADD 
 import 'package:tflite_v2/tflite_v2.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:path_provider/path_provider.dart'; // Needed to get temp directory
+// Needed to get temp directory
 import 'classification_result_screen.dart';
 
 class ImagePickerClassify extends StatefulWidget {
