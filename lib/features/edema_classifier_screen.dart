@@ -19,7 +19,7 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
   CameraController? _controller;
   bool _isCameraReady = false;
   bool _loading = false;
-  bool _isFlashOn = false; // 🔦 NEW: track flash state
+  bool _isFlashOn = false;
   File? _image;
   String? _predictedLabel;
 
@@ -39,7 +39,7 @@ class _EdemaClassifierScreenState extends State<EdemaClassifierScreen> {
     );
 
     await _controller!.initialize();
-    await _controller!.setFlashMode(FlashMode.off); // default off
+    await _controller!.setFlashMode(FlashMode.off);
     if (mounted) setState(() => _isCameraReady = true);
   }
 

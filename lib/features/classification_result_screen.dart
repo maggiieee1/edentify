@@ -1,12 +1,10 @@
+// classification_result_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'not_relevant_screen.dart';
-
-// ✅ IMPORT YOUR HOME SCREEN HERE (Adjust path if needed)
-import 'package:edentify/screens/home_screen.dart';
 
 class ClassificationResultScreen extends StatefulWidget {
   final String imagePath;
@@ -47,10 +45,12 @@ class _ClassificationResultScreenState
     }
   }
 
+  /// 🧹 Normalize label (remove numeric prefix and trim)
   String _normalizeLabel(String rawLabel) {
     return rawLabel.replaceAll(RegExp(r'^\d+\s*'), '').trim();
   }
 
+  /// 🎨 Color based on severity
   Color _getSeverityColor(String severity) {
     switch (severity.toLowerCase()) {
       case 'normal':
@@ -66,6 +66,7 @@ class _ClassificationResultScreenState
     }
   }
 
+  /// 💡 Recommendations based on severity
   List<String> _getRecommendations(String severity) {
     switch (severity.toLowerCase()) {
       case 'normal':
@@ -97,6 +98,7 @@ class _ClassificationResultScreenState
     }
   }
 
+  /// 💾 Save scan result and upload image
   Future<void> _saveToDatabase() async {
     if (_isSaving) return;
     setState(() => _isSaving = true);
@@ -247,21 +249,10 @@ class _ClassificationResultScreenState
                 TextButton(
                   child: const Text('OK'),
                   onPressed: () {
-                    // ✅ Close Dialog
+                    // ✅ CLOSE DIALOG
                     Navigator.of(context).pop();
-
-                    // ✅ Navigate to Home Screen and clear history
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(
-                        builder:
-                            (context) => HomeScreen(
-                              userId:
-                                  widget
-                                      .userId, // Remove this line if Home() doesn't need ID
-                            ),
-                      ),
-                      (route) => false, // Clears the back stack
-                    );
+                    // ✅ CLOSE RESULT SCREEN (Go back to Camera/Home)
+                    Navigator.of(context).pop();
                   },
                 ),
               ],
@@ -270,6 +261,7 @@ class _ClassificationResultScreenState
         );
       }
     } catch (e) {
+      // Ensure loading dialog is closed if error occurs
       if (mounted) Navigator.of(context).pop();
 
       await showDialog(
@@ -296,7 +288,7 @@ class _ClassificationResultScreenState
   Widget build(BuildContext context) {
     final normalizedLabel = _normalizeLabel(widget.label);
     if (normalizedLabel.toLowerCase().contains('not relevant')) {
-      return const SizedBox.shrink();
+      return const SizedBox.shrink(); // Prevents build flash before redirect
     }
 
     final severityColor = _getSeverityColor(normalizedLabel);

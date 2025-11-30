@@ -68,7 +68,6 @@ class _ClassifyCameraState extends State<ClassifyCamera> {
     });
   }
 
-  /// 🔦 Toggle Flash
   void _toggleFlash() async {
     if (!_cameraController.value.isInitialized) return;
 
