@@ -90,7 +90,6 @@ class _TreatmentDetailScreenState extends State<TreatmentDetailScreen> {
         final data = snapshot.data!.docs.first.data() as Map<String, dynamic>;
         final note = data['doctor_note'] ?? 'No notes from the doctor.';
         final result = data['result'] ?? 'N/A';
-        final status = (data['status'] as String?)?.capitalize() ?? 'Unknown';
         final photoUrl = data['imageURL'] as String?;
 
         return _buildInfoCard(
@@ -118,7 +117,6 @@ class _TreatmentDetailScreenState extends State<TreatmentDetailScreen> {
                 ),
               ),
             _buildDetailRow("Classification:", result, isBold: true),
-            _buildDetailRow("Status:", status),
             const SizedBox(height: 12),
             const Text(
               "Doctor's Note:",
