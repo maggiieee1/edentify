@@ -500,15 +500,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Expanded(
             child: _buildTitled(
               "Emergency Contact",
-              user['emergencyContactName'] ?? 'N/A',
+              user['emergencyContact'] ?? 'N/A',
             ),
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: _buildTitled(
-              "Contact Number",
-              user['emergencyContactNumber'] ?? 'N/A',
-            ),
+            child: _buildTitled("Contact Number", user['phone'] ?? 'N/A'),
           ),
         ],
       ),

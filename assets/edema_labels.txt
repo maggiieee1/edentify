@@ -1,0 +1,5 @@
+Mild
+Moderate
+Normal
+Not Relevant
+Severe
