@@ -1,16 +1,3 @@
-# edentify
+# Edentify
 
-A system that detects and monitors edema severity in dialysis patients using image classification.
-
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+A mobile-based system for the detection and monitoring of peripheral edema in dialysis patients using image classification techniques. The system will focus on analyzing lower leg images captured via a smartphone camera. The proposed solution will include an on-device ML model optimized for mobile inference, which would allow real-time detection. Additionally, a secure data storage mechanism will be implemented to maintain patient history, facilitating continuous monitoring and trend analysis. By leveraging mobile computing and image classification, this research aims to enhance the accuracy and accessibility of edema detection, ultimately improving patient outcomes and reducing the burden on healthcare systems.
