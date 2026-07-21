@@ -1,6 +1,6 @@
 # edentify
 
-A new Flutter project.
+A system that detects and monitors edema severity in dialysis patients using image classification.
 
 ## Getting Started
 
